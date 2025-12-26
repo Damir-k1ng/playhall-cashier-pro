@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Wallet, Coffee } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
+import { CLUB_NAME } from '@/lib/constants';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,12 +52,9 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales }: 
             <div className="absolute inset-0 rounded-xl bg-primary/20 blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
           </div>
           <div className="hidden sm:block">
-            <h1 className="font-gaming font-bold text-lg text-primary tracking-wide text-glow-cyan">
-              SVOY
+            <h1 className="font-bold text-base text-foreground tracking-wide">
+              {CLUB_NAME}
             </h1>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest -mt-0.5">
-              PlayStation club
-            </p>
           </div>
         </button>
 

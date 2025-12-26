@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Delete, Loader2 } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
+import { CLUB_NAME } from '@/lib/constants';
 
 export function PinLogin() {
   const { login } = useAuth();
@@ -14,6 +15,11 @@ export function PinLogin() {
     if (pin.length < 4) {
       setPin(prev => prev + digit);
       setError('');
+      
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(10);
+      }
     }
   };
 
@@ -40,6 +46,11 @@ export function PinLogin() {
     if (!result.success) {
       setError(result.error || 'Ошибка входа');
       setPin('');
+      
+      // Error haptic
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
     }
   };
 
@@ -54,93 +65,98 @@ export function PinLogin() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      {/* Logo and club name */}
-      <div className="mb-12 text-center">
-        <div className="relative">
-          <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center glow-cyan">
-            <DualSenseIcon size={56} className="text-primary-foreground" />
+      {/* Background effects */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.05)_0%,transparent_50%)] pointer-events-none" />
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(155_100%_45%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
+      
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Logo and club name */}
+        <div className="mb-12 text-center">
+          <div className="relative">
+            <div className="w-28 h-28 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center glow-cyan-strong">
+              <DualSenseIcon size={64} className="text-primary-foreground" />
+            </div>
+            {/* Glow effect */}
+            <div className="absolute inset-0 w-28 h-28 mx-auto rounded-2xl bg-primary/40 blur-3xl" />
           </div>
-          {/* Glow effect */}
-          <div className="absolute inset-0 w-24 h-24 mx-auto rounded-2xl bg-primary/30 blur-2xl" />
+          <h1 className="font-gaming font-bold text-4xl text-foreground tracking-wide mb-2">
+            {CLUB_NAME}
+          </h1>
+          <p className="text-muted-foreground mt-8 text-lg">Введите PIN для входа</p>
         </div>
-        <h1 className="font-gaming font-bold text-3xl text-primary tracking-wide text-glow-cyan">
-          SVOY
-        </h1>
-        <p className="text-sm text-muted-foreground uppercase tracking-widest mt-1">
-          PlayStation club
-        </p>
-        <p className="text-muted-foreground mt-6">Введите PIN для входа</p>
-      </div>
 
-      {/* PIN display */}
-      <div className="flex gap-3 mb-8">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`w-4 h-4 rounded-full transition-all ${
-              i < pin.length ? 'bg-primary scale-110' : 'bg-muted'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Error message */}
-      {error && (
-        <p className="text-destructive text-sm mb-4 animate-in fade-in">{error}</p>
-      )}
-
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex items-center gap-2 mb-4 text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Вход...</span>
+        {/* PIN display */}
+        <div className="flex gap-4 mb-8">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={`w-5 h-5 rounded-full transition-all duration-200 ${
+                i < pin.length 
+                  ? 'bg-primary scale-125 shadow-[0_0_15px_hsl(185_100%_50%_/_0.8)]' 
+                  : 'bg-muted/50 border border-border'
+              }`}
+            />
+          ))}
         </div>
-      )}
 
-      {/* Keypad */}
-      <div className="grid grid-cols-3 gap-3 max-w-[280px]">
-        {digits.map((digit, i) => {
-          if (digit === '') {
-            return <div key={i} />;
-          }
-          if (digit === 'del') {
+        {/* Error message */}
+        {error && (
+          <p className="text-destructive text-sm mb-4 animate-in fade-in font-medium">{error}</p>
+        )}
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span>Вход...</span>
+          </div>
+        )}
+
+        {/* Keypad */}
+        <div className="grid grid-cols-3 gap-4 max-w-[320px]">
+          {digits.map((digit, i) => {
+            if (digit === '') {
+              return <div key={i} />;
+            }
+            if (digit === 'del') {
+              return (
+                <Button
+                  key={i}
+                  variant="ghost"
+                  size="lg"
+                  className="h-20 w-24 text-xl rounded-2xl hover:bg-muted/50 transition-all duration-200 active:scale-95"
+                  onClick={handleDelete}
+                  disabled={isLoading || pin.length === 0}
+                >
+                  <Delete className="w-7 h-7" />
+                </Button>
+              );
+            }
             return (
               <Button
                 key={i}
-                variant="ghost"
+                variant="secondary"
                 size="lg"
-                className="h-16 w-20 text-xl rounded-2xl"
-                onClick={handleDelete}
-                disabled={isLoading || pin.length === 0}
+                className="h-20 w-24 text-3xl font-medium rounded-2xl hover:bg-accent hover:border-primary/30 border border-transparent transition-all duration-200 active:scale-95"
+                onClick={() => handleDigit(digit)}
+                disabled={isLoading}
               >
-                <Delete className="w-6 h-6" />
+                {digit}
               </Button>
             );
-          }
-          return (
-            <Button
-              key={i}
-              variant="secondary"
-              size="lg"
-              className="h-16 w-20 text-2xl font-medium rounded-2xl hover:bg-accent"
-              onClick={() => handleDigit(digit)}
-              disabled={isLoading}
-            >
-              {digit}
-            </Button>
-          );
-        })}
-      </div>
+          })}
+        </div>
 
-      {/* Clear button */}
-      <Button
-        variant="ghost"
-        className="mt-6 text-muted-foreground"
-        onClick={handleClear}
-        disabled={isLoading || pin.length === 0}
-      >
-        Очистить
-      </Button>
+        {/* Clear button */}
+        <Button
+          variant="ghost"
+          className="mt-8 text-muted-foreground hover:text-foreground"
+          onClick={handleClear}
+          disabled={isLoading || pin.length === 0}
+        >
+          Очистить
+        </Button>
+      </div>
     </div>
   );
 }

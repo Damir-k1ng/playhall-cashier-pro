@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStations } from '@/hooks/useStations';
 import { useDrinks } from '@/hooks/useDrinks';
 import { Button } from '@/components/ui/button';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
-import { ArrowLeft, Gamepad2, Coffee, Plus, Square } from 'lucide-react';
+import { ArrowLeft, Play, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
+import { CONTROLLER_RATE, CLUB_NAME, PACKAGE_WARNING_MINUTES } from '@/lib/constants';
+import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -19,6 +20,7 @@ export function StationScreen() {
   const [remaining, setRemaining] = useState(0);
   const [controllerSeconds, setControllerSeconds] = useState<Record<string, number>>({});
   const [showDrinks, setShowDrinks] = useState(false);
+  const warningPlayedRef = useRef(false);
 
   const station = stations.find(s => s.id === stationId);
   const isActive = !!station?.activeSession;
@@ -28,12 +30,25 @@ export function StationScreen() {
   const hasDrinks = sessionDrinks.length > 0;
 
   useEffect(() => {
-    if (!station?.activeSession) return;
+    if (!station?.activeSession) {
+      warningPlayedRef.current = false;
+      return;
+    }
 
     const updateTime = () => {
       setElapsedSeconds(getElapsedSeconds(station.activeSession!.started_at));
       if (isPackage) {
-        setRemaining(getPackageRemainingMinutes(station.activeSession!.started_at));
+        const rem = getPackageRemainingMinutes(station.activeSession!.started_at);
+        setRemaining(rem);
+        
+        // Play warning sound once at 5 minutes
+        if (rem <= PACKAGE_WARNING_MINUTES && rem > 0 && !warningPlayedRef.current) {
+          playWarningSound();
+          warningPlayedRef.current = true;
+          toast.warning('⚠ Осталось 5 минут до окончания пакета', {
+            duration: 5000,
+          });
+        }
       }
       
       const times: Record<string, number> = {};
@@ -71,7 +86,7 @@ export function StationScreen() {
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success('Джойстик добавлен');
+      toast.success('🎮 Джойстик добавлен');
     }
   };
 
@@ -86,14 +101,14 @@ export function StationScreen() {
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success(`Джойстик возвращён — ${formatCurrency(cost)}`);
+      toast.success(`🎮 Джойстик возвращён — ${formatCurrency(cost)}`);
     }
   };
 
   const handleAddDrink = async (drinkId: string, price: number) => {
     if (!station.activeSession) return;
     await addDrinkToSession(station.activeSession.id, drinkId, 1, price);
-    toast.success('Напиток добавлен');
+    toast.success('🥤 Напиток добавлен');
     setShowDrinks(false);
   };
 
@@ -103,7 +118,7 @@ export function StationScreen() {
   };
 
   const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  const isWarning = isPackage && remaining <= 5 && remaining > 0;
+  const isWarning = isPackage && remaining <= PACKAGE_WARNING_MINUTES && remaining > 0;
   const isOvertime = isPackage && remaining <= 0 && elapsedMinutes >= 180;
 
   const getControllerCost = (seconds: number) => {
@@ -114,11 +129,15 @@ export function StationScreen() {
   const getTimerColor = () => {
     if (isWarning) return 'text-warning text-glow-gold animate-pulse-glow';
     if (isOvertime) return 'text-destructive animate-pulse';
+    if (isPackage) return 'text-success text-glow-emerald';
     return 'text-primary text-glow-cyan';
   };
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Background effects */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
+      
       {/* Header */}
       <header className="glass-card border-b border-primary/10 px-6 py-4">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
@@ -132,10 +151,10 @@ export function StationScreen() {
             Назад
           </Button>
           
-          <span className="text-xs text-muted-foreground tracking-wider">{CLUB_NAME}</span>
+          <span className="text-xs text-muted-foreground tracking-wider font-medium">{CLUB_NAME}</span>
           
           <span className={cn(
-            'text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-widest',
+            'text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest',
             station.zone === 'vip' 
               ? 'bg-vip/15 text-vip border border-vip/30' 
               : 'bg-primary/15 text-primary border border-primary/30'
@@ -155,9 +174,9 @@ export function StationScreen() {
                 'font-bold uppercase tracking-wider',
                 isWarning && 'text-warning',
                 isOvertime && 'text-destructive',
-                !isWarning && !isOvertime && 'text-primary'
+                !isWarning && !isOvertime && (isPackage ? 'text-success' : 'text-primary')
               )}>
-                {isOvertime ? 'Переигрывает' : isWarning ? 'Завершается' : 'Активна'}
+                {isOvertime ? 'Переигрывает' : isWarning ? '⚠ Осталось 5 минут' : 'Активна'}
               </span>
               <span className="text-muted-foreground/30">•</span>
               <span>{isPackage ? 'Пакет 2+1' : 'Почасовая'}</span>
@@ -176,13 +195,14 @@ export function StationScreen() {
               <Button
                 size="lg"
                 className={cn(
-                  'h-36 flex-col gap-3 text-xl rounded-2xl',
+                  'h-40 flex-col gap-4 text-xl rounded-2xl',
                   'bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/30',
                   'hover:border-primary hover:shadow-glow-md transition-all duration-300'
                 )}
                 variant="ghost"
                 onClick={() => handleStartSession('hourly')}
               >
+                <Play className="w-10 h-10 text-primary" />
                 <span className="font-bold text-primary">Почасовая</span>
                 <span className="text-base text-muted-foreground">{formatCurrency(station.hourly_rate)}/час</span>
               </Button>
@@ -190,13 +210,14 @@ export function StationScreen() {
               <Button
                 size="lg"
                 className={cn(
-                  'h-36 flex-col gap-3 text-xl rounded-2xl',
+                  'h-40 flex-col gap-4 text-xl rounded-2xl',
                   'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
                   'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
                 )}
                 variant="ghost"
                 onClick={() => handleStartSession('package')}
               >
+                <Play className="w-10 h-10 text-success" />
                 <span className="font-bold text-success">Пакет 2+1</span>
                 <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
               </Button>
@@ -207,13 +228,13 @@ export function StationScreen() {
           <div className="space-y-8">
             {/* Timer - DOMINANT Element */}
             <div className={cn(
-              'text-center py-16 rounded-3xl glass-card border',
-              isWarning && 'border-warning/30 shadow-glow-gold',
-              isOvertime && 'border-destructive/30 glow-destructive',
-              !isWarning && !isOvertime && 'border-primary/20 shadow-glow-sm'
+              'text-center py-16 rounded-3xl glass-card border-2',
+              isWarning && 'border-warning/50 shadow-glow-gold',
+              isOvertime && 'border-destructive/50 glow-destructive',
+              !isWarning && !isOvertime && (isPackage ? 'border-success/30 shadow-glow-emerald' : 'border-primary/30 shadow-glow-md')
             )}>
               <div className={cn(
-                'font-mono font-bold tracking-tight',
+                'font-gaming font-bold tracking-tight',
                 'text-7xl sm:text-8xl lg:text-9xl',
                 getTimerColor()
               )}>
@@ -227,7 +248,7 @@ export function StationScreen() {
                   !isWarning && !isOvertime && 'text-muted-foreground'
                 )}>
                   {isOvertime 
-                    ? 'Пакет завершён — открытое время'
+                    ? 'Пакет закончился — открытое время'
                     : `Осталось: ${formatDuration(remaining)}`
                   }
                 </div>
@@ -239,17 +260,16 @@ export function StationScreen() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <Gamepad2 className="w-5 h-5 text-primary" />
+                    <DualSenseIcon size={20} className="text-primary" />
                   </div>
                   Дополнительные джойстики
                 </h2>
                 <Button 
                   size="lg" 
                   onClick={handleAddController} 
-                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all"
+                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold"
                 >
-                  <Plus className="w-5 h-5" />
-                  Взяли
+                  🎮 ВЗЯЛИ
                 </Button>
               </div>
               
@@ -276,11 +296,10 @@ export function StationScreen() {
                         </div>
                         <Button 
                           size="lg"
-                          variant="outline"
                           onClick={() => handleReturnController(controller.id)}
-                          className="rounded-xl border-success/30 text-success hover:bg-success/10 hover:border-success"
+                          className="rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold"
                         >
-                          Вернули
+                          🎮 ВЕРНУЛИ
                         </Button>
                       </div>
                     );
@@ -293,18 +312,17 @@ export function StationScreen() {
             <section className="glass-card rounded-2xl border border-success/20 p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
-                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
-                    <Coffee className="w-5 h-5 text-success" />
+                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-xl">
+                    🥤
                   </div>
                   Напитки
                 </h2>
                 <Button 
                   size="lg" 
                   onClick={() => setShowDrinks(!showDrinks)} 
-                  className="gap-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all"
+                  className="gap-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all font-bold"
                 >
-                  <Plus className="w-5 h-5" />
-                  Добавить
+                  🥤 Напитки
                 </Button>
               </div>
               
@@ -334,7 +352,7 @@ export function StationScreen() {
                       key={index}
                       className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"
                     >
-                      <span className="font-medium">{drink.quantity}x напиток</span>
+                      <span className="font-medium">{drink.quantity}x {drink.drink?.name || 'напиток'}</span>
                       <span className="text-success font-semibold">{formatCurrency(drink.total_price)}</span>
                     </div>
                   ))}
@@ -348,7 +366,7 @@ export function StationScreen() {
               className={cn(
                 'w-full h-20 text-xl font-bold rounded-2xl',
                 'bg-gradient-to-r from-destructive/80 to-destructive border-2 border-destructive',
-                'hover:shadow-lg hover:scale-[1.01] transition-all duration-200'
+                'hover:shadow-lg hover:scale-[1.01] transition-all duration-200 btn-press'
               )}
               onClick={handleEndSession}
             >
@@ -360,4 +378,22 @@ export function StationScreen() {
       </main>
     </div>
   );
+}
+
+function playWarningSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 440; // A4
+    gainNode.gain.value = 0.15;
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.5);
+  } catch (err) {
+    // Audio not supported
+  }
 }
