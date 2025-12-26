@@ -5,6 +5,7 @@ import { CLUB_NAME } from '@/lib/constants';
 import { formatCurrency, formatTime } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Banknote, Smartphone, Gamepad2, Coffee, Clock } from 'lucide-react';
+import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 
 interface CashDeskModalProps {
   open: boolean;
@@ -18,18 +19,20 @@ export function CashDeskModal({ open, onClose }: CashDeskModalProps) {
 
   const startTime = new Date(shift.started_at);
   const grandTotal = (shift.total_cash || 0) + (shift.total_kaspi || 0);
-  const categoryTotal = (shift.total_games || 0) + (shift.total_controllers || 0) + (shift.total_drinks || 0);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md glass-card border-primary/20">
         <DialogHeader>
-          <div className="text-xs text-muted-foreground">{CLUB_NAME}</div>
-          <DialogTitle>Касса смены</DialogTitle>
+          <div className="flex items-center gap-2 mb-2">
+            <DualSenseIcon size={16} className="text-primary" />
+            <span className="text-xs text-muted-foreground">{CLUB_NAME}</span>
+          </div>
+          <DialogTitle className="text-xl">Касса смены</DialogTitle>
         </DialogHeader>
 
         {/* Shift Info */}
-        <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
+        <div className="bg-muted/30 rounded-xl p-4 space-y-2 border border-border/50">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Кассир</span>
             <span className="font-medium">{cashier.name}</span>
@@ -40,11 +43,11 @@ export function CashDeskModal({ open, onClose }: CashDeskModalProps) {
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/50" />
 
         {/* By Category */}
         <div className="space-y-3">
-          <h3 className="font-semibold text-muted-foreground text-xs">ПО КАТЕГОРИЯМ</h3>
+          <h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">По категориям</h3>
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -71,35 +74,35 @@ export function CashDeskModal({ open, onClose }: CashDeskModalProps) {
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/50" />
 
         {/* By Payment Method */}
         <div className="space-y-3">
-          <h3 className="font-semibold text-muted-foreground text-xs">ПО ТИПУ ОПЛАТЫ</h3>
+          <h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">По типу оплаты</h3>
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Banknote className="w-4 h-4 text-cash" />
-              <span>Наличные</span>
+              <span>💵 Наличные</span>
             </div>
-            <span className="font-semibold text-lg">{formatCurrency(shift.total_cash || 0)}</span>
+            <span className="font-semibold text-lg text-cash">{formatCurrency(shift.total_cash || 0)}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Smartphone className="w-4 h-4 text-kaspi" />
-              <span>Kaspi</span>
+              <span>📱 Kaspi</span>
             </div>
-            <span className="font-semibold text-lg">{formatCurrency(shift.total_kaspi || 0)}</span>
+            <span className="font-semibold text-lg text-kaspi">{formatCurrency(shift.total_kaspi || 0)}</span>
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/50" />
 
         {/* Grand Total */}
         <div className="flex items-center justify-between py-2">
           <span className="font-semibold text-lg">ИТОГО</span>
-          <span className="text-3xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
+          <span className="text-4xl font-bold text-primary text-glow-cyan">{formatCurrency(grandTotal)}</span>
         </div>
       </DialogContent>
     </Dialog>
