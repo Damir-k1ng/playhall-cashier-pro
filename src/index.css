@@ -1,0 +1,318 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PlayStation club "SVOY" — Premium Futuristic Dark UI
+   Neon Cyan & Emerald Green accents on ultra-dark background
+   Glassy cards, intense glows, gaming control panel aesthetic
+*/
+
+@layer base {
+  :root {
+    /* Ultra dark background - deep space black */
+    --background: 220 25% 4%;
+    --foreground: 0 0% 98%;
+
+    /* Glassy dark cards */
+    --card: 220 25% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 220 25% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Neon Cyan primary - PlayStation blue-ish */
+    --primary: 185 100% 50%;
+    --primary-foreground: 220 25% 4%;
+
+    /* Neon Emerald Green secondary */
+    --secondary: 160 100% 45%;
+    --secondary-foreground: 220 25% 4%;
+
+    /* Dark muted */
+    --muted: 220 20% 12%;
+    --muted-foreground: 220 10% 50%;
+
+    /* Accent - darker cyan for subtle backgrounds */
+    --accent: 185 50% 15%;
+    --accent-foreground: 185 100% 90%;
+
+    /* Destructive - neon red/coral */
+    --destructive: 0 85% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 15%;
+    --input: 220 20% 12%;
+    --ring: 185 100% 50%;
+
+    --radius: 1rem;
+
+    /* VIP zone - Royal Gold with glow */
+    --vip: 42 100% 55%;
+    --vip-foreground: 220 25% 4%;
+
+    /* Hall zone - Cyan */
+    --hall: 185 100% 50%;
+    --hall-foreground: 220 25% 4%;
+
+    /* Success - Bright Emerald */
+    --success: 155 100% 45%;
+    --success-foreground: 220 25% 4%;
+
+    /* Warning - Amber/Orange */
+    --warning: 35 100% 55%;
+    --warning-foreground: 220 25% 4%;
+
+    /* Reserved - Blue/Purple */
+    --reserved: 250 85% 60%;
+    --reserved-foreground: 0 0% 100%;
+    
+    /* In-Game - Purple */
+    --ingame: 270 85% 55%;
+    --ingame-foreground: 0 0% 100%;
+
+    /* Cash - Emerald */
+    --cash: 155 100% 45%;
+    /* Kaspi - Hot Pink */
+    --kaspi: 330 100% 60%;
+
+    /* Glow colors */
+    --glow-cyan: 185 100% 50%;
+    --glow-emerald: 155 100% 45%;
+    --glow-gold: 42 100% 55%;
+    --glow-purple: 270 85% 55%;
+
+    --sidebar-background: 220 25% 6%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 185 100% 50%;
+    --sidebar-primary-foreground: 220 25% 4%;
+    --sidebar-accent: 185 30% 12%;
+    --sidebar-accent-foreground: 185 100% 90%;
+    --sidebar-border: 220 20% 12%;
+    --sidebar-ring: 185 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Orbitron for timers and numbers */
+  .font-gaming {
+    font-family: 'Orbitron', 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Intense Glow effects */
+  .glow-cyan {
+    box-shadow: 
+      0 0 20px hsl(185 100% 50% / 0.4),
+      0 0 40px hsl(185 100% 50% / 0.2),
+      0 0 80px hsl(185 100% 50% / 0.1);
+  }
+  
+  .glow-cyan-strong {
+    box-shadow: 
+      0 0 30px hsl(185 100% 50% / 0.6),
+      0 0 60px hsl(185 100% 50% / 0.3),
+      0 0 100px hsl(185 100% 50% / 0.15);
+  }
+  
+  .glow-emerald {
+    box-shadow: 
+      0 0 20px hsl(155 100% 45% / 0.4),
+      0 0 40px hsl(155 100% 45% / 0.2),
+      0 0 80px hsl(155 100% 45% / 0.1);
+  }
+  
+  .glow-emerald-strong {
+    box-shadow: 
+      0 0 30px hsl(155 100% 45% / 0.6),
+      0 0 60px hsl(155 100% 45% / 0.3);
+  }
+  
+  .glow-gold {
+    box-shadow: 
+      0 0 20px hsl(42 100% 55% / 0.4),
+      0 0 40px hsl(42 100% 55% / 0.2),
+      0 0 80px hsl(42 100% 55% / 0.1);
+  }
+  
+  .glow-purple {
+    box-shadow: 
+      0 0 20px hsl(270 85% 55% / 0.4),
+      0 0 40px hsl(270 85% 55% / 0.2);
+  }
+  
+  .glow-warning {
+    box-shadow: 
+      0 0 20px hsl(35 100% 55% / 0.5),
+      0 0 40px hsl(35 100% 55% / 0.25);
+  }
+  
+  .glow-destructive {
+    box-shadow: 
+      0 0 20px hsl(0 85% 55% / 0.5),
+      0 0 40px hsl(0 85% 55% / 0.25);
+  }
+
+  /* Text glow */
+  .text-glow-cyan {
+    text-shadow: 
+      0 0 10px hsl(185 100% 50% / 0.9),
+      0 0 30px hsl(185 100% 50% / 0.5),
+      0 0 60px hsl(185 100% 50% / 0.3);
+  }
+  
+  .text-glow-emerald {
+    text-shadow: 
+      0 0 10px hsl(155 100% 45% / 0.9),
+      0 0 30px hsl(155 100% 45% / 0.5),
+      0 0 60px hsl(155 100% 45% / 0.3);
+  }
+  
+  .text-glow-gold {
+    text-shadow: 
+      0 0 10px hsl(42 100% 55% / 0.9),
+      0 0 30px hsl(42 100% 55% / 0.5);
+  }
+  
+  .text-glow-purple {
+    text-shadow: 
+      0 0 10px hsl(270 85% 55% / 0.9),
+      0 0 30px hsl(270 85% 55% / 0.5);
+  }
+
+  /* Premium Glassy card effect */
+  .glass-card {
+    background: linear-gradient(
+      145deg,
+      hsl(220 25% 10% / 0.95) 0%,
+      hsl(220 25% 6% / 0.98) 100%
+    );
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(185 40% 20% / 0.25);
+    box-shadow: 
+      inset 0 1px 0 0 hsl(185 50% 50% / 0.05),
+      0 4px 24px 0 hsl(0 0% 0% / 0.4);
+  }
+  
+  .glass-card-hover:hover {
+    background: linear-gradient(
+      145deg,
+      hsl(185 30% 12% / 0.5) 0%,
+      hsl(220 25% 8% / 0.98) 100%
+    );
+    border-color: hsl(185 100% 50% / 0.35);
+    box-shadow: 
+      inset 0 1px 0 0 hsl(185 50% 50% / 0.1),
+      0 8px 32px 0 hsl(0 0% 0% / 0.5),
+      0 0 40px 0 hsl(185 100% 50% / 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Gradient borders */
+  .border-gradient-cyan {
+    border: 1px solid transparent;
+    background: 
+      linear-gradient(hsl(220 25% 8%), hsl(220 25% 8%)) padding-box,
+      linear-gradient(135deg, hsl(185 100% 50% / 0.6), hsl(155 100% 45% / 0.4)) border-box;
+  }
+
+  /* Animations */
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+  
+  .animate-timer-pulse {
+    animation: timer-pulse 60s ease-in-out infinite;
+  }
+  
+  /* Card lift animation */
+  .card-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .card-lift:hover {
+    transform: translateY(-4px) scale(1.01);
+  }
+  
+  /* Button press effect */
+  .btn-press:active {
+    transform: scale(0.97);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.85;
+    filter: brightness(1.25);
+  }
+}
+
+@keyframes timer-pulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+/* Success animation */
+@keyframes success-glow {
+  0% {
+    box-shadow: 0 0 0 0 hsl(155 100% 45% / 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 20px hsl(155 100% 45% / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(155 100% 45% / 0);
+  }
+}
+
+.animate-success-glow {
+  animation: success-glow 0.6s ease-out;
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:block {
+    display: block !important;
+  }
+  
+  .print\:bg-white {
+    background: white !important;
+  }
+  
+  .print\:text-black {
+    color: black !important;
+  }
+}

@@ -1,0 +1,363 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useStations } from '@/hooks/useStations';
+import { useDrinks } from '@/hooks/useDrinks';
+import { Button } from '@/components/ui/button';
+import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
+import { ArrowLeft, Gamepad2, Coffee, Plus, Square } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
+
+export function StationScreen() {
+  const { stationId } = useParams<{ stationId: string }>();
+  const navigate = useNavigate();
+  const { stations, startSession, addController, returnController } = useStations();
+  const { drinks, addDrinkToSession } = useDrinks();
+  
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  const [controllerSeconds, setControllerSeconds] = useState<Record<string, number>>({});
+  const [showDrinks, setShowDrinks] = useState(false);
+
+  const station = stations.find(s => s.id === stationId);
+  const isActive = !!station?.activeSession;
+  const isPackage = station?.activeSession?.tariff_type === 'package';
+  const activeControllers = station?.controllers?.filter(c => !c.returned_at) || [];
+  const sessionDrinks = station?.drinks || [];
+  const hasDrinks = sessionDrinks.length > 0;
+
+  useEffect(() => {
+    if (!station?.activeSession) return;
+
+    const updateTime = () => {
+      setElapsedSeconds(getElapsedSeconds(station.activeSession!.started_at));
+      if (isPackage) {
+        setRemaining(getPackageRemainingMinutes(station.activeSession!.started_at));
+      }
+      
+      const times: Record<string, number> = {};
+      activeControllers.forEach(c => {
+        times[c.id] = getElapsedSeconds(c.taken_at);
+      });
+      setControllerSeconds(times);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [station?.activeSession, isPackage, activeControllers.length]);
+
+  if (!station) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Станция не найдена</p>
+      </div>
+    );
+  }
+
+  const handleStartSession = async (tariffType: 'hourly' | 'package') => {
+    const result = await startSession(station.id, tariffType);
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success('Сессия запущена');
+    }
+  };
+
+  const handleAddController = async () => {
+    if (!station.activeSession) return;
+    const result = await addController(station.activeSession.id);
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success('Джойстик добавлен');
+    }
+  };
+
+  const handleReturnController = async (controllerId: string) => {
+    const controller = activeControllers.find(c => c.id === controllerId);
+    if (!controller) return;
+    
+    const minutes = getElapsedMinutes(controller.taken_at);
+    const cost = Math.ceil((minutes / 60) * CONTROLLER_RATE);
+    
+    const result = await returnController(controllerId, cost);
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success(`Джойстик возвращён — ${formatCurrency(cost)}`);
+    }
+  };
+
+  const handleAddDrink = async (drinkId: string, price: number) => {
+    if (!station.activeSession) return;
+    await addDrinkToSession(station.activeSession.id, drinkId, 1, price);
+    toast.success('Напиток добавлен');
+    setShowDrinks(false);
+  };
+
+  const handleEndSession = () => {
+    if (!station.activeSession) return;
+    navigate(`/precheck/${station.activeSession.id}`);
+  };
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  const isWarning = isPackage && remaining <= 5 && remaining > 0;
+  const isOvertime = isPackage && remaining <= 0 && elapsedMinutes >= 180;
+
+  const getControllerCost = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    return Math.ceil((minutes / 60) * CONTROLLER_RATE);
+  };
+
+  const getTimerColor = () => {
+    if (isWarning) return 'text-warning text-glow-gold animate-pulse-glow';
+    if (isOvertime) return 'text-destructive animate-pulse';
+    return 'text-primary text-glow-cyan';
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="glass-card border-b border-primary/10 px-6 py-4">
+        <div className="flex items-center justify-between max-w-5xl mx-auto">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate('/')}
+            className="text-muted-foreground hover:text-foreground rounded-xl border border-transparent hover:border-primary/20 -ml-2"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Назад
+          </Button>
+          
+          <span className="text-xs text-muted-foreground tracking-wider">{CLUB_NAME}</span>
+          
+          <span className={cn(
+            'text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-widest',
+            station.zone === 'vip' 
+              ? 'bg-vip/15 text-vip border border-vip/30' 
+              : 'bg-primary/15 text-primary border border-primary/30'
+          )}>
+            {station.zone === 'vip' ? 'VIP' : 'ЗАЛ'}
+          </span>
+        </div>
+      </header>
+
+      <main className="p-6 max-w-5xl mx-auto">
+        {/* Station Header */}
+        <div className="mb-8">
+          <h1 className="text-5xl font-bold text-foreground mb-2">{station.name}</h1>
+          {isActive && (
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className={cn(
+                'font-bold uppercase tracking-wider',
+                isWarning && 'text-warning',
+                isOvertime && 'text-destructive',
+                !isWarning && !isOvertime && 'text-primary'
+              )}>
+                {isOvertime ? 'Переигрывает' : isWarning ? 'Завершается' : 'Активна'}
+              </span>
+              <span className="text-muted-foreground/30">•</span>
+              <span>{isPackage ? 'Пакет 2+1' : 'Почасовая'}</span>
+              <span className="text-muted-foreground/30">•</span>
+              <span>с {new Date(station.activeSession!.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
+        </div>
+
+        {!isActive ? (
+          /* Start Session */
+          <div className="space-y-8">
+            <p className="text-muted-foreground text-lg">Выберите тариф для начала сессии</p>
+            
+            <div className="grid grid-cols-2 gap-6 max-w-2xl">
+              <Button
+                size="lg"
+                className={cn(
+                  'h-36 flex-col gap-3 text-xl rounded-2xl',
+                  'bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/30',
+                  'hover:border-primary hover:shadow-glow-md transition-all duration-300'
+                )}
+                variant="ghost"
+                onClick={() => handleStartSession('hourly')}
+              >
+                <span className="font-bold text-primary">Почасовая</span>
+                <span className="text-base text-muted-foreground">{formatCurrency(station.hourly_rate)}/час</span>
+              </Button>
+              
+              <Button
+                size="lg"
+                className={cn(
+                  'h-36 flex-col gap-3 text-xl rounded-2xl',
+                  'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
+                  'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
+                )}
+                variant="ghost"
+                onClick={() => handleStartSession('package')}
+              >
+                <span className="font-bold text-success">Пакет 2+1</span>
+                <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* Active Session */
+          <div className="space-y-8">
+            {/* Timer - DOMINANT Element */}
+            <div className={cn(
+              'text-center py-16 rounded-3xl glass-card border',
+              isWarning && 'border-warning/30 shadow-glow-gold',
+              isOvertime && 'border-destructive/30 glow-destructive',
+              !isWarning && !isOvertime && 'border-primary/20 shadow-glow-sm'
+            )}>
+              <div className={cn(
+                'font-mono font-bold tracking-tight',
+                'text-7xl sm:text-8xl lg:text-9xl',
+                getTimerColor()
+              )}>
+                {formatDurationHMS(elapsedSeconds)}
+              </div>
+              {isPackage && (
+                <div className={cn(
+                  'text-xl mt-6 font-medium',
+                  isWarning && 'text-warning',
+                  isOvertime && 'text-destructive',
+                  !isWarning && !isOvertime && 'text-muted-foreground'
+                )}>
+                  {isOvertime 
+                    ? 'Пакет завершён — открытое время'
+                    : `Осталось: ${formatDuration(remaining)}`
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Controllers Section */}
+            <section className="glass-card rounded-2xl border border-primary/20 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Gamepad2 className="w-5 h-5 text-primary" />
+                  </div>
+                  Дополнительные джойстики
+                </h2>
+                <Button 
+                  size="lg" 
+                  onClick={handleAddController} 
+                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  Взяли
+                </Button>
+              </div>
+              
+              {activeControllers.length === 0 ? (
+                <p className="text-muted-foreground/60 py-4">Нет активных джойстиков</p>
+              ) : (
+                <div className="space-y-3">
+                  {activeControllers.map((controller, index) => {
+                    const seconds = controllerSeconds[controller.id] || 0;
+                    const cost = getControllerCost(seconds);
+                    return (
+                      <div 
+                        key={controller.id}
+                        className="flex items-center justify-between p-5 bg-muted/30 rounded-xl border border-border/50"
+                      >
+                        <div className="flex items-center gap-6">
+                          <span className="font-semibold text-lg">Джойстик #{index + 1}</span>
+                          <span className="font-mono text-2xl text-primary text-glow-cyan">
+                            {formatDurationHMS(seconds)}
+                          </span>
+                          <span className="text-muted-foreground text-lg">
+                            {formatCurrency(cost)}
+                          </span>
+                        </div>
+                        <Button 
+                          size="lg"
+                          variant="outline"
+                          onClick={() => handleReturnController(controller.id)}
+                          className="rounded-xl border-success/30 text-success hover:bg-success/10 hover:border-success"
+                        >
+                          Вернули
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Drinks Section */}
+            <section className="glass-card rounded-2xl border border-success/20 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
+                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center">
+                    <Coffee className="w-5 h-5 text-success" />
+                  </div>
+                  Напитки
+                </h2>
+                <Button 
+                  size="lg" 
+                  onClick={() => setShowDrinks(!showDrinks)} 
+                  className="gap-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  Добавить
+                </Button>
+              </div>
+              
+              {showDrinks && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 pb-6 border-b border-border/50">
+                  {drinks.map(drink => (
+                    <Button
+                      key={drink.id}
+                      variant="outline"
+                      size="lg"
+                      className="justify-between h-16 rounded-xl border-border/50 hover:border-success/50 hover:bg-success/5"
+                      onClick={() => handleAddDrink(drink.id, drink.price)}
+                    >
+                      <span className="font-medium">{drink.name}</span>
+                      <span className="text-success font-semibold">{formatCurrency(drink.price)}</span>
+                    </Button>
+                  ))}
+                </div>
+              )}
+              
+              {!hasDrinks ? (
+                <p className="text-muted-foreground/60 py-4">Напитки не заказаны</p>
+              ) : (
+                <div className="space-y-2">
+                  {sessionDrinks.map((drink, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"
+                    >
+                      <span className="font-medium">{drink.quantity}x напиток</span>
+                      <span className="text-success font-semibold">{formatCurrency(drink.total_price)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* End Session Button */}
+            <Button 
+              size="lg"
+              className={cn(
+                'w-full h-20 text-xl font-bold rounded-2xl',
+                'bg-gradient-to-r from-destructive/80 to-destructive border-2 border-destructive',
+                'hover:shadow-lg hover:scale-[1.01] transition-all duration-200'
+              )}
+              onClick={handleEndSession}
+            >
+              <Square className="w-6 h-6 mr-3" />
+              Завершить сессию
+            </Button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
