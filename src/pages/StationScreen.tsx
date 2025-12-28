@@ -21,6 +21,7 @@ export function StationScreen() {
   const [controllerSeconds, setControllerSeconds] = useState<Record<string, number>>({});
   const [showDrinks, setShowDrinks] = useState(false);
   const warningPlayedRef = useRef(false);
+  const endPlayedRef = useRef(false);
 
   const station = stations.find(s => s.id === stationId);
   const isActive = !!station?.activeSession;
@@ -32,6 +33,7 @@ export function StationScreen() {
   useEffect(() => {
     if (!station?.activeSession) {
       warningPlayedRef.current = false;
+      endPlayedRef.current = false;
       return;
     }
 
@@ -47,6 +49,15 @@ export function StationScreen() {
           warningPlayedRef.current = true;
           toast.warning('⚠ Осталось 5 минут до окончания пакета', {
             duration: 5000,
+          });
+        }
+        
+        // Play end sound when package expires
+        if (rem <= 0 && !endPlayedRef.current) {
+          playPackageEndSound();
+          endPlayedRef.current = true;
+          toast.error('🚨 Пакет закончился! Открытое время начислено.', {
+            duration: 8000,
           });
         }
       }
@@ -393,6 +404,36 @@ function playWarningSound() {
     gainNode.gain.value = 0.15;
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.5);
+  } catch (err) {
+    // Audio not supported
+  }
+}
+
+function playPackageEndSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0.25;
+    
+    // Play 3 ascending beeps
+    const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
+    frequencies.forEach((freq, i) => {
+      const osc = audioContext.createOscillator();
+      osc.connect(gainNode);
+      osc.frequency.value = freq;
+      osc.start(audioContext.currentTime + i * 0.2);
+      osc.stop(audioContext.currentTime + i * 0.2 + 0.15);
+    });
+    
+    // Final longer warning tone
+    setTimeout(() => {
+      const osc2 = audioContext.createOscillator();
+      osc2.connect(gainNode);
+      osc2.frequency.value = 880; // A5
+      osc2.start();
+      osc2.stop(audioContext.currentTime + 0.4);
+    }, 700);
   } catch (err) {
     // Audio not supported
   }
