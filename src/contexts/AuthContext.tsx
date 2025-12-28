@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import type { Cashier, Shift, AppRole } from '@/types/database';
 import { CASHIERS } from '@/lib/constants';
-
-// Storage keys
-const STORAGE_KEYS = {
-  CASHIER: 'svoy_cashier',
-  SHIFT: 'svoy_shift',
-} as const;
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -20,45 +15,9 @@ interface AuthContextType extends AuthState {
   login: (pin: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshShift: () => Promise<void>;
-  updateShiftTotals: (updates: Partial<Pick<Shift, 'total_cash' | 'total_kaspi' | 'total_games' | 'total_controllers' | 'total_drinks'>>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Helper functions for localStorage
-function getStoredCashier(): Cashier | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.CASHIER);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function getStoredShift(): Shift | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.SHIFT);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function storeCashier(cashier: Cashier | null) {
-  if (cashier) {
-    localStorage.setItem(STORAGE_KEYS.CASHIER, JSON.stringify(cashier));
-  } else {
-    localStorage.removeItem(STORAGE_KEYS.CASHIER);
-  }
-}
-
-function storeShift(shift: Shift | null) {
-  if (shift) {
-    localStorage.setItem(STORAGE_KEYS.SHIFT, JSON.stringify(shift));
-  } else {
-    localStorage.removeItem(STORAGE_KEYS.SHIFT);
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -69,30 +28,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: 'cashier',
   });
 
-  // Check for active shift on mount and restore session from localStorage
+  // Check for active shift on mount and restore session
   const checkActiveShift = useCallback(async () => {
     try {
-      const storedCashier = getStoredCashier();
-      const storedShift = getStoredShift();
+      // First check if we have a stored cashier ID in sessionStorage (survives page refresh but not browser close)
+      const storedCashierId = sessionStorage.getItem('svoy_cashier_id');
       
-      // If we have stored data and shift is active, restore session
-      if (storedCashier && storedShift && storedShift.is_active) {
+      // Try to find an active shift
+      const { data: activeShift, error } = await supabase
+        .from('shifts')
+        .select('*, cashiers(*)')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking active shift:', error);
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      if (activeShift) {
+        // There's an active shift - connect to it
+        const cashier = activeShift.cashiers as unknown as Cashier;
+        
         setState({
           isAuthenticated: true,
           isLoading: false,
-          cashier: storedCashier,
-          shift: storedShift,
+          cashier: {
+            id: cashier.id,
+            name: cashier.name,
+            pin: cashier.pin,
+            created_at: cashier.created_at,
+          },
+          shift: {
+            id: activeShift.id,
+            cashier_id: activeShift.cashier_id,
+            started_at: activeShift.started_at,
+            ended_at: activeShift.ended_at,
+            is_active: activeShift.is_active,
+            total_cash: activeShift.total_cash,
+            total_kaspi: activeShift.total_kaspi,
+            total_games: activeShift.total_games,
+            total_controllers: activeShift.total_controllers,
+            total_drinks: activeShift.total_drinks,
+          },
           role: 'cashier',
         });
+        
+        if (cashier) {
+          sessionStorage.setItem('svoy_cashier_id', cashier.id);
+        }
       } else {
-        // Clear any stale data
-        storeCashier(null);
-        storeShift(null);
+        // No active shift
+        sessionStorage.removeItem('svoy_cashier_id');
         setState(prev => ({ ...prev, isLoading: false }));
       }
-      
-      // TODO: When cloud backend is ready, check for active shifts there
-      // and sync with localStorage
     } catch (err) {
       console.error('Error in checkActiveShift:', err);
       setState(prev => ({ ...prev, isLoading: false }));
@@ -103,128 +93,179 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkActiveShift();
   }, [checkActiveShift]);
 
-  // Listen for localStorage changes from other tabs
+  // Set up real-time subscription for shift updates
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEYS.SHIFT && e.newValue) {
-        try {
-          const updatedShift = JSON.parse(e.newValue) as Shift;
+    if (!state.shift?.id) return;
+
+    const channel = supabase
+      .channel('shift-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'shifts',
+          filter: `id=eq.${state.shift.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
           setState(prev => ({
             ...prev,
-            shift: updatedShift,
+            shift: prev.shift ? {
+              ...prev.shift,
+              total_cash: updated.total_cash,
+              total_kaspi: updated.total_kaspi,
+              total_games: updated.total_games,
+              total_controllers: updated.total_controllers,
+              total_drinks: updated.total_drinks,
+              is_active: updated.is_active,
+              ended_at: updated.ended_at,
+            } : null,
           }));
-        } catch {
-          // Ignore parse errors
         }
-      }
-    };
+      )
+      .subscribe();
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [state.shift?.id]);
 
   const refreshShift = async () => {
-    const storedShift = getStoredShift();
-    if (storedShift) {
+    if (!state.shift?.id) return;
+    
+    const { data: shift } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('id', state.shift.id)
+      .single();
+    
+    if (shift) {
       setState(prev => ({
         ...prev,
-        shift: storedShift,
+        shift: {
+          id: shift.id,
+          cashier_id: shift.cashier_id,
+          started_at: shift.started_at,
+          ended_at: shift.ended_at,
+          is_active: shift.is_active,
+          total_cash: shift.total_cash,
+          total_kaspi: shift.total_kaspi,
+          total_games: shift.total_games,
+          total_controllers: shift.total_controllers,
+          total_drinks: shift.total_drinks,
+        },
       }));
     }
   };
 
-  const updateShiftTotals = (updates: Partial<Pick<Shift, 'total_cash' | 'total_kaspi' | 'total_games' | 'total_controllers' | 'total_drinks'>>) => {
-    setState(prev => {
-      if (!prev.shift) return prev;
-      
-      const updatedShift = {
-        ...prev.shift,
-        ...updates,
-      };
-      
-      // Persist to localStorage
-      storeShift(updatedShift);
-      
-      return {
-        ...prev,
-        shift: updatedShift,
-      };
-    });
-  };
-
   const login = async (pin: string): Promise<{ success: boolean; error?: string }> => {
-    // Find the cashier by PIN from constants
-    const cashierConfig = CASHIERS.find(c => c.pin === pin);
+    // First find the cashier by PIN from the database
+    const { data: cashierData, error: cashierError } = await supabase
+      .from('cashiers')
+      .select('*')
+      .eq('pin', pin)
+      .maybeSingle();
 
-    if (!cashierConfig) {
+    if (cashierError || !cashierData) {
       return { success: false, error: 'Неверный PIN-код' };
     }
 
     const cashier: Cashier = {
-      id: cashierConfig.id,
-      name: cashierConfig.name,
-      pin: cashierConfig.pin,
-      created_at: new Date().toISOString(),
+      id: cashierData.id,
+      name: cashierData.name,
+      pin: cashierData.pin,
+      created_at: cashierData.created_at,
     };
 
-    // Check if there's already an active shift in localStorage
-    const existingShift = getStoredShift();
+    // Check if there's already an active shift (from any cashier)
+    const { data: existingShift } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('is_active', true)
+      .maybeSingle();
 
-    if (existingShift && existingShift.is_active) {
+    if (existingShift) {
       // Connect to existing active shift
       setState({
         isAuthenticated: true,
         isLoading: false,
         cashier,
-        shift: existingShift,
+        shift: {
+          id: existingShift.id,
+          cashier_id: existingShift.cashier_id,
+          started_at: existingShift.started_at,
+          ended_at: existingShift.ended_at,
+          is_active: existingShift.is_active,
+          total_cash: existingShift.total_cash,
+          total_kaspi: existingShift.total_kaspi,
+          total_games: existingShift.total_games,
+          total_controllers: existingShift.total_controllers,
+          total_drinks: existingShift.total_drinks,
+        },
         role: 'cashier',
       });
       
-      storeCashier(cashier);
+      sessionStorage.setItem('svoy_cashier_id', cashier.id);
       return { success: true };
     }
 
     // Create new shift
-    const newShift: Shift = {
-      id: `shift-${Date.now()}`,
-      cashier_id: cashier.id,
-      started_at: new Date().toISOString(),
-      ended_at: null,
-      is_active: true,
-      total_cash: 0,
-      total_kaspi: 0,
-      total_games: 0,
-      total_controllers: 0,
-      total_drinks: 0,
-    };
+    const { data: newShift, error: shiftError } = await supabase
+      .from('shifts')
+      .insert({
+        cashier_id: cashier.id,
+        is_active: true,
+        total_cash: 0,
+        total_kaspi: 0,
+        total_games: 0,
+        total_controllers: 0,
+        total_drinks: 0,
+      })
+      .select()
+      .single();
+
+    if (shiftError || !newShift) {
+      console.error('Error creating shift:', shiftError);
+      return { success: false, error: 'Ошибка создания смены' };
+    }
 
     setState({
       isAuthenticated: true,
       isLoading: false,
       cashier,
-      shift: newShift,
+      shift: {
+        id: newShift.id,
+        cashier_id: newShift.cashier_id,
+        started_at: newShift.started_at,
+        ended_at: newShift.ended_at,
+        is_active: newShift.is_active,
+        total_cash: newShift.total_cash,
+        total_kaspi: newShift.total_kaspi,
+        total_games: newShift.total_games,
+        total_controllers: newShift.total_controllers,
+        total_drinks: newShift.total_drinks,
+      },
       role: 'cashier',
     });
 
-    storeCashier(cashier);
-    storeShift(newShift);
-    
+    sessionStorage.setItem('svoy_cashier_id', cashier.id);
     return { success: true };
   };
 
   const logout = async () => {
-    if (state.shift) {
+    if (state.shift?.id) {
       // End the shift
-      const endedShift: Shift = {
-        ...state.shift,
-        is_active: false,
-        ended_at: new Date().toISOString(),
-      };
-      storeShift(endedShift);
+      await supabase
+        .from('shifts')
+        .update({
+          is_active: false,
+          ended_at: new Date().toISOString(),
+        })
+        .eq('id', state.shift.id);
     }
 
-    storeCashier(null);
-    storeShift(null);
+    sessionStorage.removeItem('svoy_cashier_id');
     
     setState({
       isAuthenticated: false,
@@ -236,7 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshShift, updateShiftTotals }}>
+    <AuthContext.Provider value={{ ...state, login, logout, refreshShift }}>
       {children}
     </AuthContext.Provider>
   );

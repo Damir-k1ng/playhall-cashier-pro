@@ -10,10 +10,10 @@ export const PACKAGE_WARNING_MINUTES = 5;
 
 // Cashiers with PINs
 export const CASHIERS = [
-  { id: 'cashier-1', name: 'Damir', pin: '1111' },
-  { id: 'cashier-2', name: 'Sultan', pin: '2222' },
-  { id: 'cashier-3', name: 'Aboka', pin: '3333' },
-  { id: 'cashier-4', name: 'Adi', pin: '4444' },
+  { name: 'Damir', pin: '1111' },
+  { name: 'Sultan', pin: '2222' },
+  { name: 'Aboka', pin: '3333' },
+  { name: 'Adi', pin: '4444' },
 ] as const;
 
 // Drinks list
