@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          booking_date: string
+          comment: string | null
+          created_at: string
+          id: string
+          start_time: string
+          station_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+        }
+        Insert: {
+          booking_date?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          start_time: string
+          station_id: string
+          status?: Database["public"]["Enums"]["booking_status"]
+        }
+        Update: {
+          booking_date?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          start_time?: string
+          station_id?: string
+          status?: Database["public"]["Enums"]["booking_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashiers: {
         Row: {
           created_at: string
@@ -461,6 +499,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "cashier"
+      booking_status: "booked" | "cancelled" | "completed"
       payment_method: "cash" | "kaspi" | "split"
       session_status: "active" | "completed"
       tariff_type: "hourly" | "package"
@@ -592,6 +631,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "cashier"],
+      booking_status: ["booked", "cancelled", "completed"],
       payment_method: ["cash", "kaspi", "split"],
       session_status: ["active", "completed"],
       tariff_type: ["hourly", "package"],

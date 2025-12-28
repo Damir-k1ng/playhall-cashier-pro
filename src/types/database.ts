@@ -114,12 +114,25 @@ export interface Reservation {
   station?: Station;
 }
 
+export type BookingStatus = 'booked' | 'cancelled' | 'completed';
+
+export interface Booking {
+  id: string;
+  station_id: string;
+  booking_date: string;
+  start_time: string;
+  comment: string | null;
+  status: BookingStatus;
+  created_at: string;
+}
+
 // Extended types for UI
 export interface StationWithSession extends Station {
   activeSession?: Session;
   controllers?: ControllerUsage[];
   drinks?: SessionDrink[];
   reservation?: Reservation;
+  booking?: Booking;
 }
 
 export interface PreCheckData {
