@@ -1,49 +1,129 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StationCard } from './StationCard';
+import { BookedStationCard } from './BookedStationCard';
+import { BookingModal } from '@/components/modals/BookingModal';
 import { StationWithSession } from '@/types/database';
-import { CLUB_NAME } from '@/lib/constants';
+import { useBookings, BookingWithStation } from '@/hooks/useBookings';
+import { useStations } from '@/hooks/useStations';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface StationGridProps {
   stations: StationWithSession[];
 }
 
 export function StationGrid({ stations }: StationGridProps) {
+  const navigate = useNavigate();
+  const { shift } = useAuth();
+  const { bookings, cancelBooking, completeBooking } = useBookings();
+  const { startSession } = useStations();
+  
+  // Booking modal state
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedStation, setSelectedStation] = useState<StationWithSession | null>(null);
+  
   const vipStations = stations.filter(s => s.zone === 'vip');
   const hallStations = stations.filter(s => s.zone === 'hall');
 
-  return (
-    <div className="space-y-12">
-      {/* VIP Zone */}
-      <section>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-vip/30 to-transparent" />
-          <h2 className="text-xs font-bold text-vip uppercase tracking-[0.3em]">
-            VIP Зона
-          </h2>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-vip/30 to-transparent" />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          {vipStations.map(station => (
-            <StationCard key={station.id} station={station} />
-          ))}
-        </div>
-      </section>
+  const getStationBooking = (stationId: string): BookingWithStation | undefined => {
+    return bookings.find(b => b.station_id === stationId);
+  };
 
-      {/* Hall Zone */}
-      <section>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-          <h2 className="text-xs font-bold text-primary uppercase tracking-[0.3em]">
-            Зал
-          </h2>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/30 to-transparent" />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          {hallStations.map(station => (
-            <StationCard key={station.id} station={station} />
-          ))}
-        </div>
-      </section>
-    </div>
+  const handleCancelBooking = async (bookingId: string) => {
+    await cancelBooking(bookingId);
+  };
+
+  const handleStartSession = async (stationId: string, bookingId: string) => {
+    if (!shift?.id) {
+      toast.error('Нет активной смены');
+      return;
+    }
+    
+    // Complete the booking first
+    await completeBooking(bookingId);
+    
+    // Navigate to station page to start session
+    navigate(`/station/${stationId}`);
+  };
+
+  const handleOpenBookingModal = (station: StationWithSession) => {
+    setSelectedStation(station);
+    setBookingModalOpen(true);
+  };
+
+  const renderStationCard = (station: StationWithSession) => {
+    const booking = getStationBooking(station.id);
+    
+    // If station has active booking and no active session, show booked card
+    if (booking && !station.activeSession) {
+      return (
+        <BookedStationCard
+          key={station.id}
+          station={station}
+          booking={booking}
+          onCancelBooking={handleCancelBooking}
+          onStartSession={handleStartSession}
+        />
+      );
+    }
+    
+    // Otherwise show regular card with booking capability
+    return (
+      <StationCard
+        key={station.id}
+        station={station}
+        onBook={() => handleOpenBookingModal(station)}
+        hasBooking={!!booking}
+      />
+    );
+  };
+
+  return (
+    <>
+      <div className="space-y-12">
+        {/* VIP Zone */}
+        <section>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-vip/30 to-transparent" />
+            <h2 className="text-xs font-bold text-vip uppercase tracking-[0.3em]">
+              VIP Зона
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent via-vip/30 to-transparent" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {vipStations.map(renderStationCard)}
+          </div>
+        </section>
+
+        {/* Hall Zone */}
+        <section>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+            <h2 className="text-xs font-bold text-primary uppercase tracking-[0.3em]">
+              Зал
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/30 to-transparent" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {hallStations.map(renderStationCard)}
+          </div>
+        </section>
+      </div>
+
+      {/* Booking Modal */}
+      {selectedStation && (
+        <BookingModal
+          open={bookingModalOpen}
+          onClose={() => {
+            setBookingModalOpen(false);
+            setSelectedStation(null);
+          }}
+          stationId={selectedStation.id}
+          stationName={selectedStation.name}
+          stationZone={selectedStation.zone}
+        />
+      )}
+    </>
   );
 }

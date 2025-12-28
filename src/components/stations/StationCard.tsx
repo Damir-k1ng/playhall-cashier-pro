@@ -3,16 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { StationWithSession } from '@/types/database';
 import { formatDurationHMS, formatCurrency, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { Gamepad2, Coffee, Play, X } from 'lucide-react';
+import { Gamepad2, Coffee, Play, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface StationCardProps {
   station: StationWithSession;
+  onBook?: () => void;
+  hasBooking?: boolean;
 }
 
-type StationStatus = 'FREE' | 'ACTIVE' | 'WARNING' | 'OVERTIME' | 'RESERVED';
+type StationStatus = 'FREE' | 'ACTIVE' | 'WARNING' | 'OVERTIME';
 
-export function StationCard({ station }: StationCardProps) {
+export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   const navigate = useNavigate();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [remaining, setRemaining] = useState(0);
@@ -87,16 +89,6 @@ export function StationCard({ station }: StationCardProps) {
           borderColor: 'border-destructive/50',
           bgGlow: 'glow-destructive',
           statusBg: 'bg-destructive/15'
-        };
-      case 'RESERVED':
-        return {
-          label: 'ЗАБРОНИРОВАНО',
-          color: 'text-reserved',
-          timerColor: 'text-reserved',
-          glow: '',
-          borderColor: 'border-reserved/40',
-          bgGlow: '',
-          statusBg: 'bg-reserved/15'
         };
     }
   };
@@ -200,11 +192,11 @@ export function StationCard({ station }: StationCardProps) {
         </div>
       )}
 
-      {/* Primary Actions for FREE stations (visible on hover/mobile) */}
+      {/* Primary Actions for FREE stations */}
       {!isActive && (
-        <div className="mt-4 pt-4 border-t border-border/30">
+        <div className="mt-4 pt-4 border-t border-border/30 flex gap-2">
           <Button 
-            className="w-full h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald"
+            className="flex-1 h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/station/${station.id}`);
@@ -213,6 +205,18 @@ export function StationCard({ station }: StationCardProps) {
             <Play className="w-4 h-4 mr-2" />
             Начать
           </Button>
+          {onBook && !hasBooking && (
+            <Button 
+              variant="outline"
+              className="h-11 px-4 border-reserved/40 text-reserved hover:bg-reserved/10 hover:border-reserved"
+              onClick={(e) => {
+                e.stopPropagation();
+                onBook();
+              }}
+            >
+              <Calendar className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       )}
     </div>

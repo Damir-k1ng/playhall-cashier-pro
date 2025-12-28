@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Wallet, Coffee, Receipt, Calendar } from 'lucide-react';
+import { LogOut, User, Wallet, Coffee, Receipt } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 import { CLUB_NAME } from '@/lib/constants';
 import {
@@ -19,10 +19,9 @@ interface HeaderProps {
   onOpenShiftReport?: () => void;
   onOpenDrinkSales?: () => void;
   onOpenHistory?: () => void;
-  onOpenReservation?: () => void;
 }
 
-export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, onOpenReservation }: HeaderProps) {
+export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory }: HeaderProps) {
   const navigate = useNavigate();
   const { cashier, shift, logout } = useAuth();
 
@@ -62,18 +61,6 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
 
         {/* Center: Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* Reservation Button */}
-          <Button
-            onClick={onOpenReservation}
-            className="hidden md:flex items-center gap-3 h-12 px-5 rounded-xl bg-gradient-to-r from-vip/20 to-amber-500/20 border border-vip/30 hover:border-vip/50 hover:bg-vip/20 transition-all duration-300 btn-press"
-            variant="ghost"
-          >
-            <div className="w-9 h-9 rounded-lg bg-vip/20 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-vip" />
-            </div>
-            <span className="text-foreground font-medium">Бронь</span>
-          </Button>
-
           {/* History Button */}
           <Button
             onClick={onOpenHistory}
@@ -96,15 +83,6 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
               <Coffee className="w-5 h-5 text-primary" />
             </div>
             <span className="text-foreground font-medium">Напитки</span>
-          </Button>
-
-          {/* Mobile reservation button */}
-          <Button
-            onClick={onOpenReservation}
-            className="md:hidden w-11 h-11 rounded-xl bg-gradient-to-r from-vip/20 to-amber-500/20 border border-vip/30 p-0"
-            variant="ghost"
-          >
-            <Calendar className="w-5 h-5 text-vip" />
           </Button>
 
           {/* Mobile history button */}
