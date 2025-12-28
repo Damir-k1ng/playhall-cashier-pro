@@ -5,6 +5,7 @@ import { StationGrid } from '@/components/stations/StationGrid';
 import { CashDeskModal } from '@/components/modals/CashDeskModal';
 import { ShiftReportModal } from '@/components/modals/ShiftReportModal';
 import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
+import { ShiftHistoryModal } from '@/components/modals/ShiftHistoryModal';
 import { Loader2 } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 
@@ -15,6 +16,7 @@ export function Dashboard() {
   const [cashDeskModalOpen, setCashDeskModalOpen] = useState(false);
   const [shiftReportModalOpen, setShiftReportModalOpen] = useState(false);
   const [drinkSalesModalOpen, setDrinkSalesModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -44,6 +46,7 @@ export function Dashboard() {
           onOpenCashDesk={() => setCashDeskModalOpen(true)}
           onOpenShiftReport={() => setShiftReportModalOpen(true)}
           onOpenDrinkSales={() => setDrinkSalesModalOpen(true)}
+          onOpenHistory={() => setHistoryModalOpen(true)}
         />
         
         <main className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -65,6 +68,11 @@ export function Dashboard() {
       <DrinkSalesModal
         open={drinkSalesModalOpen}
         onClose={() => setDrinkSalesModalOpen(false)}
+      />
+
+      <ShiftHistoryModal
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
       />
     </div>
   );

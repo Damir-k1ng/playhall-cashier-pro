@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Wallet, Coffee } from 'lucide-react';
+import { LogOut, User, Wallet, Coffee, Receipt } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 import { CLUB_NAME } from '@/lib/constants';
 import {
@@ -18,9 +18,10 @@ interface HeaderProps {
   onOpenCashDesk?: () => void;
   onOpenShiftReport?: () => void;
   onOpenDrinkSales?: () => void;
+  onOpenHistory?: () => void;
 }
 
-export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales }: HeaderProps) {
+export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory }: HeaderProps) {
   const navigate = useNavigate();
   const { cashier, shift, logout } = useAuth();
 
@@ -58,26 +59,50 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales }: 
           </div>
         </button>
 
-        {/* Center: Drink Sales Button */}
-        <Button
-          onClick={onOpenDrinkSales}
-          className="hidden md:flex items-center gap-3 h-12 px-6 rounded-xl bg-gradient-to-r from-secondary/20 to-primary/20 border border-primary/30 hover:border-primary/50 hover:bg-primary/20 transition-all duration-300 btn-press"
-          variant="ghost"
-        >
-          <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Coffee className="w-5 h-5 text-primary" />
-          </div>
-          <span className="text-foreground font-medium">Напитки</span>
-        </Button>
+        {/* Center: Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* History Button */}
+          <Button
+            onClick={onOpenHistory}
+            className="hidden md:flex items-center gap-3 h-12 px-5 rounded-xl bg-gradient-to-r from-purple-500/20 to-primary/20 border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/20 transition-all duration-300 btn-press"
+            variant="ghost"
+          >
+            <div className="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center">
+              <Receipt className="w-5 h-5 text-purple-400" />
+            </div>
+            <span className="text-foreground font-medium">История</span>
+          </Button>
 
-        {/* Mobile drink button */}
-        <Button
-          onClick={onOpenDrinkSales}
-          className="md:hidden w-11 h-11 rounded-xl bg-gradient-to-r from-secondary/20 to-primary/20 border border-primary/30 p-0"
-          variant="ghost"
-        >
-          <Coffee className="w-5 h-5 text-primary" />
-        </Button>
+          {/* Drink Sales Button */}
+          <Button
+            onClick={onOpenDrinkSales}
+            className="hidden md:flex items-center gap-3 h-12 px-5 rounded-xl bg-gradient-to-r from-secondary/20 to-primary/20 border border-primary/30 hover:border-primary/50 hover:bg-primary/20 transition-all duration-300 btn-press"
+            variant="ghost"
+          >
+            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Coffee className="w-5 h-5 text-primary" />
+            </div>
+            <span className="text-foreground font-medium">Напитки</span>
+          </Button>
+
+          {/* Mobile history button */}
+          <Button
+            onClick={onOpenHistory}
+            className="md:hidden w-11 h-11 rounded-xl bg-gradient-to-r from-purple-500/20 to-primary/20 border border-purple-500/30 p-0"
+            variant="ghost"
+          >
+            <Receipt className="w-5 h-5 text-purple-400" />
+          </Button>
+
+          {/* Mobile drink button */}
+          <Button
+            onClick={onOpenDrinkSales}
+            className="md:hidden w-11 h-11 rounded-xl bg-gradient-to-r from-secondary/20 to-primary/20 border border-primary/30 p-0"
+            variant="ghost"
+          >
+            <Coffee className="w-5 h-5 text-primary" />
+          </Button>
+        </div>
 
         {/* Right side: Cash desk + User */}
         <div className="flex items-center gap-2 md:gap-3">
