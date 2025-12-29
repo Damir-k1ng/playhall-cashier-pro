@@ -27,11 +27,13 @@ export function StartSessionModal({ open, onClose, station, onConfirm }: StartSe
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+        {/* Fixed Header */}
+        <DialogHeader className="shrink-0">
           <DialogTitle>Запуск сессии — {station.name}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 py-4">
+        {/* Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-4">
           <button
             onClick={() => setSelected('hourly')}
             className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
@@ -58,7 +60,8 @@ export function StartSessionModal({ open, onClose, station, onConfirm }: StartSe
           </button>
         </div>
 
-        <div className="flex gap-3">
+        {/* Fixed Footer */}
+        <div className="shrink-0 flex gap-3 pt-4 border-t border-border/50">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Отмена
           </Button>

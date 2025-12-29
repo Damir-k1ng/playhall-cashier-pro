@@ -147,12 +147,12 @@ export function StationScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Background effects */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
       
-      {/* Header */}
-      <header className="glass-card border-b border-primary/10 px-6 py-4">
+      {/* Header - Fixed */}
+      <header className="shrink-0 glass-card border-b border-primary/10 px-6 py-4 relative z-10">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           <Button 
             variant="ghost" 
@@ -177,7 +177,9 @@ export function StationScreen() {
         </div>
       </header>
 
-      <main className="p-6 max-w-5xl mx-auto">
+      {/* Content - Scrollable */}
+      <main className="flex-1 min-h-0 overflow-y-auto p-6 relative z-10">
+        <div className="max-w-5xl mx-auto">
         {/* Station Header */}
         <div className="mb-8">
           <h1 className="text-5xl font-bold text-foreground mb-2">{station.name}</h1>
@@ -388,6 +390,7 @@ export function StationScreen() {
             </Button>
           </div>
         )}
+        </div>
       </main>
     </div>
   );
