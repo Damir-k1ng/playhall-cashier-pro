@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 
 export function Dashboard() {
-  const { stations, isLoading, refetch: refetchStations } = useStations();
+  const { stations, isLoading, isRefreshing, refetch: refetchStations } = useStations();
   
   // Modals
   const [cashDeskModalOpen, setCashDeskModalOpen] = useState(false);
@@ -47,6 +47,7 @@ export function Dashboard() {
           onOpenShiftReport={() => setShiftReportModalOpen(true)}
           onOpenDrinkSales={() => setDrinkSalesModalOpen(true)}
           onOpenHistory={() => setHistoryModalOpen(true)}
+          isRefreshing={isRefreshing}
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
