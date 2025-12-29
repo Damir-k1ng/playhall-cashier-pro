@@ -76,7 +76,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
           color: 'text-warning', 
           timerColor: 'text-warning',
           glow: 'text-glow-gold animate-glow-pulse',
-          borderColor: 'border-warning/50',
+          borderColor: 'border-warning/50 animate-warning-pulse',
           bgGlow: 'glow-gold',
           statusBg: 'bg-warning/15'
         };
