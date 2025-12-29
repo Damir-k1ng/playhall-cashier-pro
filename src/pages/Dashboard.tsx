@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 
 export function Dashboard() {
-  const { stations, isLoading } = useStations();
+  const { stations, isLoading, refetch: refetchStations } = useStations();
   
   // Modals
   const [cashDeskModalOpen, setCashDeskModalOpen] = useState(false);
@@ -50,7 +50,7 @@ export function Dashboard() {
         />
         
         <main className="p-4 md:p-6 max-w-7xl mx-auto">
-          <StationGrid stations={stations} />
+          <StationGrid stations={stations} refetchStations={refetchStations} />
         </main>
       </div>
 

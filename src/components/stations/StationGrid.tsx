@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { StationCard } from './StationCard';
 import { BookedStationCard } from './BookedStationCard';
 import { BookingModal } from '@/components/modals/BookingModal';
@@ -11,10 +10,10 @@ import { toast } from 'sonner';
 
 interface StationGridProps {
   stations: StationWithSession[];
+  refetchStations: () => Promise<void>;
 }
 
-export function StationGrid({ stations }: StationGridProps) {
-  const navigate = useNavigate();
+export function StationGrid({ stations, refetchStations }: StationGridProps) {
   const { shift } = useAuth();
   const { bookings, createBooking, cancelBooking, completeBooking, refetch: refetchBookings } = useBookings();
   const { startSession } = useStations();
@@ -54,14 +53,23 @@ export function StationGrid({ stations }: StationGridProps) {
     }
     
     // Complete the booking first
-    const result = await completeBooking(bookingId);
-    if (result.success) {
-      // Immediately refetch to ensure UI is updated
-      await refetchBookings();
+    const bookingResult = await completeBooking(bookingId);
+    if (!bookingResult.success) {
+      toast.error(bookingResult.error || 'Ошибка завершения брони');
+      return;
     }
     
-    // Navigate to station page to start session
-    navigate(`/station/${stationId}`);
+    // Start hourly session (from booking, always hourly)
+    const sessionResult = await startSession(stationId, 'hourly');
+    if (sessionResult.error) {
+      toast.error(sessionResult.error);
+      return;
+    }
+    
+    // Immediately refetch both bookings and stations to ensure UI is updated
+    await Promise.all([refetchBookings(), refetchStations()]);
+    
+    toast.success('Сессия запущена');
   };
 
   const handleOpenBookingModal = (station: StationWithSession) => {
