@@ -8,9 +8,13 @@ export function useStations() {
   const { shift, refreshShift } = useAuth();
   const [stations, setStations] = useState<StationWithSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStations = useCallback(async () => {
+  const fetchStations = useCallback(async (isBackgroundRefresh = false) => {
+    if (isBackgroundRefresh) {
+      setIsRefreshing(true);
+    }
     try {
       // Fetch all stations
       const { data: stationsData, error: stationsError } = await supabase
@@ -84,6 +88,7 @@ export function useStations() {
       setError('Ошибка загрузки станций');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -94,18 +99,18 @@ export function useStations() {
     const sessionsChannel = supabase
       .channel('sessions-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
-        fetchStations();
+        fetchStations(true);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'controller_usage' }, () => {
-        fetchStations();
+        fetchStations(true);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'session_drinks' }, () => {
-        fetchStations();
+        fetchStations(true);
       })
       .subscribe();
 
     // Refresh every 5 seconds for timer accuracy across devices
-    const interval = setInterval(fetchStations, 5000);
+    const interval = setInterval(() => fetchStations(true), 5000);
 
     return () => {
       supabase.removeChannel(sessionsChannel);
@@ -223,6 +228,7 @@ export function useStations() {
   return {
     stations,
     isLoading,
+    isRefreshing,
     error,
     refetch: fetchStations,
     startSession,

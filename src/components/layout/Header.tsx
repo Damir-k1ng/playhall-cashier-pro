@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Wallet, Coffee, Receipt } from 'lucide-react';
+import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw } from 'lucide-react';
 import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 import { CLUB_NAME } from '@/lib/constants';
 import {
@@ -19,9 +19,10 @@ interface HeaderProps {
   onOpenShiftReport?: () => void;
   onOpenDrinkSales?: () => void;
   onOpenHistory?: () => void;
+  isRefreshing?: boolean;
 }
 
-export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory }: HeaderProps) {
+export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
   const navigate = useNavigate();
   const { cashier, shift, logout } = useAuth();
 
@@ -52,11 +53,18 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
             {/* Glow ring */}
             <div className="absolute inset-0 rounded-xl bg-primary/20 blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex items-center gap-3">
             <h1 className="font-bold text-base text-foreground tracking-wide">
               {CLUB_NAME}
             </h1>
+            {isRefreshing && (
+              <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+            )}
           </div>
+          {/* Mobile refresh indicator */}
+          {isRefreshing && (
+            <RefreshCw className="sm:hidden w-4 h-4 text-primary animate-spin ml-2" />
+          )}
         </button>
 
         {/* Center: Action Buttons */}
