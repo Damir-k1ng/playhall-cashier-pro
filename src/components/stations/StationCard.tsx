@@ -157,16 +157,12 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
         {isActive ? (
           <div 
             className={cn(
-              'font-gaming text-4xl md:text-5xl font-bold tracking-wider',
+              'font-gaming text-3xl md:text-4xl font-bold tracking-wide',
               config.timerColor,
               config.glow
             )}
             style={{
               fontVariantNumeric: 'tabular-nums',
-              width: '9ch',
-              paddingInline: '0.5ch',
-              textAlign: 'center',
-              boxSizing: 'border-box',
               lineHeight: 1.25
             }}
           >
