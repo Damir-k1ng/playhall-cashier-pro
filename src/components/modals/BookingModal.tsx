@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useBookings } from '@/hooks/useBookings';
-import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Calendar, Clock, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
@@ -16,11 +14,10 @@ interface BookingModalProps {
   stationId: string;
   stationName: string;
   stationZone: string;
+  onCreateBooking: (stationId: string, startTime: string, comment?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
-export function BookingModal({ open, onClose, stationId, stationName, stationZone }: BookingModalProps) {
-  const { createBooking } = useBookings();
-  
+export function BookingModal({ open, onClose, stationId, stationName, stationZone, onCreateBooking }: BookingModalProps) {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [comment, setComment] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -72,7 +69,7 @@ export function BookingModal({ open, onClose, stationId, stationName, stationZon
 
     setIsCreating(true);
     
-    const result = await createBooking(
+    const result = await onCreateBooking(
       stationId,
       selectedTime + ':00', // Add seconds for TIME format
       comment.trim() || undefined
