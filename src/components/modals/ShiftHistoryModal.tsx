@@ -331,8 +331,8 @@ export function ShiftHistoryModal({ open, onClose }: ShiftHistoryModalProps) {
         </DialogHeader>
 
         {/* Filter Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="mx-4 mt-4 glass-card border border-primary/20">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)} className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mx-4 mt-4 glass-card border border-primary/20 shrink-0">
             <TabsTrigger value="all" className="flex-1 data-[state=active]:bg-primary/20">
               Все
             </TabsTrigger>
@@ -344,7 +344,7 @@ export function ShiftHistoryModal({ open, onClose }: ShiftHistoryModalProps) {
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 px-4 py-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
@@ -387,7 +387,7 @@ export function ShiftHistoryModal({ open, onClose }: ShiftHistoryModalProps) {
                 </TabsContent>
               </>
             )}
-          </ScrollArea>
+          </div>
         </Tabs>
 
         {/* Sticky Totals Footer */}
