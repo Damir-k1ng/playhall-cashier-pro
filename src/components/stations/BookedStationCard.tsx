@@ -86,7 +86,7 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
       </div>
 
       {/* Bottom Buttons */}
-      <div className="flex gap-3 mt-4 pt-4 border-t border-border/30 overflow-hidden rounded-xl">
+      <div className="relative z-10 flex gap-3 mt-4 pt-4 border-t border-border/30 overflow-hidden rounded-xl">
         <Button 
           variant="outline"
           className="flex-1 h-12 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive font-bold text-sm"
