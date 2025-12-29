@@ -13,7 +13,7 @@ import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
   const navigate = useNavigate();
-  const { stations, startSession, addController, returnController } = useStations();
+  const { stations, startSession, addController, returnController, refetch: refetchStations } = useStations();
   const { drinks, addDrinkToSession } = useDrinks();
   
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -86,9 +86,11 @@ export function StationScreen() {
     const result = await startSession(station.id, tariffType);
     if (result.error) {
       toast.error(result.error);
-    } else {
-      toast.success('Сессия запущена');
+      return;
     }
+    // Immediately refetch stations after confirmed backend success
+    await refetchStations();
+    toast.success('Сессия запущена');
   };
 
   const handleAddController = async () => {
