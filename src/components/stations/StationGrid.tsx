@@ -16,7 +16,7 @@ interface StationGridProps {
 export function StationGrid({ stations }: StationGridProps) {
   const navigate = useNavigate();
   const { shift } = useAuth();
-  const { bookings, cancelBooking, completeBooking } = useBookings();
+  const { bookings, createBooking, cancelBooking, completeBooking, refetch: refetchBookings } = useBookings();
   const { startSession } = useStations();
   
   // Booking modal state
@@ -30,8 +30,21 @@ export function StationGrid({ stations }: StationGridProps) {
     return bookings.find(b => b.station_id === stationId);
   };
 
+  const handleCreateBooking = async (stationId: string, startTime: string, comment?: string) => {
+    const result = await createBooking(stationId, startTime, comment);
+    if (result.success) {
+      // Immediately refetch to ensure UI is updated
+      await refetchBookings();
+    }
+    return result;
+  };
+
   const handleCancelBooking = async (bookingId: string) => {
-    await cancelBooking(bookingId);
+    const result = await cancelBooking(bookingId);
+    if (result.success) {
+      // Immediately refetch to ensure UI is updated
+      await refetchBookings();
+    }
   };
 
   const handleStartSession = async (stationId: string, bookingId: string) => {
@@ -41,7 +54,11 @@ export function StationGrid({ stations }: StationGridProps) {
     }
     
     // Complete the booking first
-    await completeBooking(bookingId);
+    const result = await completeBooking(bookingId);
+    if (result.success) {
+      // Immediately refetch to ensure UI is updated
+      await refetchBookings();
+    }
     
     // Navigate to station page to start session
     navigate(`/station/${stationId}`);
@@ -122,6 +139,7 @@ export function StationGrid({ stations }: StationGridProps) {
           stationId={selectedStation.id}
           stationName={selectedStation.name}
           stationZone={selectedStation.zone}
+          onCreateBooking={handleCreateBooking}
         />
       )}
     </>
