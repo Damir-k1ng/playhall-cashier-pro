@@ -201,7 +201,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
       {/* Primary Actions for FREE stations */}
       {!isActive && (
         <div 
-          className="mt-4 pt-4 border-t border-border/30 flex gap-2"
+          className="relative z-10 mt-4 pt-4 border-t border-border/30 flex gap-2"
           style={{
             width: '100%',
             boxSizing: 'border-box',
