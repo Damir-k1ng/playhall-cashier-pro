@@ -91,9 +91,9 @@ export function PaymentScreen() {
   const splitDifference = totalCost - splitSum;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="glass-card border-b border-primary/10 px-6 py-4">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
+      {/* Header - Fixed */}
+      <header className="shrink-0 glass-card border-b border-primary/10 px-6 py-4">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <Button 
             variant="ghost" 
@@ -109,7 +109,9 @@ export function PaymentScreen() {
         </div>
       </header>
 
-      <main className="p-6 max-w-lg mx-auto">
+      {/* Content - Scrollable */}
+      <main className="flex-1 min-h-0 overflow-y-auto p-6">
+        <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-foreground mb-2">Оплата</h1>
@@ -259,6 +261,7 @@ export function PaymentScreen() {
             </Button>
           </div>
         )}
+        </div>
       </main>
     </div>
   );

@@ -92,9 +92,9 @@ export function PreCheckScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="glass-card border-b border-primary/10 px-6 py-4">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
+      {/* Header - Fixed */}
+      <header className="shrink-0 glass-card border-b border-primary/10 px-6 py-4">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Button 
             variant="ghost" 
@@ -110,7 +110,9 @@ export function PreCheckScreen() {
         </div>
       </header>
 
-      <main className="p-6 max-w-2xl mx-auto">
+      {/* Content - Scrollable */}
+      <main className="flex-1 min-h-0 overflow-y-auto p-6">
+        <div className="max-w-2xl mx-auto">
         {/* Receipt Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
@@ -231,6 +233,7 @@ export function PreCheckScreen() {
         >
           Перейти к оплате
         </Button>
+        </div>
       </main>
     </div>
   );

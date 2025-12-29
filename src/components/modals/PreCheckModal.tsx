@@ -157,11 +157,15 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg">
+        {/* Fixed Header */}
+        <DialogHeader className="shrink-0">
           <div className="text-xs text-muted-foreground mb-1">{CLUB_NAME}</div>
           <DialogTitle className="text-xl">Пре-чек — {station.name}</DialogTitle>
         </DialogHeader>
+        
+        {/* Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
 
         {/* Session Time Info */}
         <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
@@ -243,15 +247,15 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
 
         <Separator />
 
-        {/* Grand Total */}
-        <div className="flex items-center justify-between text-lg">
-          <span className="font-semibold">ИТОГО</span>
-          <span className="text-2xl font-bold text-primary">{formatCurrency(costs.total)}</span>
+          {/* Grand Total */}
+          <div className="flex items-center justify-between text-lg">
+            <span className="font-semibold">ИТОГО</span>
+            <span className="text-2xl font-bold text-primary">{formatCurrency(costs.total)}</span>
+          </div>
         </div>
 
-        <Separator />
-
-        {/* Payment Buttons */}
+        {/* Fixed Footer - Payment Buttons */}
+        <div className="shrink-0 pt-4 border-t border-border/50">
         {paymentMode === 'select' ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -345,6 +349,7 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
             </div>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );
