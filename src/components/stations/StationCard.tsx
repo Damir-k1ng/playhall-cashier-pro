@@ -213,13 +213,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
           }}
         >
           <Button 
-            className="h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald min-w-0"
-            style={{
-              flex: '1 1 0',
-              maxWidth: '100%',
-              boxSizing: 'border-box',
-              overflow: 'visible'
-            }}
+            className="h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald min-w-0 flex-1 rounded-lg"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/station/${station.id}`);
