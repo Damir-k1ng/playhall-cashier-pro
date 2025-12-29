@@ -163,10 +163,11 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
             )}
             style={{
               fontVariantNumeric: 'tabular-nums',
-              width: '8ch',
+              width: '9ch',
+              paddingInline: '0.5ch',
               textAlign: 'center',
               boxSizing: 'border-box',
-              overflow: 'hidden'
+              lineHeight: 1.25
             }}
           >
             {formatDurationHMS(elapsedSeconds)}
@@ -203,21 +204,33 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
 
       {/* Primary Actions for FREE stations */}
       {!isActive && (
-        <div className="mt-4 pt-4 border-t border-border/30 flex gap-2">
+        <div 
+          className="mt-4 pt-4 border-t border-border/30 flex gap-2"
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            overflow: 'hidden'
+          }}
+        >
           <Button 
-            className="flex-1 h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald"
+            className="h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald min-w-0 truncate"
+            style={{
+              flex: '1 1 0',
+              maxWidth: '100%',
+              boxSizing: 'border-box'
+            }}
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/station/${station.id}`);
             }}
           >
-            <Play className="w-4 h-4 mr-2" />
-            Начать
+            <Play className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">Начать</span>
           </Button>
           {onBook && !hasBooking && (
             <Button 
               variant="outline"
-              className="h-11 px-4 border-reserved/40 text-reserved hover:bg-reserved/10 hover:border-reserved"
+              className="h-11 px-4 border-reserved/40 text-reserved hover:bg-reserved/10 hover:border-reserved shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 onBook();
