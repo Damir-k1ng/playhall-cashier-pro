@@ -86,27 +86,27 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
       </div>
 
       {/* Bottom Buttons */}
-      <div className="relative z-10 flex gap-3 mt-4 pt-4 border-t border-border/30 overflow-hidden rounded-xl">
+      <div className="relative z-10 flex flex-col gap-2 mt-4 pt-4 border-t border-border/30">
         <Button 
-          variant="outline"
-          className="flex-1 h-12 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive font-bold text-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCancelBooking(booking.id);
-          }}
-        >
-          <X className="w-4 h-4 mr-2 shrink-0" />
-          <span className="truncate">Снять бронь</span>
-        </Button>
-        <Button 
-          className="flex-1 h-12 rounded-lg bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-sm"
+          className="w-full h-11 rounded-lg bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold"
           onClick={(e) => {
             e.stopPropagation();
             onStartSession(station.id, booking.id);
           }}
         >
-          <Play className="w-4 h-4 mr-2 shrink-0" />
-          <span className="truncate">Начать</span>
+          <Play className="w-4 h-4 mr-2" />
+          Начать
+        </Button>
+        <Button 
+          variant="outline"
+          className="w-full h-10 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive font-medium text-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancelBooking(booking.id);
+          }}
+        >
+          <X className="w-4 h-4 mr-2" />
+          Снять бронь
         </Button>
       </div>
     </div>
