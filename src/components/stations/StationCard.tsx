@@ -155,11 +155,20 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
       {/* Timer or Empty State */}
       <div className="flex-1 flex items-center">
         {isActive ? (
-          <div className={cn(
-            'font-gaming text-4xl md:text-5xl font-bold tracking-wider',
-            config.timerColor,
-            config.glow
-          )}>
+          <div 
+            className={cn(
+              'font-gaming text-4xl md:text-5xl font-bold tracking-wider',
+              config.timerColor,
+              config.glow
+            )}
+            style={{
+              fontVariantNumeric: 'tabular-nums',
+              width: '8ch',
+              textAlign: 'center',
+              boxSizing: 'border-box',
+              overflow: 'hidden'
+            }}
+          >
             {formatDurationHMS(elapsedSeconds)}
           </div>
         ) : (
