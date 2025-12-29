@@ -72,8 +72,8 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg glass-card border-primary/20 print:max-w-none print:m-0 print:p-8 print:shadow-none print:bg-white print:text-black">
-        <DialogHeader className="print:mb-6">
+      <DialogContent className="sm:max-w-lg glass-card border-primary/20 p-0 gap-0 print:max-w-none print:m-0 print:p-8 print:shadow-none print:bg-white print:text-black">
+        <DialogHeader className="shrink-0 p-6 pb-4 print:mb-6">
           <div className="flex items-center gap-2 mb-2 print:hidden">
             <DualSenseIcon size={16} className="text-primary" />
             <span className="text-xs text-muted-foreground">{CLUB_NAME}</span>
@@ -85,7 +85,8 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
         </DialogHeader>
 
         {data ? (
-          <div className="space-y-5 print:space-y-6" id="shift-report">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6">
+            <div className="space-y-5 print:space-y-6" id="shift-report">
             {/* Shift Info */}
             <div className="bg-muted/30 rounded-lg p-4 space-y-2 border border-border/50 print:bg-gray-100 print:p-6">
               <div className="flex justify-between text-sm">
@@ -179,15 +180,16 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
                 {formatCurrency(data.grandTotal)}
               </span>
             </div>
+            </div>
           </div>
         ) : (
-          <div className="text-center py-12 text-muted-foreground">
+          <div className="text-center py-12 text-muted-foreground px-6">
             {isLoading ? 'Загрузка...' : 'Нет данных для отображения'}
           </div>
         )}
 
         {/* Actions - hidden in print */}
-        <div className="flex gap-3 print:hidden mt-4">
+        <div className="shrink-0 flex gap-3 print:hidden p-6 pt-4 border-t border-border/50">
           <Button variant="outline" className="flex-1 gap-2 h-12" onClick={handlePrint}>
             <Printer className="w-4 h-4" />
             Печать
