@@ -128,9 +128,9 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleReset}>
-      <DialogContent className="sm:max-w-lg glass-card border-primary/20">
+      <DialogContent className="sm:max-w-lg glass-card border-primary/20 p-0 gap-0">
         {step === 'success' ? (
-          <div className="flex flex-col items-center justify-center py-12">
+          <div className="flex flex-col items-center justify-center py-12 px-6">
             <div className="w-20 h-20 rounded-full bg-success/20 border-2 border-success flex items-center justify-center animate-success-glow mb-6">
               <Check className="w-10 h-10 text-success" />
             </div>
@@ -139,14 +139,14 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
           </div>
         ) : step === 'payment' ? (
           <>
-            <DialogHeader>
+            <DialogHeader className="shrink-0 p-6 pb-0">
               <DialogTitle className="text-xl flex items-center gap-3">
                 <Coffee className="w-6 h-6 text-primary" />
                 Оплата напитков
               </DialogTitle>
             </DialogHeader>
 
-            <div className="py-6">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
               <div className="text-center mb-8">
                 <div className="text-sm text-muted-foreground mb-2">К оплате</div>
                 <div className="font-gaming text-5xl font-bold text-primary text-glow-cyan">
@@ -268,80 +268,86 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
               )}
             </div>
 
-            <Button 
-              variant="ghost" 
-              onClick={() => setStep('select')}
-              className="w-full"
-            >
-              ← Назад к выбору
-            </Button>
+            <div className="shrink-0 p-6 pt-0">
+              <Button 
+                variant="ghost" 
+                onClick={() => setStep('select')}
+                className="w-full"
+              >
+                ← Назад к выбору
+              </Button>
+            </div>
           </>
         ) : (
           <>
-            <DialogHeader>
+            <DialogHeader className="shrink-0 p-6 pb-0">
               <DialogTitle className="text-xl flex items-center gap-3">
                 <Coffee className="w-6 h-6 text-primary" />
                 Продажа напитков
               </DialogTitle>
             </DialogHeader>
 
-            {isLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 py-4">
-                {drinks.map(drink => {
-                  const qty = quantities[drink.id] || 0;
-                  return (
-                    <button
-                      key={drink.id}
-                      onClick={() => handleAddDrink(drink.id)}
-                      className={cn(
-                        'relative p-4 rounded-xl transition-all duration-200 btn-press',
-                        'bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50',
-                        'hover:border-primary/40 hover:bg-muted/60',
-                        qty > 0 && 'border-primary/50 bg-primary/10'
-                      )}
-                    >
-                      {qty > 0 && (
-                        <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shadow-lg">
-                          {qty}
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {drinks.map(drink => {
+                    const qty = quantities[drink.id] || 0;
+                    return (
+                      <button
+                        key={drink.id}
+                        onClick={() => handleAddDrink(drink.id)}
+                        className={cn(
+                          'relative p-4 rounded-xl transition-all duration-200 btn-press',
+                          'bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50',
+                          'hover:border-primary/40 hover:bg-muted/60',
+                          qty > 0 && 'border-primary/50 bg-primary/10'
+                        )}
+                      >
+                        {qty > 0 && (
+                          <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shadow-lg">
+                            {qty}
+                          </div>
+                        )}
+                        <div className="text-left">
+                          <div className="font-medium text-foreground mb-1">{drink.name}</div>
+                          <div className="text-lg font-bold text-primary">{formatCurrency(drink.price)}</div>
                         </div>
-                      )}
-                      <div className="text-left">
-                        <div className="font-medium text-foreground mb-1">{drink.name}</div>
-                        <div className="text-lg font-bold text-primary">{formatCurrency(drink.price)}</div>
-                      </div>
-                      <div className="absolute bottom-3 right-3">
-                        <Plus className="w-6 h-6 text-primary opacity-50" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                        <div className="absolute bottom-3 right-3">
+                          <Plus className="w-6 h-6 text-primary opacity-50" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-            {hasItems && (
-              <div className="flex items-center justify-between py-4 border-t border-border/50">
-                <span className="text-muted-foreground">Итого:</span>
-                <span className="font-gaming text-2xl font-bold text-primary text-glow-cyan">
-                  {formatCurrency(totalAmount)}
-                </span>
-              </div>
-            )}
+            <div className="shrink-0 p-6 pt-0 space-y-4">
+              {hasItems && (
+                <div className="flex items-center justify-between py-4 border-t border-border/50">
+                  <span className="text-muted-foreground">Итого:</span>
+                  <span className="font-gaming text-2xl font-bold text-primary text-glow-cyan">
+                    {formatCurrency(totalAmount)}
+                  </span>
+                </div>
+              )}
 
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1 h-12" onClick={handleReset}>
-                Отмена
-              </Button>
-              <Button 
-                className="flex-1 h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90 btn-press"
-                onClick={handleProceedToPayment}
-                disabled={!hasItems}
-              >
-                К оплате
-              </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1 h-12" onClick={handleReset}>
+                  Отмена
+                </Button>
+                <Button 
+                  className="flex-1 h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90 btn-press"
+                  onClick={handleProceedToPayment}
+                  disabled={!hasItems}
+                >
+                  К оплате
+                </Button>
+              </div>
             </div>
           </>
         )}

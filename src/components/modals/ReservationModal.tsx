@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useReservations, Reservation } from '@/hooks/useReservations';
 import { useStations } from '@/hooks/useStations';
@@ -104,8 +103,8 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg bg-card border-primary/20 p-0 gap-0 max-h-[90vh] overflow-hidden">
-        <DialogHeader className="p-6 pb-4 border-b border-border/50">
+      <DialogContent className="max-w-lg bg-card border-primary/20 p-0 gap-0">
+        <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/50">
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
               <Calendar className="w-5 h-5 text-primary" />
@@ -114,7 +113,7 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 max-h-[calc(90vh-200px)]">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-6 space-y-6">
             {/* Toggle Form Button */}
             {!showForm && (
@@ -308,10 +307,10 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
               )}
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border/50">
+        <div className="shrink-0 p-4 border-t border-border/50">
           <Button 
             variant="outline" 
             onClick={handleClose}

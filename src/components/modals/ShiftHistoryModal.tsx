@@ -322,8 +322,8 @@ export function ShiftHistoryModal({ open, onClose }: ShiftHistoryModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col glass-card border-primary/20 p-0 gap-0">
-        <DialogHeader className="p-4 pb-0">
+      <DialogContent className="sm:max-w-lg glass-card border-primary/20 p-0 gap-0">
+        <DialogHeader className="shrink-0 p-4 pb-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Receipt className="w-5 h-5 text-primary" />
             История смены
@@ -391,7 +391,7 @@ export function ShiftHistoryModal({ open, onClose }: ShiftHistoryModalProps) {
         </Tabs>
 
         {/* Sticky Totals Footer */}
-        <div className="border-t border-primary/20 bg-background/80 backdrop-blur-xl p-4 space-y-3">
+        <div className="shrink-0 border-t border-primary/20 bg-background/80 backdrop-blur-xl p-4 space-y-3">
           <div className="grid grid-cols-3 gap-2 text-sm">
             <div className="text-center p-2 rounded-lg bg-primary/10 border border-primary/20">
               <p className="text-xs text-muted-foreground">Игры</p>

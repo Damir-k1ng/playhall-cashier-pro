@@ -36,12 +36,12 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Subtle background pattern */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(155_100%_45%_/_0.02)_0%,transparent_50%)] pointer-events-none" />
       
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col h-full">
         <Header 
           onOpenCashDesk={() => setCashDeskModalOpen(true)}
           onOpenShiftReport={() => setShiftReportModalOpen(true)}
@@ -49,8 +49,10 @@ export function Dashboard() {
           onOpenHistory={() => setHistoryModalOpen(true)}
         />
         
-        <main className="p-4 md:p-6 max-w-7xl mx-auto">
-          <StationGrid stations={stations} refetchStations={refetchStations} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-7xl mx-auto">
+            <StationGrid stations={stations} refetchStations={refetchStations} />
+          </div>
         </main>
       </div>
 

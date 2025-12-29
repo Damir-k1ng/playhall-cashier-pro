@@ -38,7 +38,7 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
   const totalShift = (shift?.total_cash || 0) + (shift?.total_kaspi || 0);
 
   return (
-    <header className="sticky top-0 z-50 glass-card border-b border-primary/10">
+    <header className="shrink-0 z-50 glass-card border-b border-primary/10">
       <div className="flex items-center justify-between h-18 px-4 md:px-6">
         {/* Logo and club name */}
         <button 
