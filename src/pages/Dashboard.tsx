@@ -58,7 +58,7 @@ export function Dashboard() {
         </main>
         
         <footer className="py-3 text-center">
-          <span className="text-emerald-400 font-medium tracking-wide text-sm opacity-70">
+          <span className="text-emerald-400 font-medium tracking-wide text-sm animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
             by Damir Kabdulla
           </span>
         </footer>
