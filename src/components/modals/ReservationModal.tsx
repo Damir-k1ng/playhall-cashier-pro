@@ -103,18 +103,18 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg bg-card border-primary/20 p-0 gap-0">
-        <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/50">
-          <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-primary" />
+      <DialogContent className="sm:max-w-lg bg-card border-primary/20 p-0 gap-0">
+        <DialogHeader className="shrink-0 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/50">
+          <DialogTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             Бронирование
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {/* Toggle Form Button */}
             {!showForm && (
               <Button
@@ -314,7 +314,7 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
           <Button 
             variant="outline" 
             onClick={handleClose}
-            className="w-full h-12 rounded-xl"
+            className="w-full h-11 sm:h-12 rounded-xl text-sm sm:text-base"
           >
             Закрыть
           </Button>
