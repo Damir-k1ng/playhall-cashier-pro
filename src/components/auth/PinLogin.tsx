@@ -71,26 +71,26 @@ export function PinLogin() {
       
       <div className="relative z-10 flex flex-col items-center">
         {/* Logo and club name */}
-        <div className="mb-12 text-center">
+        <div className="mb-6 sm:mb-12 text-center">
           <div className="relative">
-            <div className="w-28 h-28 mx-auto mb-8 rounded-2xl overflow-hidden glow-cyan-strong">
+            <div className="w-20 h-20 sm:w-28 sm:h-28 mx-auto mb-4 sm:mb-8 rounded-2xl overflow-hidden glow-cyan-strong">
               <img src={logoImage} alt={CLUB_NAME} className="w-full h-full object-cover" />
             </div>
             {/* Glow effect */}
-            <div className="absolute inset-0 w-28 h-28 mx-auto rounded-2xl bg-primary/40 blur-3xl" />
+            <div className="absolute inset-0 w-20 h-20 sm:w-28 sm:h-28 mx-auto rounded-2xl bg-primary/40 blur-3xl" />
           </div>
-          <h1 className="font-brand text-4xl tracking-wide mb-2 bg-gradient-to-r from-primary via-cyan-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_hsl(185_100%_50%_/_0.5)]">
+          <h1 className="font-brand text-2xl sm:text-4xl tracking-wide mb-2 bg-gradient-to-r from-primary via-cyan-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_hsl(185_100%_50%_/_0.5)]">
             {CLUB_NAME}
           </h1>
-          <p className="text-muted-foreground mt-8 text-lg">Введите PIN для входа</p>
+          <p className="text-muted-foreground mt-4 sm:mt-8 text-base sm:text-lg">Введите PIN для входа</p>
         </div>
 
         {/* PIN display */}
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className={`w-5 h-5 rounded-full transition-all duration-200 ${
+              className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-all duration-200 ${
                 i < pin.length 
                   ? 'bg-primary scale-125 shadow-[0_0_15px_hsl(185_100%_50%_/_0.8)]' 
                   : 'bg-muted/50 border border-border'
@@ -113,7 +113,7 @@ export function PinLogin() {
         )}
 
         {/* Keypad */}
-        <div className="grid grid-cols-3 gap-4 max-w-[320px]">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-[260px] sm:max-w-[320px]">
           {digits.map((digit, i) => {
             if (digit === '') {
               return <div key={i} />;
@@ -124,11 +124,11 @@ export function PinLogin() {
                   key={i}
                   variant="ghost"
                   size="lg"
-                  className="h-20 w-24 text-xl rounded-2xl hover:bg-muted/50 transition-all duration-200 active:scale-95"
+                  className="h-16 w-20 sm:h-20 sm:w-24 text-xl rounded-xl sm:rounded-2xl hover:bg-muted/50 transition-all duration-200 active:scale-95"
                   onClick={handleDelete}
                   disabled={isLoading || pin.length === 0}
                 >
-                  <Delete className="w-7 h-7" />
+                  <Delete className="w-6 h-6 sm:w-7 sm:h-7" />
                 </Button>
               );
             }
@@ -137,7 +137,7 @@ export function PinLogin() {
                 key={i}
                 variant="secondary"
                 size="lg"
-                className="h-20 w-24 text-3xl font-medium rounded-2xl hover:bg-accent hover:border-primary/30 border border-transparent transition-all duration-200 active:scale-95"
+                className="h-16 w-20 sm:h-20 sm:w-24 text-2xl sm:text-3xl font-medium rounded-xl sm:rounded-2xl hover:bg-accent hover:border-primary/30 border border-transparent transition-all duration-200 active:scale-95"
                 onClick={() => handleDigit(digit)}
                 disabled={isLoading}
               >
@@ -150,7 +150,7 @@ export function PinLogin() {
         {/* Clear button */}
         <Button
           variant="ghost"
-          className="mt-8 text-muted-foreground hover:text-foreground"
+          className="mt-4 sm:mt-8 text-muted-foreground hover:text-foreground text-sm sm:text-base"
           onClick={handleClear}
           disabled={isLoading || pin.length === 0}
         >
