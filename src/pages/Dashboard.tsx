@@ -56,6 +56,12 @@ export function Dashboard() {
             <StationGrid stations={stations} refetchStations={refetchStations} />
           </div>
         </main>
+        
+        <footer className="py-3 text-center">
+          <span className="text-emerald-400 font-medium tracking-wide text-sm opacity-70">
+            by Damir Kabdulla
+          </span>
+        </footer>
       </div>
 
       {/* Modals */}
