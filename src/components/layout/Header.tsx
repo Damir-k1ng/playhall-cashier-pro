@@ -54,7 +54,7 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
             <div className="absolute inset-0 rounded-xl bg-primary/20 blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
           </div>
           <div className="hidden sm:flex items-center gap-3">
-            <h1 className="font-brand text-base text-foreground tracking-wide">
+            <h1 className="font-brand text-base tracking-wide bg-gradient-to-r from-primary via-cyan-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_15px_hsl(185_100%_50%_/_0.4)]">
               {CLUB_NAME}
             </h1>
             {isRefreshing && (
