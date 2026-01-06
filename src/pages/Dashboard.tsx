@@ -7,7 +7,8 @@ import { ShiftReportModal } from '@/components/modals/ShiftReportModal';
 import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
 import { ShiftHistoryModal } from '@/components/modals/ShiftHistoryModal';
 import { Loader2 } from 'lucide-react';
-import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
+import { CLUB_NAME } from '@/lib/constants';
+import logoImage from '@/assets/logo.jpg';
 
 export function Dashboard() {
   const { stations, isLoading, isRefreshing, refetch: refetchStations } = useStations();
@@ -22,8 +23,8 @@ export function Dashboard() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-6">
         <div className="relative">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center glow-cyan-strong">
-            <DualSenseIcon size={48} className="text-primary-foreground animate-pulse" />
+          <div className="w-20 h-20 rounded-2xl overflow-hidden glow-cyan-strong">
+            <img src={logoImage} alt={CLUB_NAME} className="w-full h-full object-cover" />
           </div>
           <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-2xl animate-pulse" />
         </div>

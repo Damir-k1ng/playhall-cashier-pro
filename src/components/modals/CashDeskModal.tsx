@@ -5,7 +5,7 @@ import { CLUB_NAME } from '@/lib/constants';
 import { formatCurrency, formatTime } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Banknote, Smartphone, Gamepad2, Coffee, Clock } from 'lucide-react';
-import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
+import logoImage from '@/assets/logo.jpg';
 
 interface CashDeskModalProps {
   open: boolean;
@@ -25,7 +25,7 @@ export function CashDeskModal({ open, onClose }: CashDeskModalProps) {
       <DialogContent className="sm:max-w-md glass-card border-primary/20 p-0 gap-0">
         <DialogHeader className="shrink-0 p-6 pb-4">
           <div className="flex items-center gap-2 mb-2">
-            <DualSenseIcon size={16} className="text-primary" />
+            <img src={logoImage} alt={CLUB_NAME} className="w-4 h-4 rounded-sm object-cover" />
             <span className="text-xs text-muted-foreground">{CLUB_NAME}</span>
           </div>
           <DialogTitle className="text-xl">Касса смены</DialogTitle>

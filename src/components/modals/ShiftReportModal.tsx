@@ -7,7 +7,7 @@ import { formatCurrency, formatDateFull, formatTime, formatDuration, calculateCo
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Banknote, Smartphone, Gamepad2, Coffee, Clock, Printer, Download } from 'lucide-react';
-import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
+import logoImage from '@/assets/logo.jpg';
 
 interface ShiftReportModalProps {
   open: boolean;
@@ -131,7 +131,7 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
       <DialogContent className="sm:max-w-lg glass-card border-primary/20 p-0 gap-0 print:max-w-none print:m-0 print:p-8 print:shadow-none print:bg-white print:text-black">
         <DialogHeader className="shrink-0 p-6 pb-4 print:mb-6">
           <div className="flex items-center gap-2 mb-2 print:hidden">
-            <DualSenseIcon size={16} className="text-primary" />
+            <img src={logoImage} alt={CLUB_NAME} className="w-4 h-4 rounded-sm object-cover" />
             <span className="text-xs text-muted-foreground">{CLUB_NAME}</span>
           </div>
           <div className="hidden print:block text-center mb-4">
