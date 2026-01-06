@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Delete, Loader2 } from 'lucide-react';
-import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 import { CLUB_NAME } from '@/lib/constants';
+import logoImage from '@/assets/logo.jpg';
 
 export function PinLogin() {
   const { login } = useAuth();
@@ -73,8 +73,8 @@ export function PinLogin() {
         {/* Logo and club name */}
         <div className="mb-12 text-center">
           <div className="relative">
-            <div className="w-28 h-28 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center glow-cyan-strong">
-              <DualSenseIcon size={64} className="text-primary-foreground" />
+            <div className="w-28 h-28 mx-auto mb-8 rounded-2xl overflow-hidden glow-cyan-strong">
+              <img src={logoImage} alt={CLUB_NAME} className="w-full h-full object-cover" />
             </div>
             {/* Glow effect */}
             <div className="absolute inset-0 w-28 h-28 mx-auto rounded-2xl bg-primary/40 blur-3xl" />

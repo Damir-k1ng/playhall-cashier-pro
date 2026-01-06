@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw } from 'lucide-react';
-import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
 import { CLUB_NAME } from '@/lib/constants';
+import logoImage from '@/assets/logo.jpg';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,8 +47,8 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
           className="flex items-center gap-3 group transition-all duration-300 hover:opacity-80"
         >
           <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary via-primary to-secondary flex items-center justify-center glow-cyan transition-all duration-300 group-hover:glow-cyan-strong">
-              <DualSenseIcon size={28} className="text-primary-foreground" />
+            <div className="w-12 h-12 rounded-xl overflow-hidden glow-cyan transition-all duration-300 group-hover:glow-cyan-strong">
+              <img src={logoImage} alt={CLUB_NAME} className="w-full h-full object-cover" />
             </div>
             {/* Glow ring */}
             <div className="absolute inset-0 rounded-xl bg-primary/20 blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
