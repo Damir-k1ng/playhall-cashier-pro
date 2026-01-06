@@ -50,11 +50,29 @@ Deno.serve(async (req) => {
         .single()
 
       if (existingShift) {
+        // If shift exists but has no token, generate one
+        let sessionToken = existingShift.session_token
+        if (!sessionToken) {
+          sessionToken = crypto.randomUUID()
+          await supabase
+            .from('shifts')
+            .update({ session_token: sessionToken })
+            .eq('id', existingShift.id)
+        }
+
+        // Get cashier role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('cashier_id', cashier.id)
+          .single()
+
         return new Response(
           JSON.stringify({
             cashier,
-            shift: existingShift,
-            session_token: existingShift.session_token
+            shift: { ...existingShift, session_token: sessionToken },
+            session_token: sessionToken,
+            role: roleData?.role || 'cashier'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
