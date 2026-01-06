@@ -17,6 +17,7 @@ export default {
         sans: ['Inter', 'SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
         mono: ['JetBrains Mono', 'SF Mono', 'Monaco', 'monospace'],
         gaming: ['Orbitron', 'Inter', 'sans-serif'],
+        brand: ['Russo One', 'Orbitron', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

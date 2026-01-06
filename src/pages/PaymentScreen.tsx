@@ -104,7 +104,7 @@ export function PaymentScreen() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Назад
           </Button>
-          <span className="text-xs text-muted-foreground tracking-wider">{CLUB_NAME}</span>
+          <span className="text-xs text-muted-foreground tracking-wider font-brand">{CLUB_NAME}</span>
           <div className="w-16" />
         </div>
       </header>
