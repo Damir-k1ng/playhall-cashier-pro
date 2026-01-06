@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { CLUB_NAME, CONTROLLER_RATE } from '@/lib/constants';
 import { formatCurrency, formatDuration, formatTime, getElapsedMinutes, calculateGameCost, calculateControllerCost } from '@/lib/utils';
-import { Banknote, Smartphone, CreditCard, Gamepad2, Coffee, Clock, Loader2 } from 'lucide-react';
+import { Banknote, Smartphone, CreditCard, Gamepad2, Coffee, Clock, Loader2, Printer } from 'lucide-react';
+import logoImage from '@/assets/logo.jpg';
 import type { StationWithSession, ControllerUsage, SessionDrink, PaymentMethod } from '@/types/database';
 
 interface PreCheckModalProps {
@@ -157,6 +158,95 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
 
   const splitValid = (parseInt(cashAmount) || 0) + (parseInt(kaspiAmount) || 0) === costs.total;
 
+  const handlePrint = () => {
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Чек - ${station.name}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Courier New', monospace; 
+            padding: 20px; 
+            max-width: 300px; 
+            margin: 0 auto;
+            font-size: 12px;
+          }
+          .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+          .logo { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+          .station { font-size: 14px; margin-bottom: 5px; }
+          .date { font-size: 10px; color: #666; }
+          .section { margin: 10px 0; }
+          .row { display: flex; justify-content: space-between; margin: 3px 0; }
+          .label { color: #666; }
+          .value { font-weight: bold; }
+          .divider { border-top: 1px dashed #000; margin: 10px 0; }
+          .total { font-size: 16px; font-weight: bold; margin-top: 10px; }
+          .detail { padding-left: 15px; font-size: 10px; color: #666; }
+          .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">${CLUB_NAME}</div>
+          <div class="station">${station.name}</div>
+          <div class="date">${new Date().toLocaleDateString('ru-RU')} ${formatTime(new Date())}</div>
+        </div>
+        
+        <div class="section">
+          <div class="row"><span class="label">Начало:</span><span>${formatTime(startTime)}</span></div>
+          <div class="row"><span class="label">Конец:</span><span>${formatTime(endTime)}</span></div>
+          <div class="row"><span class="label">Длительность:</span><span>${formatDuration(elapsedMinutes)}</span></div>
+          <div class="row"><span class="label">Тариф:</span><span>${session.tariff_type === 'package' ? 'Пакет 2+1' : 'Почасовая'}</span></div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="section">
+          <div class="row"><span>Игра (${formatDuration(elapsedMinutes)})</span><span>${formatCurrency(costs.game)}</span></div>
+          ${hasControllers ? `
+            <div class="row"><span>Джойстики (${controllerDetails.length} шт.)</span><span>${formatCurrency(costs.controllers)}</span></div>
+            ${controllerDetails.map((c, i) => `
+              <div class="detail">
+                <div class="row"><span>Джойстик ${i + 1}: ${formatDuration(c.minutes)}</span><span>${formatCurrency(c.cost)}</span></div>
+                <div style="font-size: 9px; opacity: 0.7;">${formatTime(c.takenAt)} — ${formatTime(c.returnedAt)}</div>
+              </div>
+            `).join('')}
+          ` : ''}
+          ${hasDrinks ? `
+            <div class="row"><span>Напитки</span><span>${formatCurrency(costs.drinks)}</span></div>
+            ${drinks.map(d => `
+              <div class="detail">
+                <div class="row"><span>${(d as any).drink?.name || 'Напиток'} × ${d.quantity}</span><span>${formatCurrency(d.total_price)}</span></div>
+              </div>
+            `).join('')}
+          ` : ''}
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="row total"><span>ИТОГО:</span><span>${formatCurrency(costs.total)}</span></div>
+        
+        <div class="footer">
+          <p>Спасибо за игру!</p>
+          <p>Ждём вас снова</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
@@ -285,16 +375,28 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
                 Kaspi QR
               </Button>
             </div>
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full h-12 gap-2"
-              onClick={() => setPaymentMode('split')}
-              disabled={isProcessing}
-            >
-              <CreditCard className="w-5 h-5" />
-              Разделить оплату
-            </Button>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-12 gap-2"
+                onClick={() => setPaymentMode('split')}
+                disabled={isProcessing}
+              >
+                <CreditCard className="w-5 h-5" />
+                Разделить
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-12 gap-2"
+                onClick={handlePrint}
+                disabled={isProcessing}
+              >
+                <Printer className="w-5 h-5" />
+                Печать
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
