@@ -7,7 +7,7 @@ import { ShiftReportModal } from '@/components/modals/ShiftReportModal';
 import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
 import { ShiftHistoryModal } from '@/components/modals/ShiftHistoryModal';
 import { Loader2 } from 'lucide-react';
-import { CLUB_NAME } from '@/lib/constants';
+import { CLUB_NAME, APP_VERSION } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
 
 export function Dashboard() {
@@ -62,7 +62,7 @@ export function Dashboard() {
             by Damir Kabdulla
           </span>
           <span className="text-muted-foreground/50 text-xs">•</span>
-          <span className="text-muted-foreground/50 text-xs font-mono">v1.0.0</span>
+          <span className="text-muted-foreground/50 text-xs font-mono">{APP_VERSION}</span>
         </footer>
       </div>
 

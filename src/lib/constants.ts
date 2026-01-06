@@ -1,5 +1,7 @@
 // PlayStation club "SVOY" constants
 
+export const APP_VERSION = 'v1.0.0';
+
 export const CLUB_NAME = 'PlayStation club SVOY';
 
 export const CONTROLLER_RATE = 600; // ₸ per hour
