@@ -51,13 +51,13 @@ export function Dashboard() {
           isRefreshing={isRefreshing}
         />
         
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
-          <div className="max-w-[1800px] mx-auto">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-7xl mx-auto">
             <StationGrid stations={stations} refetchStations={refetchStations} />
           </div>
         </main>
         
-        <footer className="py-2 sm:py-2.5 text-center flex items-center justify-center gap-2.5">
+        <footer className="py-3 text-center flex items-center justify-center gap-3">
           <span className="text-emerald-400 font-medium tracking-wide text-sm animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
             by Damir Kabdulla
           </span>

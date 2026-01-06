@@ -152,22 +152,22 @@ export function StationScreen() {
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
       
       {/* Header - Fixed */}
-      <header className="shrink-0 glass-card border-b border-primary/10 px-3 sm:px-6 py-3 sm:py-4 relative z-10">
+      <header className="shrink-0 glass-card border-b border-primary/10 px-6 py-4 relative z-10">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => navigate('/')}
-            className="text-muted-foreground hover:text-foreground rounded-xl border border-transparent hover:border-primary/20 -ml-1 sm:-ml-2 h-8 sm:h-9 px-2 sm:px-3"
+            className="text-muted-foreground hover:text-foreground rounded-xl border border-transparent hover:border-primary/20 -ml-2"
           >
-            <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Назад</span>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Назад
           </Button>
           
-          <span className="text-[10px] sm:text-xs text-muted-foreground tracking-wider font-brand">{CLUB_NAME}</span>
+          <span className="text-xs text-muted-foreground tracking-wider font-brand">{CLUB_NAME}</span>
           
           <span className={cn(
-            'text-[10px] font-bold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full uppercase tracking-widest',
+            'text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest',
             station.zone === 'vip' 
               ? 'bg-vip/15 text-vip border border-vip/30' 
               : 'bg-primary/15 text-primary border border-primary/30'
@@ -178,23 +178,23 @@ export function StationScreen() {
       </header>
 
       {/* Content - Scrollable */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 relative z-10">
+      <main className="flex-1 min-h-0 overflow-y-auto p-6 relative z-10">
         <div className="max-w-5xl mx-auto">
         {/* Station Header */}
-        <div className="mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-1 sm:mb-2">{station.name}</h1>
+        <div className="mb-8">
+          <h1 className="text-5xl font-bold text-foreground mb-2">{station.name}</h1>
           {isActive && (
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className={cn(
                 'font-bold uppercase tracking-wider',
                 isWarning && 'text-warning',
                 isOvertime && 'text-destructive',
                 !isWarning && !isOvertime && (isPackage ? 'text-success' : 'text-primary')
               )}>
-                {isOvertime ? 'Переигрывает' : isWarning ? '⚠ 5 мин' : 'Активна'}
+                {isOvertime ? 'Переигрывает' : isWarning ? '⚠ Осталось 5 минут' : 'Активна'}
               </span>
-              <span className="text-muted-foreground/30 hidden sm:inline">•</span>
-              <span className="hidden sm:inline">{isPackage ? 'Пакет 2+1' : 'Почасовая'}</span>
+              <span className="text-muted-foreground/30">•</span>
+              <span>{isPackage ? 'Пакет 2+1' : 'Почасовая'}</span>
               <span className="text-muted-foreground/30">•</span>
               <span>с {new Date(station.activeSession!.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -203,61 +203,61 @@ export function StationScreen() {
 
         {!isActive ? (
           /* Start Session */
-          <div className="space-y-4 sm:space-y-8">
-            <p className="text-muted-foreground text-base sm:text-lg">Выберите тариф для начала сессии</p>
+          <div className="space-y-8">
+            <p className="text-muted-foreground text-lg">Выберите тариф для начала сессии</p>
             
-            <div className="grid grid-cols-2 gap-3 sm:gap-6 max-w-2xl">
+            <div className="grid grid-cols-2 gap-6 max-w-2xl">
               <Button
                 size="lg"
                 className={cn(
-                  'h-28 sm:h-40 flex-col gap-2 sm:gap-4 text-base sm:text-xl rounded-xl sm:rounded-2xl',
+                  'h-40 flex-col gap-4 text-xl rounded-2xl',
                   'bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/30',
                   'hover:border-primary hover:shadow-glow-md transition-all duration-300'
                 )}
                 variant="ghost"
                 onClick={() => handleStartSession('hourly')}
               >
-                <Play className="w-6 h-6 sm:w-10 sm:h-10 text-primary" />
-                <span className="font-bold text-primary text-sm sm:text-base">Почасовая</span>
-                <span className="text-xs sm:text-base text-muted-foreground">{formatCurrency(station.hourly_rate)}/час</span>
+                <Play className="w-10 h-10 text-primary" />
+                <span className="font-bold text-primary">Почасовая</span>
+                <span className="text-base text-muted-foreground">{formatCurrency(station.hourly_rate)}/час</span>
               </Button>
               
               <Button
                 size="lg"
                 className={cn(
-                  'h-28 sm:h-40 flex-col gap-2 sm:gap-4 text-base sm:text-xl rounded-xl sm:rounded-2xl',
+                  'h-40 flex-col gap-4 text-xl rounded-2xl',
                   'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
                   'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
                 )}
                 variant="ghost"
                 onClick={() => handleStartSession('package')}
               >
-                <Play className="w-6 h-6 sm:w-10 sm:h-10 text-success" />
-                <span className="font-bold text-success text-sm sm:text-base">Пакет 2+1</span>
-                <span className="text-xs sm:text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
+                <Play className="w-10 h-10 text-success" />
+                <span className="font-bold text-success">Пакет 2+1</span>
+                <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
               </Button>
             </div>
           </div>
         ) : (
           /* Active Session */
-          <div className="space-y-4 sm:space-y-8">
+          <div className="space-y-8">
             {/* Timer - DOMINANT Element */}
             <div className={cn(
-              'text-center py-6 sm:py-12 lg:py-16 rounded-xl sm:rounded-3xl glass-card border-2',
+              'text-center py-16 rounded-3xl glass-card border-2',
               isWarning && 'border-warning/50 shadow-glow-gold',
               isOvertime && 'border-destructive/50 glow-destructive',
               !isWarning && !isOvertime && (isPackage ? 'border-success/30 shadow-glow-emerald' : 'border-primary/30 shadow-glow-md')
             )}>
               <div className={cn(
                 'font-gaming font-bold tracking-tight',
-                'text-4xl sm:text-6xl lg:text-8xl',
+                'text-7xl sm:text-8xl lg:text-9xl',
                 getTimerColor()
               )}>
                 {formatDurationHMS(elapsedSeconds)}
               </div>
               {isPackage && (
                 <div className={cn(
-                  'text-sm sm:text-lg lg:text-xl mt-3 sm:mt-6 font-medium',
+                  'text-xl mt-6 font-medium',
                   isWarning && 'text-warning',
                   isOvertime && 'text-destructive',
                   !isWarning && !isOvertime && 'text-muted-foreground'
@@ -271,51 +271,50 @@ export function StationScreen() {
             </div>
 
             {/* Controllers Section */}
-            <section className="glass-card rounded-xl sm:rounded-2xl border border-primary/20 p-3 sm:p-6">
-              <div className="flex items-center justify-between mb-3 sm:mb-6 gap-2">
-                <h2 className="text-xs sm:text-sm font-bold flex items-center gap-2 sm:gap-3 text-muted-foreground uppercase tracking-widest">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <Gamepad2 size={16} className="sm:w-5 sm:h-5 text-primary" />
+            <section className="glass-card rounded-2xl border border-primary/20 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Gamepad2 size={20} className="text-primary" />
                   </div>
-                  <span className="hidden sm:inline">Дополнительные джойстики</span>
-                  <span className="sm:hidden">Джойстики</span>
+                  Дополнительные джойстики
                 </h2>
                 <Button 
-                  size="sm"
+                  size="lg" 
                   onClick={handleAddController} 
-                  className="gap-1 sm:gap-2 rounded-lg sm:rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-4"
+                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold"
                 >
-                  <span className="hidden sm:inline">🎮</span> ВЗЯЛИ
+                  🎮 ВЗЯЛИ
                 </Button>
               </div>
               
               {activeControllers.length === 0 ? (
-                <p className="text-muted-foreground/60 py-3 sm:py-4 text-sm">Нет активных джойстиков</p>
+                <p className="text-muted-foreground/60 py-4">Нет активных джойстиков</p>
               ) : (
-                <div className="space-y-2 sm:space-y-3">
+                <div className="space-y-3">
                   {activeControllers.map((controller, index) => {
                     const seconds = controllerSeconds[controller.id] || 0;
                     const cost = getControllerCost(seconds);
                     return (
                       <div 
                         key={controller.id}
-                        className="flex items-center justify-between p-2 sm:p-5 bg-muted/30 rounded-lg sm:rounded-xl border border-border/50"
+                        className="flex items-center justify-between p-5 bg-muted/30 rounded-xl border border-border/50"
                       >
-                        <div className="flex items-center gap-2 sm:gap-6 flex-1 min-w-0">
-                          <span className="font-semibold text-sm sm:text-lg whitespace-nowrap">#{index + 1}</span>
-                          <span className="font-mono text-lg sm:text-2xl text-primary text-glow-cyan">
+                        <div className="flex items-center gap-6">
+                          <span className="font-semibold text-lg">Джойстик #{index + 1}</span>
+                          <span className="font-mono text-2xl text-primary text-glow-cyan">
                             {formatDurationHMS(seconds)}
                           </span>
-                          <span className="text-muted-foreground text-sm sm:text-lg hidden xs:inline">
+                          <span className="text-muted-foreground text-lg">
                             {formatCurrency(cost)}
                           </span>
                         </div>
                         <Button 
-                          size="sm"
+                          size="lg"
                           onClick={() => handleReturnController(controller.id)}
-                          className="rounded-lg sm:rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-4 shrink-0"
+                          className="rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold"
                         >
-                          <span className="hidden sm:inline">🎮</span> ВЕРНУЛИ
+                          🎮 ВЕРНУЛИ
                         </Button>
                       </div>
                     );
@@ -325,51 +324,51 @@ export function StationScreen() {
             </section>
 
             {/* Drinks Section */}
-            <section className="glass-card rounded-xl sm:rounded-2xl border border-success/20 p-3 sm:p-6">
-              <div className="flex items-center justify-between mb-3 sm:mb-6 gap-2">
-                <h2 className="text-xs sm:text-sm font-bold flex items-center gap-2 sm:gap-3 text-muted-foreground uppercase tracking-widest">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-base sm:text-xl">
+            <section className="glass-card rounded-2xl border border-success/20 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
+                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-xl">
                     🥤
                   </div>
                   Напитки
                 </h2>
                 <Button 
-                  size="sm"
+                  size="lg" 
                   onClick={() => setShowDrinks(!showDrinks)} 
-                  className="gap-1 sm:gap-2 rounded-lg sm:rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all font-bold text-xs sm:text-sm h-8 sm:h-10 px-2 sm:px-4"
+                  className="gap-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all font-bold"
                 >
-                  🥤 <span className="hidden sm:inline">Напитки</span>
+                  🥤 Напитки
                 </Button>
               </div>
               
               {showDrinks && (
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-border/50">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 pb-6 border-b border-border/50">
                   {drinks.map(drink => (
                     <Button
                       key={drink.id}
                       variant="outline"
-                      size="sm"
-                      className="justify-between h-10 sm:h-16 rounded-lg sm:rounded-xl border-border/50 hover:border-success/50 hover:bg-success/5 text-xs sm:text-base px-2 sm:px-4"
+                      size="lg"
+                      className="justify-between h-16 rounded-xl border-border/50 hover:border-success/50 hover:bg-success/5"
                       onClick={() => handleAddDrink(drink.id, drink.price)}
                     >
-                      <span className="font-medium truncate">{drink.name}</span>
-                      <span className="text-success font-semibold shrink-0 ml-1">{formatCurrency(drink.price)}</span>
+                      <span className="font-medium">{drink.name}</span>
+                      <span className="text-success font-semibold">{formatCurrency(drink.price)}</span>
                     </Button>
                   ))}
                 </div>
               )}
               
               {!hasDrinks ? (
-                <p className="text-muted-foreground/60 py-3 sm:py-4 text-sm">Напитки не заказаны</p>
+                <p className="text-muted-foreground/60 py-4">Напитки не заказаны</p>
               ) : (
                 <div className="space-y-2">
                   {sessionDrinks.map((drink, index) => (
                     <div 
                       key={index}
-                      className="flex items-center justify-between p-2 sm:p-4 bg-muted/30 rounded-lg sm:rounded-xl"
+                      className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"
                     >
-                      <span className="font-medium text-sm sm:text-base">{drink.quantity}x {drink.drink?.name || 'напиток'}</span>
-                      <span className="text-success font-semibold text-sm sm:text-base">{formatCurrency(drink.total_price)}</span>
+                      <span className="font-medium">{drink.quantity}x {drink.drink?.name || 'напиток'}</span>
+                      <span className="text-success font-semibold">{formatCurrency(drink.total_price)}</span>
                     </div>
                   ))}
                 </div>
@@ -380,13 +379,13 @@ export function StationScreen() {
             <Button 
               size="lg"
               className={cn(
-                'w-full h-14 sm:h-20 text-base sm:text-xl font-bold rounded-xl sm:rounded-2xl',
+                'w-full h-20 text-xl font-bold rounded-2xl',
                 'bg-gradient-to-r from-destructive/80 to-destructive border-2 border-destructive',
                 'hover:shadow-lg hover:scale-[1.01] transition-all duration-200 btn-press'
               )}
               onClick={handleEndSession}
             >
-              <Square className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />
+              <Square className="w-6 h-6 mr-3" />
               Завершить сессию
             </Button>
           </div>

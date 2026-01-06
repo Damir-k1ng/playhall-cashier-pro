@@ -26,27 +26,27 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
   return (
     <div
       className={cn(
-        'relative rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-5 transition-all duration-300',
+        'relative rounded-xl sm:rounded-2xl p-3 sm:p-5 md:p-6 transition-all duration-300',
         'glass-card',
         'border-2 border-reserved/40',
-        'min-h-[160px] sm:min-h-[180px] lg:min-h-[200px] flex flex-col'
+        'min-h-[200px] sm:min-h-[280px] md:min-h-[300px] flex flex-col'
       )}
     >
       {/* Zone indicator line at top */}
       <div className={cn(
-        'absolute top-0 left-2 right-2 sm:left-3 sm:right-3 h-0.5 rounded-b-full',
+        'absolute top-0 left-3 right-3 sm:left-4 sm:right-4 h-0.5 sm:h-1 rounded-b-full',
         station.zone === 'vip' 
           ? 'bg-gradient-to-r from-transparent via-vip to-transparent shadow-[0_0_20px_hsl(42_100%_55%_/_0.5)]' 
           : 'bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_20px_hsl(185_100%_50%_/_0.5)]'
       )} />
 
       {/* Top: Station Name + Zone Badge */}
-      <div className="flex items-start justify-between mb-2 sm:mb-2.5">
-        <h3 className="font-gaming font-bold text-base sm:text-lg lg:text-xl text-foreground tracking-wide">
+      <div className="flex items-start justify-between mb-2 sm:mb-4">
+        <h3 className="font-gaming font-bold text-base sm:text-xl md:text-2xl text-foreground tracking-wide">
           {station.name}
         </h3>
         <span className={cn(
-          'text-[8px] sm:text-[9px] lg:text-[10px] font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full uppercase tracking-widest',
+          'text-[8px] sm:text-[10px] font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full uppercase tracking-widest',
           station.zone === 'vip' 
             ? 'bg-vip/20 text-vip border border-vip/40 shadow-[0_0_15px_hsl(42_100%_55%_/_0.3)]' 
             : 'bg-primary/20 text-primary border border-primary/40 shadow-[0_0_15px_hsl(185_100%_50%_/_0.3)]'
@@ -56,9 +56,9 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
       </div>
 
       {/* CENTER: Big neon glowing time */}
-      <div className="flex-1 flex flex-col items-center justify-center py-2 sm:py-3">
+      <div className="flex-1 flex flex-col items-center justify-center py-2 sm:py-4">
         <div className={cn(
-          'font-gaming text-2xl sm:text-3xl lg:text-4xl font-bold tracking-wider',
+          'font-gaming text-3xl sm:text-5xl md:text-6xl font-bold tracking-wider',
           'text-reserved',
           'drop-shadow-[0_0_30px_hsl(210_100%_60%_/_0.6)]',
           'animate-pulse'
@@ -68,44 +68,45 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
 
         {/* Status label */}
         <div className={cn(
-          'mt-2 sm:mt-2.5 inline-flex items-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-md',
+          'mt-2 sm:mt-4 inline-flex items-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-4 sm:py-2 rounded-lg',
           'bg-reserved/15 border border-reserved/30'
         )}>
-          <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-reserved" />
-          <span className="text-[10px] sm:text-xs lg:text-sm font-bold text-reserved">
-            Бронь
+          <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-reserved" />
+          <span className="text-[10px] sm:text-sm font-bold text-reserved">
+            🔵 Бронь на {bookingTime}
           </span>
         </div>
 
         {/* Client info */}
         {booking.comment && (
-          <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-muted-foreground text-center max-w-full px-1">
+          <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground text-center max-w-full px-2">
             <span className="truncate block">{booking.comment}</span>
           </div>
         )}
       </div>
 
       {/* Bottom Buttons */}
-      <div className="relative z-10 flex gap-2 mt-2 sm:mt-2.5 pt-2 sm:pt-2.5 border-t border-border/30">
+      <div className="relative z-10 flex flex-col gap-1.5 sm:gap-2 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border/30">
         <Button 
-          className="h-8 sm:h-9 lg:h-10 rounded-md bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-sm sm:text-base flex-1"
+          className="w-full h-9 sm:h-11 rounded-lg bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-sm sm:text-base"
           onClick={(e) => {
             e.stopPropagation();
             onStartSession(station.id, booking.id);
           }}
         >
-          <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
+          <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
           Начать
         </Button>
         <Button 
           variant="outline"
-          className="h-8 sm:h-9 lg:h-10 px-2.5 sm:px-3.5 rounded-md border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive"
+          className="w-full h-8 sm:h-10 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive font-medium text-xs sm:text-sm"
           onClick={(e) => {
             e.stopPropagation();
             onCancelBooking(booking.id);
           }}
         >
-          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <X className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+          Снять бронь
         </Button>
       </div>
     </div>
