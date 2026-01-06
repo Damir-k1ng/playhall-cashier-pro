@@ -8,7 +8,7 @@ import { ArrowLeft, Play, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CONTROLLER_RATE, CLUB_NAME, PACKAGE_WARNING_MINUTES } from '@/lib/constants';
-import { DualSenseIcon } from '@/components/icons/DualSenseIcon';
+import { Gamepad2 } from 'lucide-react';
 
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -275,7 +275,7 @@ export function StationScreen() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <DualSenseIcon size={20} className="text-primary" />
+                    <Gamepad2 size={20} className="text-primary" />
                   </div>
                   Дополнительные джойстики
                 </h2>
