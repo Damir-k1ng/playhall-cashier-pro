@@ -79,7 +79,7 @@ export function PinLogin() {
             {/* Glow effect */}
             <div className="absolute inset-0 w-28 h-28 mx-auto rounded-2xl bg-primary/40 blur-3xl" />
           </div>
-          <h1 className="font-brand text-4xl text-foreground tracking-wide mb-2">
+          <h1 className="font-brand text-4xl tracking-wide mb-2 bg-gradient-to-r from-primary via-cyan-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_25px_hsl(185_100%_50%_/_0.5)]">
             {CLUB_NAME}
           </h1>
           <p className="text-muted-foreground mt-8 text-lg">Введите PIN для входа</p>
