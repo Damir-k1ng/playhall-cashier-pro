@@ -103,29 +103,29 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
     <div
       onClick={handleClick}
       className={cn(
-        'relative rounded-2xl p-5 md:p-6 transition-all duration-300 cursor-pointer card-lift',
+        'relative rounded-xl sm:rounded-2xl p-3 sm:p-5 md:p-6 transition-all duration-300 cursor-pointer card-lift',
         'glass-card glass-card-hover',
         'border-2',
         config.borderColor,
         config.bgGlow,
-        'min-h-[220px] md:min-h-[240px] flex flex-col'
+        'min-h-[180px] sm:min-h-[220px] md:min-h-[240px] flex flex-col'
       )}
     >
       {/* Zone indicator line at top */}
       <div className={cn(
-        'absolute top-0 left-4 right-4 h-1 rounded-b-full',
+        'absolute top-0 left-3 right-3 sm:left-4 sm:right-4 h-0.5 sm:h-1 rounded-b-full',
         station.zone === 'vip' 
           ? 'bg-gradient-to-r from-transparent via-vip to-transparent shadow-[0_0_20px_hsl(42_100%_55%_/_0.5)]' 
           : 'bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_20px_hsl(185_100%_50%_/_0.5)]'
       )} />
 
       {/* Top: Station Name + Zone Badge */}
-      <div className="flex items-start justify-between mb-3">
-        <h3 className="font-gaming font-bold text-xl md:text-2xl text-foreground tracking-wide">
+      <div className="flex items-start justify-between mb-2 sm:mb-3">
+        <h3 className="font-gaming font-bold text-base sm:text-xl md:text-2xl text-foreground tracking-wide">
           {station.name}
         </h3>
         <span className={cn(
-          'text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest',
+          'text-[8px] sm:text-[10px] font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full uppercase tracking-widest',
           station.zone === 'vip' 
             ? 'bg-vip/20 text-vip border border-vip/40 shadow-[0_0_15px_hsl(42_100%_55%_/_0.3)]' 
             : 'bg-primary/20 text-primary border border-primary/40 shadow-[0_0_15px_hsl(185_100%_50%_/_0.3)]'
@@ -136,18 +136,18 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
 
       {/* Price */}
       {!isActive && (
-        <div className="text-base text-muted-foreground mb-3 font-medium">
-          {formatCurrency(station.hourly_rate)}<span className="text-sm opacity-70">/час</span>
+        <div className="text-sm sm:text-base text-muted-foreground mb-2 sm:mb-3 font-medium">
+          {formatCurrency(station.hourly_rate)}<span className="text-xs sm:text-sm opacity-70">/час</span>
         </div>
       )}
 
       {/* Status Label */}
       <div className={cn(
-        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg w-fit mb-4',
+        'inline-flex items-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg w-fit mb-2 sm:mb-4',
         config.statusBg
       )}>
-        <div className={cn('w-2 h-2 rounded-full', config.color.replace('text-', 'bg-'), 'animate-pulse')} />
-        <span className={cn('text-xs font-bold uppercase tracking-widest', config.color)}>
+        <div className={cn('w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full', config.color.replace('text-', 'bg-'), 'animate-pulse')} />
+        <span className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-widest', config.color)}>
           {config.label}
         </span>
       </div>
@@ -157,7 +157,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
         {isActive ? (
           <div 
             className={cn(
-              'font-gaming text-3xl md:text-4xl font-bold tracking-wide',
+              'font-gaming text-2xl sm:text-3xl md:text-4xl font-bold tracking-wide',
               config.timerColor,
               config.glow
             )}
@@ -169,30 +169,30 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
             {formatDurationHMS(elapsedSeconds)}
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-muted-foreground/60">
-            <Play className="w-4 h-4" />
-            <span className="text-sm">Нажмите для запуска</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground/60">
+            <Play className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="text-xs sm:text-sm">Нажмите для запуска</span>
           </div>
         )}
       </div>
 
       {/* Bottom: Badges for controllers and drinks */}
       {isActive && (activeControllers.length > 0 || totalDrinks > 0) && (
-        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/30">
+        <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border/30">
           {activeControllers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
-                <Gamepad2 className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
+                <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
               </div>
-              <span className="text-primary font-bold text-lg">+{activeControllers.length}</span>
+              <span className="text-primary font-bold text-sm sm:text-lg">+{activeControllers.length}</span>
             </div>
           )}
           {totalDrinks > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-secondary/15 border border-secondary/25 flex items-center justify-center">
-                <Coffee className="w-4 h-4 text-secondary" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-secondary/15 border border-secondary/25 flex items-center justify-center">
+                <Coffee className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-secondary" />
               </div>
-              <span className="text-secondary font-bold text-lg">{totalDrinks}</span>
+              <span className="text-secondary font-bold text-sm sm:text-lg">{totalDrinks}</span>
             </div>
           )}
         </div>
@@ -201,7 +201,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
       {/* Primary Actions for FREE stations */}
       {!isActive && (
         <div 
-          className="relative z-10 mt-4 pt-4 border-t border-border/30 flex gap-2"
+          className="relative z-10 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border/30 flex gap-2"
           style={{
             width: '100%',
             boxSizing: 'border-box',
@@ -209,25 +209,25 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
           }}
         >
           <Button 
-            className="h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-base btn-press glow-emerald min-w-0 flex-1 rounded-lg"
+            className="h-9 sm:h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-sm sm:text-base btn-press glow-emerald min-w-0 flex-1 rounded-lg"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/station/${station.id}`);
             }}
           >
-            <Play className="w-4 h-4 mr-2 shrink-0" />
+            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 shrink-0" />
             <span className="truncate">Начать</span>
           </Button>
           {onBook && !hasBooking && (
             <Button 
               variant="outline"
-              className="h-11 px-4 border-reserved/40 text-reserved hover:bg-reserved/10 hover:border-reserved shrink-0"
+              className="h-9 sm:h-11 px-3 sm:px-4 border-reserved/40 text-reserved hover:bg-reserved/10 hover:border-reserved shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 onBook();
               }}
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
           )}
         </div>

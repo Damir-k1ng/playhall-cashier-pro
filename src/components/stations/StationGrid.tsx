@@ -106,31 +106,31 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
 
   return (
     <>
-      <div className="space-y-12">
+      <div className="space-y-6 sm:space-y-12">
         {/* VIP Zone */}
         <section>
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-vip/30 to-transparent" />
-            <h2 className="text-xs font-bold text-vip uppercase tracking-[0.3em]">
+            <h2 className="text-[10px] sm:text-xs font-bold text-vip uppercase tracking-[0.2em] sm:tracking-[0.3em]">
               VIP Зона
             </h2>
             <div className="h-px flex-1 bg-gradient-to-l from-transparent via-vip/30 to-transparent" />
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-5">
             {vipStations.map(renderStationCard)}
           </div>
         </section>
 
         {/* Hall Zone */}
         <section>
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-            <h2 className="text-xs font-bold text-primary uppercase tracking-[0.3em]">
+            <h2 className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-[0.2em] sm:tracking-[0.3em]">
               Зал
             </h2>
             <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/30 to-transparent" />
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-5">
             {hallStations.map(renderStationCard)}
           </div>
         </section>
