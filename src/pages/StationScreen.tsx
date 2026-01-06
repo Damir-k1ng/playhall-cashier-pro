@@ -164,7 +164,7 @@ export function StationScreen() {
             Назад
           </Button>
           
-          <span className="text-xs text-muted-foreground tracking-wider font-medium">{CLUB_NAME}</span>
+          <span className="text-xs text-muted-foreground tracking-wider font-brand">{CLUB_NAME}</span>
           
           <span className={cn(
             'text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest',
