@@ -27,6 +27,8 @@ interface ControllerCostItem {
   id: string;
   minutes: number;
   cost: number;
+  takenAt: Date;
+  returnedAt: Date;
 }
 
 export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreCheckModalProps) {
@@ -67,7 +69,7 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
         const returnedAt = c.returned_at ? new Date(c.returned_at) : new Date();
         const minutes = Math.ceil((returnedAt.getTime() - takenAt.getTime()) / 60000);
         const cost = calculateControllerCost(minutes);
-        return { id: c.id, minutes, cost };
+        return { id: c.id, minutes, cost, takenAt, returnedAt };
       });
       const totalControllerCost = controllerItems.reduce((sum, c) => sum + c.cost, 0);
       setControllerDetails(controllerItems);
@@ -212,11 +214,16 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
                 </div>
                 <span className="font-semibold">{formatCurrency(costs.controllers)}</span>
               </div>
-              <div className="pl-6 space-y-1">
+              <div className="pl-6 space-y-2">
                 {controllerDetails.map((c, i) => (
-                  <div key={c.id} className="text-xs text-muted-foreground flex justify-between">
-                    <span>Джойстик {i + 1}: {formatDuration(c.minutes)}</span>
-                    <span>{formatCurrency(c.cost)}</span>
+                  <div key={c.id} className="text-xs text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Джойстик {i + 1}: {formatDuration(c.minutes)}</span>
+                      <span>{formatCurrency(c.cost)}</span>
+                    </div>
+                    <div className="text-[10px] opacity-70">
+                      {formatTime(c.takenAt)} — {formatTime(c.returnedAt)}
+                    </div>
                   </div>
                 ))}
               </div>
