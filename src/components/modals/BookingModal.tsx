@@ -86,15 +86,15 @@ export function BookingModal({ open, onClose, stationId, stationName, stationZon
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md bg-card border-primary/20 p-0 gap-0">
-        <DialogHeader className="p-6 pb-4 border-b border-border/50">
-          <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="w-10 h-10 rounded-xl bg-reserved/10 border border-reserved/30 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-reserved" />
+      <DialogContent className="sm:max-w-md bg-card border-primary/20 p-0 gap-0">
+        <DialogHeader className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/50">
+          <DialogTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-reserved/10 border border-reserved/30 flex items-center justify-center">
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-reserved" />
             </div>
             <div>
               <div>🗓 Забронировать</div>
-              <div className="text-sm font-normal text-muted-foreground mt-1">
+              <div className="text-xs sm:text-sm font-normal text-muted-foreground mt-0.5 sm:mt-1">
                 <span className={cn(
                   'font-bold',
                   stationZone === 'vip' ? 'text-vip' : 'text-primary'
@@ -107,20 +107,20 @@ export function BookingModal({ open, onClose, stationId, stationName, stationZon
           </DialogTitle>
         </DialogHeader>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
           {/* Time Selection */}
           <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
+            <Label className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Время начала *
             </Label>
             <Select value={selectedTime} onValueChange={setSelectedTime}>
-              <SelectTrigger className="h-14 rounded-xl border-border/50 bg-muted/30 text-lg font-mono">
+              <SelectTrigger className="h-12 sm:h-14 rounded-xl border-border/50 bg-muted/30 text-base sm:text-lg font-mono">
                 <SelectValue placeholder="Выберите время" />
               </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
+              <SelectContent className="max-h-[250px] sm:max-h-[300px]">
                 {timeSlots.map(time => (
-                  <SelectItem key={time} value={time} className="text-lg font-mono">
+                  <SelectItem key={time} value={time} className="text-base sm:text-lg font-mono">
                     {time}
                   </SelectItem>
                 ))}
@@ -130,7 +130,7 @@ export function BookingModal({ open, onClose, stationId, stationName, stationZon
 
           {/* Comment (Client name + phone) */}
           <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground flex items-center gap-2">
+            <Label className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               Комментарий (имя, телефон)
             </Label>
@@ -138,25 +138,25 @@ export function BookingModal({ open, onClose, stationId, stationName, stationZon
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Иван +7 777 123 45 67"
-              className="h-14 rounded-xl border-border/50 bg-muted/30 text-base"
+              className="h-12 sm:h-14 rounded-xl border-border/50 bg-muted/30 text-sm sm:text-base"
               maxLength={100}
             />
           </div>
         </div>
 
         {/* Footer Buttons */}
-        <div className="p-6 pt-0 flex gap-3">
+        <div className="p-4 sm:p-6 pt-0 flex gap-3">
           <Button 
             variant="outline" 
             onClick={handleClose}
-            className="flex-1 h-12 rounded-xl"
+            className="flex-1 h-12 sm:h-12 rounded-xl text-sm sm:text-base"
           >
             Отмена
           </Button>
           <Button
             onClick={handleCreate}
             disabled={!selectedTime || isCreating}
-            className="flex-1 h-12 rounded-xl font-bold text-base bg-reserved hover:bg-reserved/90"
+            className="flex-1 h-12 sm:h-12 rounded-xl font-bold text-sm sm:text-base bg-reserved hover:bg-reserved/90"
           >
             {isCreating ? 'Создание...' : 'Забронировать'}
           </Button>

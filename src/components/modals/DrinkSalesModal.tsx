@@ -139,27 +139,27 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
           </div>
         ) : step === 'payment' ? (
           <>
-            <DialogHeader className="shrink-0 p-6 pb-0">
-              <DialogTitle className="text-xl flex items-center gap-3">
-                <Coffee className="w-6 h-6 text-primary" />
+            <DialogHeader className="shrink-0 p-4 sm:p-6 pb-0">
+              <DialogTitle className="text-lg sm:text-xl flex items-center gap-2 sm:gap-3">
+                <Coffee className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 Оплата напитков
               </DialogTitle>
             </DialogHeader>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
-              <div className="text-center mb-8">
-                <div className="text-sm text-muted-foreground mb-2">К оплате</div>
-                <div className="font-gaming text-5xl font-bold text-primary text-glow-cyan">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
+              <div className="text-center mb-6 sm:mb-8">
+                <div className="text-xs sm:text-sm text-muted-foreground mb-2">К оплате</div>
+                <div className="font-gaming text-4xl sm:text-5xl font-bold text-primary text-glow-cyan">
                   {formatCurrency(totalAmount)}
                 </div>
               </div>
 
               {/* Payment Mode Toggle */}
-              <div className="flex gap-2 p-1 bg-muted/30 rounded-xl mb-6">
+              <div className="flex gap-1 sm:gap-2 p-1 bg-muted/30 rounded-xl mb-4 sm:mb-6">
                 <button
                   onClick={() => setPaymentMode('cash')}
                   className={cn(
-                    'flex-1 py-3 px-4 rounded-lg font-medium transition-all',
+                    'flex-1 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg font-medium transition-all text-sm sm:text-base',
                     paymentMode === 'cash'
                       ? 'bg-success text-success-foreground shadow-lg'
                       : 'text-muted-foreground hover:text-foreground'
@@ -170,7 +170,7 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                 <button
                   onClick={() => setPaymentMode('split')}
                   className={cn(
-                    'flex-1 py-3 px-4 rounded-lg font-medium transition-all',
+                    'flex-1 py-2.5 sm:py-3 px-2 sm:px-4 rounded-lg font-medium transition-all text-sm sm:text-base',
                     paymentMode === 'split'
                       ? 'bg-success text-success-foreground shadow-lg'
                       : 'text-muted-foreground hover:text-foreground'
@@ -181,9 +181,9 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
               </div>
 
               {paymentMode === 'split' ? (
-                <div className="space-y-4 mb-6">
+                <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                   <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <label className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
                       <Banknote className="w-4 h-4 text-success" />
                       Наличные
                     </label>
@@ -192,11 +192,11 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                       value={cashAmount}
                       onChange={(e) => setCashAmount(e.target.value)}
                       placeholder="0"
-                      className="text-lg h-14 bg-muted/30 border-border/50 text-center font-mono"
+                      className="text-base sm:text-lg h-12 sm:h-14 bg-muted/30 border-border/50 text-center font-mono"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <label className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-kaspi" />
                       Kaspi QR
                     </label>
@@ -205,12 +205,12 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                       value={kaspiAmount}
                       onChange={(e) => setKaspiAmount(e.target.value)}
                       placeholder="0"
-                      className="text-lg h-14 bg-muted/30 border-border/50 text-center font-mono"
+                      className="text-base sm:text-lg h-12 sm:h-14 bg-muted/30 border-border/50 text-center font-mono"
                     />
                   </div>
                   
                   <div className={cn(
-                    'text-center py-3 rounded-lg border',
+                    'text-center py-2 sm:py-3 rounded-lg border text-sm sm:text-base',
                     isSplitValid 
                       ? 'bg-success/10 border-success/30 text-success' 
                       : 'bg-destructive/10 border-destructive/30 text-destructive'
@@ -223,28 +223,28 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                   <Button
                     onClick={handleSplitPayment}
                     disabled={!isSplitValid || isProcessing}
-                    className="w-full h-14 text-lg bg-gradient-to-r from-success to-primary hover:opacity-90 btn-press"
+                    className="w-full h-12 sm:h-14 text-sm sm:text-lg bg-gradient-to-r from-success to-primary hover:opacity-90 btn-press"
                   >
                     {isProcessing ? (
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
                     ) : (
                       <ArrowLeftRight className="w-5 h-5 mr-2" />
                     )}
-                    Подтвердить разделённый платёж
+                    Подтвердить
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <Button
                     onClick={() => handlePayment('cash')}
                     disabled={isProcessing}
-                    className="h-20 text-lg bg-gradient-to-br from-success to-emerald-600 hover:opacity-90 flex flex-col gap-2 btn-press glow-emerald"
+                    className="h-16 sm:h-20 text-sm sm:text-lg bg-gradient-to-br from-success to-emerald-600 hover:opacity-90 flex flex-col gap-1 sm:gap-2 btn-press glow-emerald"
                   >
                     {isProcessing ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
                     ) : (
                       <>
-                        <Banknote className="w-8 h-8" />
+                        <Banknote className="w-6 h-6 sm:w-8 sm:h-8" />
                         <span>Наличные</span>
                       </>
                     )}
@@ -252,14 +252,14 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                   <Button
                     onClick={() => handlePayment('kaspi')}
                     disabled={isProcessing}
-                    className="h-20 text-lg bg-gradient-to-br from-kaspi to-pink-600 hover:opacity-90 flex flex-col gap-2 btn-press"
+                    className="h-16 sm:h-20 text-sm sm:text-lg bg-gradient-to-br from-kaspi to-pink-600 hover:opacity-90 flex flex-col gap-1 sm:gap-2 btn-press"
                     style={{ boxShadow: '0 0 20px hsl(330 100% 60% / 0.3)' }}
                   >
                     {isProcessing ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
                     ) : (
                       <>
-                        <CreditCard className="w-8 h-8" />
+                        <CreditCard className="w-6 h-6 sm:w-8 sm:h-8" />
                         <span>Kaspi QR</span>
                       </>
                     )}
@@ -268,11 +268,11 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
               )}
             </div>
 
-            <div className="shrink-0 p-6 pt-0">
+            <div className="shrink-0 p-4 sm:p-6 pt-0">
               <Button 
                 variant="ghost" 
                 onClick={() => setStep('select')}
-                className="w-full"
+                className="w-full text-sm sm:text-base"
               >
                 ← Назад к выбору
               </Button>
@@ -280,20 +280,20 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
           </>
         ) : (
           <>
-            <DialogHeader className="shrink-0 p-6 pb-0">
-              <DialogTitle className="text-xl flex items-center gap-3">
-                <Coffee className="w-6 h-6 text-primary" />
+            <DialogHeader className="shrink-0 p-4 sm:p-6 pb-0">
+              <DialogTitle className="text-lg sm:text-xl flex items-center gap-2 sm:gap-3">
+                <Coffee className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 Продажа напитков
               </DialogTitle>
             </DialogHeader>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
               {isLoading ? (
                 <div className="flex justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {drinks.map(drink => {
                     const qty = quantities[drink.id] || 0;
                     return (
@@ -301,7 +301,7 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                         key={drink.id}
                         onClick={() => handleAddDrink(drink.id)}
                         className={cn(
-                          'relative p-4 rounded-xl transition-all duration-200 btn-press',
+                          'relative p-3 sm:p-4 rounded-xl transition-all duration-200 btn-press',
                           'bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50',
                           'hover:border-primary/40 hover:bg-muted/60',
                           qty > 0 && 'border-primary/50 bg-primary/10'
@@ -313,10 +313,10 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
                           </div>
                         )}
                         <div className="text-left">
-                          <div className="font-medium text-foreground mb-1">{drink.name}</div>
-                          <div className="text-lg font-bold text-primary">{formatCurrency(drink.price)}</div>
+                          <div className="font-medium text-foreground mb-1 text-sm sm:text-base">{drink.name}</div>
+                          <div className="text-base sm:text-lg font-bold text-primary">{formatCurrency(drink.price)}</div>
                         </div>
-                        <div className="absolute bottom-3 right-3">
+                        <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3">
                           <Plus className="w-6 h-6 text-primary opacity-50" />
                         </div>
                       </button>
@@ -326,22 +326,22 @@ export function DrinkSalesModal({ open, onClose }: DrinkSalesModalProps) {
               )}
             </div>
 
-            <div className="shrink-0 p-6 pt-0 space-y-4">
+            <div className="shrink-0 p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
               {hasItems && (
-                <div className="flex items-center justify-between py-4 border-t border-border/50">
-                  <span className="text-muted-foreground">Итого:</span>
-                  <span className="font-gaming text-2xl font-bold text-primary text-glow-cyan">
+                <div className="flex items-center justify-between py-3 sm:py-4 border-t border-border/50">
+                  <span className="text-muted-foreground text-sm sm:text-base">Итого:</span>
+                  <span className="font-gaming text-xl sm:text-2xl font-bold text-primary text-glow-cyan">
                     {formatCurrency(totalAmount)}
                   </span>
                 </div>
               )}
 
               <div className="flex gap-3">
-                <Button variant="outline" className="flex-1 h-12" onClick={handleReset}>
+                <Button variant="outline" className="flex-1 h-11 sm:h-12 text-sm sm:text-base" onClick={handleReset}>
                   Отмена
                 </Button>
                 <Button 
-                  className="flex-1 h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90 btn-press"
+                  className="flex-1 h-11 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-primary to-secondary hover:opacity-90 btn-press"
                   onClick={handleProceedToPayment}
                   disabled={!hasItems}
                 >
