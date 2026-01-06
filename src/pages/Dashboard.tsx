@@ -57,10 +57,12 @@ export function Dashboard() {
           </div>
         </main>
         
-        <footer className="py-3 text-center">
+        <footer className="py-3 text-center flex items-center justify-center gap-3">
           <span className="text-emerald-400 font-medium tracking-wide text-sm animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
             by Damir Kabdulla
           </span>
+          <span className="text-muted-foreground/50 text-xs">•</span>
+          <span className="text-muted-foreground/50 text-xs font-mono">v1.0.0</span>
         </footer>
       </div>
 
