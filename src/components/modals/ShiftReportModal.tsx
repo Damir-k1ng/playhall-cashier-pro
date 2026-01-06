@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CLUB_NAME } from '@/lib/constants';
-import { formatCurrency, formatDateFull, formatTime } from '@/lib/utils';
+import { formatCurrency, formatDateFull, formatTime, formatDuration, calculateControllerCost } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Banknote, Smartphone, Gamepad2, Coffee, Clock, Printer, Download } from 'lucide-react';
@@ -22,6 +22,16 @@ interface ShiftData {
   totalCash: number;
   totalKaspi: number;
   grandTotal: number;
+  controllerDetails: ControllerDetail[];
+}
+
+interface ControllerDetail {
+  sessionId: string;
+  stationName: string;
+  takenAt: Date;
+  returnedAt: Date;
+  minutes: number;
+  cost: number;
 }
 
 export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
@@ -42,6 +52,40 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
           .eq('shift_id', shift.id)
           .eq('status', 'completed');
 
+        // Fetch controller usage with session and station info
+        const { data: controllers } = await supabase
+          .from('controller_usage')
+          .select(`
+            id,
+            session_id,
+            taken_at,
+            returned_at,
+            cost,
+            sessions!inner (
+              shift_id,
+              station_id,
+              stations (
+                name
+              )
+            )
+          `)
+          .eq('sessions.shift_id', shift.id);
+
+        const controllerDetails: ControllerDetail[] = (controllers || []).map((c: any) => {
+          const takenAt = new Date(c.taken_at);
+          const returnedAt = c.returned_at ? new Date(c.returned_at) : new Date();
+          const minutes = Math.ceil((returnedAt.getTime() - takenAt.getTime()) / 60000);
+          const cost = c.cost || calculateControllerCost(minutes);
+          return {
+            sessionId: c.session_id,
+            stationName: c.sessions?.stations?.name || 'Станция',
+            takenAt,
+            returnedAt,
+            minutes,
+            cost
+          };
+        });
+
         setData({
           sessionsCount: count || 0,
           totalGames: shift.total_games || 0,
@@ -50,6 +94,7 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
           totalCash: shift.total_cash || 0,
           totalKaspi: shift.total_kaspi || 0,
           grandTotal: (shift.total_cash || 0) + (shift.total_kaspi || 0),
+          controllerDetails
         });
       } catch (err) {
         console.error('Error fetching shift data:', err);
@@ -126,12 +171,29 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
               </div>
 
               {data.totalControllers > 0 && (
-                <div className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-3">
-                    <Gamepad2 className="w-5 h-5 text-muted-foreground print:text-gray-600" />
-                    <span>Джойстики</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-3">
+                      <Gamepad2 className="w-5 h-5 text-muted-foreground print:text-gray-600" />
+                      <span>Джойстики</span>
+                    </div>
+                    <span className="font-semibold text-lg">{formatCurrency(data.totalControllers)}</span>
                   </div>
-                  <span className="font-semibold text-lg">{formatCurrency(data.totalControllers)}</span>
+                  {data.controllerDetails.length > 0 && (
+                    <div className="pl-8 space-y-1.5 border-l-2 border-border/50 ml-2">
+                      {data.controllerDetails.map((c, i) => (
+                        <div key={i} className="text-xs text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>{c.stationName} — {formatDuration(c.minutes)}</span>
+                            <span>{formatCurrency(c.cost)}</span>
+                          </div>
+                          <div className="text-[10px] opacity-70">
+                            {formatTime(c.takenAt)} — {formatTime(c.returnedAt)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
