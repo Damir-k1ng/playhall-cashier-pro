@@ -38,6 +38,17 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
   const { shift, cashier } = useAuth();
   const [data, setData] = useState<ShiftData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [stationFilter, setStationFilter] = useState<string>('all');
+
+  // Get unique station names from controller details
+  const stationNames = data?.controllerDetails
+    ? [...new Set(data.controllerDetails.map(c => c.stationName))]
+    : [];
+
+  // Filter controller details by selected station
+  const filteredControllers = data?.controllerDetails.filter(
+    c => stationFilter === 'all' || c.stationName === stationFilter
+  ) || [];
 
   useEffect(() => {
     if (!open || !shift) return;
@@ -179,9 +190,39 @@ export function ShiftReportModal({ open, onClose }: ShiftReportModalProps) {
                     </div>
                     <span className="font-semibold text-lg">{formatCurrency(data.totalControllers)}</span>
                   </div>
-                  {data.controllerDetails.length > 0 && (
+                  
+                  {/* Station filter */}
+                  {stationNames.length > 1 && (
+                    <div className="flex gap-1.5 flex-wrap pl-2 print:hidden">
+                      <button
+                        onClick={() => setStationFilter('all')}
+                        className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                          stationFilter === 'all'
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/50'
+                        }`}
+                      >
+                        Все
+                      </button>
+                      {stationNames.map(name => (
+                        <button
+                          key={name}
+                          onClick={() => setStationFilter(name)}
+                          className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                            stationFilter === name
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/50'
+                          }`}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {filteredControllers.length > 0 && (
                     <div className="pl-8 space-y-1.5 border-l-2 border-border/50 ml-2">
-                      {data.controllerDetails.map((c, i) => (
+                      {filteredControllers.map((c, i) => (
                         <div key={i} className="text-xs text-muted-foreground">
                           <div className="flex justify-between">
                             <span>{c.stationName} — {formatDuration(c.minutes)}</span>
