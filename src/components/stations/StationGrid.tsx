@@ -26,7 +26,7 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
   const hallStations = stations.filter(s => s.zone === 'hall');
 
   const getStationBooking = (stationId: string): BookingWithStation | undefined => {
-    return bookings.find(b => b.station_id === stationId);
+    return bookings.find(b => b.station_id === stationId && b.status === 'booked');
   };
 
   const handleCreateBooking = async (stationId: string, startTime: string, comment?: string) => {
@@ -41,8 +41,8 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
   const handleCancelBooking = async (bookingId: string) => {
     const result = await cancelBooking(bookingId);
     if (result.success) {
-      // Immediately refetch to ensure UI is updated
-      await refetchBookings();
+      // Immediately refetch both bookings and stations to ensure UI is updated
+      await Promise.all([refetchBookings(), refetchStations()]);
     }
   };
 
