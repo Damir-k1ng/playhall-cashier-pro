@@ -22,6 +22,7 @@ export function StationScreen() {
   const [showDrinks, setShowDrinks] = useState(false);
   const [isAddingController, setIsAddingController] = useState(false);
   const [returningControllerId, setReturningControllerId] = useState<string | null>(null);
+  const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
 
@@ -139,10 +140,20 @@ export function StationScreen() {
   };
 
   const handleAddDrink = async (drinkId: string, price: number) => {
-    if (!station.activeSession) return;
-    await addDrinkToSession(station.activeSession.id, drinkId, 1, price);
-    toast.success('🥤 Напиток добавлен');
-    setShowDrinks(false);
+    if (!station.activeSession || addingDrinkId) return;
+    
+    setAddingDrinkId(drinkId);
+    try {
+      const result = await addDrinkToSession(station.activeSession.id, drinkId, 1, price);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('🥤 Напиток добавлен');
+        setShowDrinks(false);
+      }
+    } finally {
+      setAddingDrinkId(null);
+    }
   };
 
   const handleEndSession = () => {
@@ -370,10 +381,13 @@ export function StationScreen() {
                       key={drink.id}
                       variant="outline"
                       size="lg"
-                      className="justify-between h-16 rounded-xl border-border/50 hover:border-success/50 hover:bg-success/5"
+                      className="justify-between h-16 rounded-xl border-border/50 hover:border-success/50 hover:bg-success/5 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => handleAddDrink(drink.id, drink.price)}
+                      disabled={addingDrinkId !== null}
                     >
-                      <span className="font-medium">{drink.name}</span>
+                      <span className="font-medium">
+                        {addingDrinkId === drink.id ? '⏳ Добавляю...' : drink.name}
+                      </span>
                       <span className="text-success font-semibold">{formatCurrency(drink.price)}</span>
                     </Button>
                   ))}
