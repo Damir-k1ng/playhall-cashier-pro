@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { usePayments } from '@/hooks/usePayments';
 import { useStations } from '@/hooks/useStations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils';
-import { ArrowLeft, Banknote, Smartphone, Split, Check } from 'lucide-react';
+import { ArrowLeft, Banknote, Smartphone, Split, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CLUB_NAME } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
+
+interface SessionData {
+  stationId: string;
+  stationName: string;
+  gameCost: number;
+  controllerCost: number;
+  drinkCost: number;
+  totalCost: number;
+}
 
 export function PaymentScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -17,20 +27,80 @@ export function PaymentScreen() {
   const { processPayment } = usePayments();
   const { refetch } = useStations();
   
-  const { stationId, stationName, gameCost, controllerCost, drinkCost, totalCost } = location.state || {};
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
   const [cashAmount, setCashAmount] = useState('');
   const [kaspiAmount, setKaspiAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  if (!sessionId || !totalCost) {
+  // Use location.state if available, otherwise fetch from API
+  useEffect(() => {
+    if (location.state?.totalCost) {
+      setSessionData({
+        stationId: location.state.stationId,
+        stationName: location.state.stationName,
+        gameCost: location.state.gameCost,
+        controllerCost: location.state.controllerCost,
+        drinkCost: location.state.drinkCost,
+        totalCost: location.state.totalCost,
+      });
+    } else if (sessionId) {
+      // Fetch session data from API
+      setIsLoading(true);
+      setLoadError(null);
+      
+      apiClient.getSession(sessionId)
+        .then((data) => {
+          setSessionData({
+            stationId: data.station?.id || '',
+            stationName: data.station?.name || 'Станция',
+            gameCost: data.gameCost,
+            controllerCost: data.controllerCost,
+            drinkCost: data.drinkCost,
+            totalCost: data.totalCost,
+          });
+        })
+        .catch((err) => {
+          console.error('Error loading session:', err);
+          setLoadError('Не удалось загрузить данные сессии');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [sessionId, location.state]);
+
+  if (!sessionId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Данные не найдены</p>
+        <p className="text-muted-foreground">Сессия не найдена</p>
       </div>
     );
   }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadError || !sessionData) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">{loadError || 'Данные не найдены'}</p>
+        <Button variant="outline" onClick={() => navigate('/')}>
+          На главную
+        </Button>
+      </div>
+    );
+  }
+
+  const { stationName, gameCost, controllerCost, drinkCost, totalCost } = sessionData;
 
   const handleSinglePayment = async (method: 'cash' | 'kaspi') => {
     setIsProcessing(true);
