@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStations } from '@/hooks/useStations';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PreCheckSkeleton } from '@/components/skeletons/PreCheckSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, getElapsedSeconds, calculateGameCost } from '@/lib/utils';
 import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard } from 'lucide-react';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
@@ -69,51 +69,7 @@ export function PreCheckScreen() {
 
   // Show skeleton loading while stations are being fetched
   if (isLoading) {
-    return (
-      <div className="h-screen flex flex-col overflow-hidden bg-background">
-        <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
-        
-        {/* Header Skeleton */}
-        <header className="shrink-0 glass-card border-b border-primary/10 px-6 py-4 relative z-10">
-          <div className="flex items-center justify-between max-w-3xl mx-auto">
-            <Skeleton className="h-9 w-24 rounded-xl" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </header>
-
-        {/* Content Skeleton */}
-        <main className="flex-1 min-h-0 overflow-y-auto p-6 relative z-10">
-          <div className="max-w-3xl mx-auto space-y-6">
-            {/* Title Skeleton */}
-            <div className="text-center space-y-2">
-              <Skeleton className="h-10 w-64 mx-auto" />
-              <Skeleton className="h-5 w-48 mx-auto" />
-            </div>
-
-            {/* Summary Card Skeleton */}
-            <div className="glass-card rounded-2xl border border-primary/20 p-6 space-y-4">
-              <Skeleton className="h-6 w-32" />
-              {[1, 2, 3].map(i => (
-                <div key={i} className="flex justify-between items-center py-3">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-10 h-10 rounded-xl" />
-                    <Skeleton className="h-5 w-24" />
-                  </div>
-                  <Skeleton className="h-6 w-20" />
-                </div>
-              ))}
-              <div className="border-t border-border/50 pt-4 flex justify-between">
-                <Skeleton className="h-7 w-16" />
-                <Skeleton className="h-8 w-28" />
-              </div>
-            </div>
-
-            {/* Button Skeleton */}
-            <Skeleton className="w-full h-16 rounded-2xl" />
-          </div>
-        </main>
-      </div>
-    );
+    return <PreCheckSkeleton />;
   }
 
   if (!station || !session) {
@@ -142,7 +98,7 @@ export function PreCheckScreen() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background">
+    <div className="h-screen flex flex-col overflow-hidden bg-background animate-fade-in">
       {/* Header - Fixed */}
       <header className="shrink-0 glass-card border-b border-primary/10 px-6 py-4">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
