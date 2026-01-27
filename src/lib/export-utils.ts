@@ -14,6 +14,7 @@ interface ShiftExportData {
   total_controllers: number;
   total_drinks: number;
   sessions_count: number;
+  duration_hours: number;
 }
 
 interface TotalsExportData {
@@ -25,6 +26,9 @@ interface TotalsExportData {
   drinks: number;
   sessions: number;
   avgCheck: number;
+  shiftsCount: number;
+  totalHours: number;
+  revenuePerHour: number;
 }
 
 interface ExportParams {
@@ -63,7 +67,10 @@ export function exportToExcel(params: ExportParams) {
     ['Джойстики', formatCurrencyPlain(totals.controllers)],
     ['Напитки', formatCurrencyPlain(totals.drinks)],
     ['Количество сессий', totals.sessions.toString()],
+    ['Количество смен', totals.shiftsCount.toString()],
+    ['Часов работы', `${Math.round(totals.totalHours)}ч`],
     ['Средний чек', formatCurrencyPlain(totals.avgCheck)],
+    ['Выручка в час', formatCurrencyPlain(totals.revenuePerHour)],
   ];
   
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -74,6 +81,7 @@ export function exportToExcel(params: ExportParams) {
     'Кассир',
     'Начало смены',
     'Конец смены',
+    'Длительность',
     'Наличные',
     'Kaspi',
     'Выручка',
@@ -87,6 +95,7 @@ export function exportToExcel(params: ExportParams) {
     shift.cashier_name,
     formatDatePlain(shift.started_at),
     shift.ended_at ? formatDatePlain(shift.ended_at) : 'Активна',
+    `${shift.duration_hours}ч`,
     shift.total_cash,
     shift.total_kaspi,
     shift.total_cash + shift.total_kaspi,
@@ -104,6 +113,7 @@ export function exportToExcel(params: ExportParams) {
     { wch: 15 }, // Кассир
     { wch: 18 }, // Начало
     { wch: 18 }, // Конец
+    { wch: 10 }, // Длительность
     { wch: 12 }, // Наличные
     { wch: 12 }, // Kaspi
     { wch: 12 }, // Выручка
@@ -154,7 +164,10 @@ export function exportToPDF(params: ExportParams) {
       ['Джойстики', formatCurrencyPlain(totals.controllers)],
       ['Напитки', formatCurrencyPlain(totals.drinks)],
       ['Количество сессий', totals.sessions.toString()],
+      ['Количество смен', totals.shiftsCount.toString()],
+      ['Часов работы', `${Math.round(totals.totalHours)}ч`],
       ['Средний чек', formatCurrencyPlain(totals.avgCheck)],
+      ['Выручка в час', formatCurrencyPlain(totals.revenuePerHour)],
     ],
     theme: 'striped',
     headStyles: { fillColor: [0, 139, 139] },
@@ -171,11 +184,12 @@ export function exportToPDF(params: ExportParams) {
   
   autoTable(doc, {
     startY: finalY + 20,
-    head: [['Кассир', 'Начало', 'Конец', 'Наличные', 'Kaspi', 'Итого', 'Сессий']],
+    head: [['Кассир', 'Начало', 'Конец', 'Часы', 'Наличные', 'Kaspi', 'Итого', 'Сессий']],
     body: shifts.map(shift => [
       shift.cashier_name,
       format(new Date(shift.started_at), 'dd.MM HH:mm'),
       shift.ended_at ? format(new Date(shift.ended_at), 'dd.MM HH:mm') : 'Активна',
+      `${shift.duration_hours}ч`,
       formatCurrencyPlain(shift.total_cash),
       formatCurrencyPlain(shift.total_kaspi),
       formatCurrencyPlain(shift.total_cash + shift.total_kaspi),
@@ -186,13 +200,14 @@ export function exportToPDF(params: ExportParams) {
     styles: { fontSize: 9 },
     margin: { left: 14, right: 14 },
     columnStyles: {
-      0: { cellWidth: 25 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 25 },
-      4: { cellWidth: 25 },
-      5: { cellWidth: 25 },
-      6: { cellWidth: 15 }
+      0: { cellWidth: 22 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 12 },
+      4: { cellWidth: 22 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 22 },
+      7: { cellWidth: 12 }
     }
   });
   
