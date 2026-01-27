@@ -1,17 +1,23 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Get allowed origin from environment or use defaults
-const ALLOWED_ORIGINS = [
-  Deno.env.get('ALLOWED_ORIGIN'),
-  'https://id-preview--4c748cfc-e858-4479-b272-8168444e55f3.lovable.app',
-  'http://localhost:5173',
-  'http://localhost:8080'
-].filter(Boolean) as string[]
+// Allow all lovable.app and lovableproject.com origins dynamically
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false
+  
+  // Allow any lovable.app subdomain
+  if (origin.includes('.lovable.app')) return true
+  
+  // Allow any lovableproject.com subdomain
+  if (origin.includes('.lovableproject.com')) return true
+  
+  // Allow localhost for development
+  if (origin.startsWith('http://localhost:')) return true
+  
+  return false
+}
 
 function getCorsHeaders(origin: string | null) {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o.replace(/\/$/, '')))
-    ? origin
-    : ALLOWED_ORIGINS[0]
+  const allowedOrigin = isAllowedOrigin(origin) ? origin! : '*'
   
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
