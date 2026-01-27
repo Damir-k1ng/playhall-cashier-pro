@@ -133,6 +133,8 @@ export interface StationWithSession extends Station {
   drinks?: SessionDrink[];
   reservation?: Reservation;
   booking?: Booking;
+  // Flag indicating if the current cashier owns this session (null if no active session)
+  isOwnSession?: boolean | null;
 }
 
 export interface PreCheckData {
