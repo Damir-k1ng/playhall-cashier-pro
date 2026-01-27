@@ -20,6 +20,8 @@ export function StationScreen() {
   const [remaining, setRemaining] = useState(0);
   const [controllerSeconds, setControllerSeconds] = useState<Record<string, number>>({});
   const [showDrinks, setShowDrinks] = useState(false);
+  const [isAddingController, setIsAddingController] = useState(false);
+  const [returningControllerId, setReturningControllerId] = useState<string | null>(null);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
 
@@ -99,27 +101,40 @@ export function StationScreen() {
   };
 
   const handleAddController = async () => {
-    if (!station.activeSession) return;
-    const result = await addController(station.activeSession.id);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success('🎮 Джойстик добавлен');
+    if (!station.activeSession || isAddingController) return;
+    
+    setIsAddingController(true);
+    try {
+      const result = await addController(station.activeSession.id);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('🎮 Джойстик добавлен');
+      }
+    } finally {
+      setIsAddingController(false);
     }
   };
 
   const handleReturnController = async (controllerId: string) => {
+    if (returningControllerId) return;
+    
     const controller = activeControllers.find(c => c.id === controllerId);
     if (!controller) return;
     
-    const minutes = getElapsedMinutes(controller.taken_at);
-    const cost = Math.ceil((minutes / 60) * CONTROLLER_RATE);
-    
-    const result = await returnController(controllerId, cost);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success(`🎮 Джойстик возвращён — ${formatCurrency(cost)}`);
+    setReturningControllerId(controllerId);
+    try {
+      const minutes = getElapsedMinutes(controller.taken_at);
+      const cost = Math.ceil((minutes / 60) * CONTROLLER_RATE);
+      
+      const result = await returnController(controllerId, cost);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`🎮 Джойстик возвращён — ${formatCurrency(cost)}`);
+      }
+    } finally {
+      setReturningControllerId(null);
     }
   };
 
@@ -286,10 +301,11 @@ export function StationScreen() {
                 </h2>
                 <Button 
                   size="lg" 
-                  onClick={handleAddController} 
-                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold"
+                  onClick={handleAddController}
+                  disabled={isAddingController}
+                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  🎮 ВЗЯЛИ
+                  {isAddingController ? '⏳ Добавляю...' : '🎮 ВЗЯЛИ'}
                 </Button>
               </div>
               
@@ -317,9 +333,10 @@ export function StationScreen() {
                         <Button 
                           size="lg"
                           onClick={() => handleReturnController(controller.id)}
-                          className="rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold"
+                          disabled={returningControllerId === controller.id}
+                          className="rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          🎮 ВЕРНУЛИ
+                          {returningControllerId === controller.id ? '⏳ Возврат...' : '🎮 ВЕРНУЛИ'}
                         </Button>
                       </div>
                     );
