@@ -1,120 +1,92 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
 import { CONTROLLER_RATE } from '@/lib/constants';
-import type { StationWithSession, Session, ControllerUsage, SessionDrink } from '@/types/database';
+import type { StationWithSession } from '@/types/database';
 
 export function useStations() {
-  const { shift, refreshShift } = useAuth();
+  const { shift } = useAuth();
   const [stations, setStations] = useState<StationWithSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   const fetchStations = useCallback(async (isBackgroundRefresh = false) => {
+    if (!shift?.id) {
+      setStations([]);
+      setIsLoading(false);
+      return;
+    }
+
     if (isBackgroundRefresh) {
       setIsRefreshing(true);
     }
+
     try {
-      // Fetch all stations
-      const { data: stationsData, error: stationsError } = await supabase
-        .from('stations')
-        .select('*')
-        .order('station_number');
+      const stationsData = await apiClient.getStations();
 
-      if (stationsError) throw stationsError;
-
-      // Fetch active sessions with their controllers and drinks
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('sessions')
-        .select(`
-          *,
-          controller_usage(*),
-          session_drinks(*, drinks(*))
-        `)
-        .eq('status', 'active');
-
-      if (sessionsError) throw sessionsError;
-
-      // Build station with session data
-      const stationsWithSessions: StationWithSession[] = stationsData.map(station => {
-        const activeSession = sessionsData?.find(s => s.station_id === station.id);
-        
-        return {
-          id: station.id,
-          name: station.name,
-          zone: station.zone as 'vip' | 'hall',
-          station_number: station.station_number,
-          hourly_rate: station.hourly_rate,
-          package_rate: station.package_rate,
-          created_at: station.created_at,
-          activeSession: activeSession ? {
-            id: activeSession.id,
-            station_id: activeSession.station_id,
-            shift_id: activeSession.shift_id,
-            tariff_type: activeSession.tariff_type as 'hourly' | 'package',
-            started_at: activeSession.started_at,
-            ended_at: activeSession.ended_at,
-            status: activeSession.status as 'active' | 'completed',
-            game_cost: activeSession.game_cost || 0,
-            controller_cost: activeSession.controller_cost || 0,
-            drink_cost: activeSession.drink_cost || 0,
-            total_cost: activeSession.total_cost || 0,
-            created_at: activeSession.created_at,
-          } : undefined,
-          controllers: activeSession?.controller_usage?.map((c: any) => ({
-            id: c.id,
-            session_id: c.session_id,
-            taken_at: c.taken_at,
-            returned_at: c.returned_at,
-            cost: c.cost || 0,
-          })) || [],
-          drinks: activeSession?.session_drinks?.map((d: any) => ({
-            id: d.id,
-            session_id: d.session_id,
-            drink_id: d.drink_id,
-            quantity: d.quantity,
-            total_price: d.total_price,
-            created_at: d.created_at,
-            drink: d.drinks,
-          })) || [],
-        };
-      });
+      const stationsWithSessions: StationWithSession[] = stationsData.map((station: any) => ({
+        id: station.id,
+        name: station.name,
+        zone: station.zone as 'vip' | 'hall',
+        station_number: station.station_number,
+        hourly_rate: station.hourly_rate,
+        package_rate: station.package_rate,
+        created_at: station.created_at,
+        activeSession: station.activeSession ? {
+          id: station.activeSession.id,
+          station_id: station.activeSession.station_id,
+          shift_id: station.activeSession.shift_id,
+          tariff_type: station.activeSession.tariff_type as 'hourly' | 'package',
+          started_at: station.activeSession.started_at,
+          ended_at: station.activeSession.ended_at,
+          status: station.activeSession.status as 'active' | 'completed',
+          game_cost: station.activeSession.game_cost || 0,
+          controller_cost: station.activeSession.controller_cost || 0,
+          drink_cost: station.activeSession.drink_cost || 0,
+          total_cost: station.activeSession.total_cost || 0,
+          created_at: station.activeSession.created_at,
+        } : undefined,
+        controllers: station.activeSession?.controller_usage?.map((c: any) => ({
+          id: c.id,
+          session_id: c.session_id,
+          taken_at: c.taken_at,
+          returned_at: c.returned_at,
+          cost: c.cost || 0,
+        })) || [],
+        drinks: station.activeSession?.session_drinks?.map((d: any) => ({
+          id: d.id,
+          session_id: d.session_id,
+          drink_id: d.drink_id,
+          quantity: d.quantity,
+          total_price: d.total_price,
+          created_at: d.created_at,
+          drink: d.drinks,
+        })) || [],
+      }));
 
       setStations(stationsWithSessions);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching stations:', err);
-      setError('Ошибка загрузки станций');
+      setError(err.message || 'Ошибка загрузки станций');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [shift?.id]);
 
   useEffect(() => {
     fetchStations();
 
-    // Set up real-time subscriptions for live updates
-    const sessionsChannel = supabase
-      .channel('sessions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
-        fetchStations(true);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'controller_usage' }, () => {
-        fetchStations(true);
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_drinks' }, () => {
-        fetchStations(true);
-      })
-      .subscribe();
-
-    // Refresh every 5 seconds for timer accuracy across devices
-    const interval = setInterval(() => fetchStations(true), 5000);
+    // Refresh every 5 seconds for timer accuracy
+    intervalRef.current = window.setInterval(() => fetchStations(true), 5000);
 
     return () => {
-      supabase.removeChannel(sessionsChannel);
-      clearInterval(interval);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
   }, [fetchStations]);
 
@@ -122,18 +94,10 @@ export function useStations() {
     if (!shift?.id) return { error: 'Нет активной смены' };
 
     try {
-      const { data, error } = await supabase
-        .from('sessions')
-        .insert({
-          station_id: stationId,
-          shift_id: shift.id,
-          tariff_type: tariffType,
-          status: 'active',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await apiClient.createSession({
+        station_id: stationId,
+        tariff_type: tariffType,
+      });
 
       // Play start sound
       playSound('start');
@@ -160,19 +124,14 @@ export function useStations() {
     try {
       const totalCost = gameCost + controllerCost + drinkCost;
 
-      const { error } = await supabase
-        .from('sessions')
-        .update({
-          status: 'completed',
-          ended_at: new Date().toISOString(),
-          game_cost: gameCost,
-          controller_cost: controllerCost,
-          drink_cost: drinkCost,
-          total_cost: totalCost,
-        })
-        .eq('id', sessionId);
-
-      if (error) throw error;
+      await apiClient.updateSession(sessionId, {
+        status: 'completed',
+        ended_at: new Date().toISOString(),
+        game_cost: gameCost,
+        controller_cost: controllerCost,
+        drink_cost: drinkCost,
+        total_cost: totalCost,
+      });
 
       await fetchStations();
       return { success: true };
@@ -184,13 +143,7 @@ export function useStations() {
 
   const addController = async (sessionId: string): Promise<{ success?: boolean; error?: string }> => {
     try {
-      const { error } = await supabase
-        .from('controller_usage')
-        .insert({
-          session_id: sessionId,
-        });
-
-      if (error) throw error;
+      await apiClient.createControllerUsage({ session_id: sessionId });
 
       // Haptic feedback
       if (navigator.vibrate) {
@@ -207,15 +160,10 @@ export function useStations() {
 
   const returnController = async (controllerId: string, cost: number): Promise<{ success?: boolean; error?: string }> => {
     try {
-      const { error } = await supabase
-        .from('controller_usage')
-        .update({
-          returned_at: new Date().toISOString(),
-          cost,
-        })
-        .eq('id', controllerId);
-
-      if (error) throw error;
+      await apiClient.updateControllerUsage(controllerId, {
+        returned_at: new Date().toISOString(),
+        cost,
+      });
 
       await fetchStations();
       return { success: true };

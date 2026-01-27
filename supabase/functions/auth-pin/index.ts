@@ -1,17 +1,66 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Get allowed origin from environment or use defaults
+const ALLOWED_ORIGINS = [
+  Deno.env.get('ALLOWED_ORIGIN'),
+  'https://id-preview--4c748cfc-e858-4479-b272-8168444e55f3.lovable.app',
+  'http://localhost:5173',
+  'http://localhost:8080'
+].filter(Boolean) as string[]
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o.replace(/\/$/, '')))
+    ? origin
+    : ALLOWED_ORIGINS[0]
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
+}
+
+// Rate limiting storage (in production, use Redis or similar)
+const loginAttempts = new Map<string, { count: number; firstAttempt: number }>()
+const RATE_LIMIT_WINDOW = 300000 // 5 minutes
+const MAX_ATTEMPTS = 10
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const attempts = loginAttempts.get(ip)
+  
+  if (!attempts || (now - attempts.firstAttempt) > RATE_LIMIT_WINDOW) {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now })
+    return true
+  }
+  
+  if (attempts.count >= MAX_ATTEMPTS) {
+    return false
+  }
+  
+  attempts.count++
+  return true
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin')
+  const corsHeaders = getCorsHeaders(origin)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    // Rate limiting
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+    if (!checkRateLimit(ip)) {
+      return new Response(
+        JSON.stringify({ error: 'Слишком много попыток. Попробуйте позже.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -20,7 +69,8 @@ Deno.serve(async (req) => {
     const { action, pin, session_token } = await req.json()
 
     if (action === 'login') {
-      if (!pin || pin.length !== 4) {
+      // Validate PIN format
+      if (!pin || typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
         return new Response(
           JSON.stringify({ error: 'Неверный PIN' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -91,6 +141,7 @@ Deno.serve(async (req) => {
         .single()
 
       if (shiftError) {
+        console.error('Shift creation error:', shiftError)
         return new Response(
           JSON.stringify({ error: 'Ошибка создания смены' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -116,7 +167,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'validate') {
-      if (!session_token) {
+      if (!session_token || typeof session_token !== 'string') {
         return new Response(
           JSON.stringify({ valid: false }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -182,9 +233,10 @@ Deno.serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    console.error('Auth error:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(null), 'Content-Type': 'application/json' } }
     )
   }
 })

@@ -82,14 +82,21 @@ class ApiClient {
   }
 
   // Sessions
-  async createSession(data: any) {
+  async createSession(data: { station_id: string; tariff_type: 'hourly' | 'package' }) {
     return this.request('/sessions', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateSession(id: string, data: any) {
+  async updateSession(id: string, data: {
+    status?: 'active' | 'completed';
+    ended_at?: string;
+    game_cost?: number;
+    controller_cost?: number;
+    drink_cost?: number;
+    total_cost?: number;
+  }) {
     return this.request(`/sessions/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -97,7 +104,13 @@ class ApiClient {
   }
 
   // Payments
-  async createPayment(data: any) {
+  async createPayment(data: {
+    session_id: string;
+    payment_method: 'cash' | 'kaspi' | 'split';
+    cash_amount?: number;
+    kaspi_amount?: number;
+    total_amount: number;
+  }) {
     return this.request('/payments', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -105,14 +118,14 @@ class ApiClient {
   }
 
   // Controller usage
-  async createControllerUsage(data: any) {
+  async createControllerUsage(data: { session_id: string }) {
     return this.request('/controller-usage', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateControllerUsage(id: string, data: any) {
+  async updateControllerUsage(id: string, data: { returned_at?: string; cost?: number }) {
     return this.request(`/controller-usage/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -120,7 +133,12 @@ class ApiClient {
   }
 
   // Session drinks
-  async addSessionDrink(data: any) {
+  async addSessionDrink(data: {
+    session_id: string;
+    drink_id: string;
+    quantity: number;
+    total_price: number;
+  }) {
     return this.request('/session-drinks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -128,7 +146,14 @@ class ApiClient {
   }
 
   // Drink sales
-  async createDrinkSale(data: any) {
+  async createDrinkSale(data: {
+    drink_id: string;
+    quantity: number;
+    total_price: number;
+    payment_method: 'cash' | 'kaspi' | 'split';
+    cash_amount?: number;
+    kaspi_amount?: number;
+  }) {
     return this.request('/drink-sales', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -136,14 +161,24 @@ class ApiClient {
   }
 
   // Reservations
-  async createReservation(data: any) {
+  async getReservations() {
+    return this.request('/reservations');
+  }
+
+  async createReservation(data: {
+    station_id: string;
+    reserved_for: string;
+    customer_name?: string;
+    phone?: string;
+    notes?: string;
+  }) {
     return this.request('/reservations', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateReservation(id: string, data: any) {
+  async updateReservation(id: string, data: { is_active?: boolean }) {
     return this.request(`/reservations/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -151,14 +186,22 @@ class ApiClient {
   }
 
   // Bookings
-  async createBooking(data: any) {
+  async getBookings() {
+    return this.request('/bookings');
+  }
+
+  async createBooking(data: {
+    station_id: string;
+    start_time: string;
+    comment?: string;
+  }) {
     return this.request('/bookings', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateBooking(id: string, data: any) {
+  async updateBooking(id: string, data: { status?: 'booked' | 'cancelled' | 'completed' }) {
     return this.request(`/bookings/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
