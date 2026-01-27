@@ -216,6 +216,11 @@ class ApiClient {
   async getShiftReport() {
     return this.request('/shift/report');
   }
+
+  async getShiftHistory() {
+    return this.request('/shift/history');
+  }
 }
+
 
 export const apiClient = new ApiClient();

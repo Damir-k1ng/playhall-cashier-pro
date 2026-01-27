@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // POST /payments - Create payment
+    // POST /payments - Create payment and update shift totals
     if (path === '/payments' && method === 'POST') {
       const body = await req.json()
       const validation = validatePayment(body)
@@ -330,6 +330,13 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // Get session details to calculate category totals
+      const { data: sessionData } = await supabase
+        .from('sessions')
+        .select('game_cost, controller_cost, drink_cost')
+        .eq('id', body.session_id)
+        .single()
 
       const { data, error } = await supabase
         .from('payments')
@@ -351,6 +358,22 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // Update shift totals
+      const gameCost = sessionData?.game_cost || 0
+      const controllerCost = sessionData?.controller_cost || 0
+      const drinkCost = sessionData?.drink_cost || 0
+
+      await supabase
+        .from('shifts')
+        .update({
+          total_cash: shift.total_cash + (body.cash_amount || 0),
+          total_kaspi: shift.total_kaspi + (body.kaspi_amount || 0),
+          total_games: shift.total_games + gameCost,
+          total_controllers: shift.total_controllers + controllerCost,
+          total_drinks: shift.total_drinks + drinkCost
+        })
+        .eq('id', shift.id)
 
       return new Response(
         JSON.stringify(data),
@@ -462,7 +485,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // POST /drink-sales - Sell drink
+    // POST /drink-sales - Sell drink and update shift totals
     if (path === '/drink-sales' && method === 'POST') {
       const body = await req.json()
       const validation = validateDrinkSale(body)
@@ -494,6 +517,16 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // Update shift totals for drink sale
+      await supabase
+        .from('shifts')
+        .update({
+          total_cash: shift.total_cash + (body.cash_amount || 0),
+          total_kaspi: shift.total_kaspi + (body.kaspi_amount || 0),
+          total_drinks: shift.total_drinks + body.total_price
+        })
+        .eq('id', shift.id)
 
       return new Response(
         JSON.stringify(data),
@@ -687,6 +720,65 @@ Deno.serve(async (req) => {
           payments,
           drinkSales,
           sessions
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // GET /shift/history - Get full shift history with sessions and drink sales
+    if (path === '/shift/history' && method === 'GET') {
+      // Fetch completed sessions with station info
+      const { data: sessionsData } = await supabase
+        .from('sessions')
+        .select('*, station:stations(*)')
+        .eq('shift_id', shift.id)
+        .eq('status', 'completed')
+        .order('ended_at', { ascending: false })
+
+      // Fetch controller usage and drinks for each session
+      const sessionsWithDetails = await Promise.all(
+        (sessionsData || []).map(async (session: any) => {
+          // Get controllers
+          const { data: controllers } = await supabase
+            .from('controller_usage')
+            .select('*')
+            .eq('session_id', session.id)
+
+          // Get drinks count
+          const { count: drinksCount } = await supabase
+            .from('session_drinks')
+            .select('*', { count: 'exact', head: true })
+            .eq('session_id', session.id)
+
+          // Get payment info
+          const { data: payment } = await supabase
+            .from('payments')
+            .select('payment_method, cash_amount, kaspi_amount')
+            .eq('session_id', session.id)
+            .maybeSingle()
+          
+          return {
+            ...session,
+            controllers: controllers || [],
+            drinks_count: drinksCount || 0,
+            payment_method: payment?.payment_method || 'cash',
+            cash_amount: payment?.cash_amount || 0,
+            kaspi_amount: payment?.kaspi_amount || 0
+          }
+        })
+      )
+
+      // Fetch standalone drink sales
+      const { data: drinkSalesData } = await supabase
+        .from('drink_sales')
+        .select('*, drink:drinks(*)')
+        .eq('shift_id', shift.id)
+        .order('created_at', { ascending: false })
+
+      return new Response(
+        JSON.stringify({
+          sessions: sessionsWithDetails || [],
+          drinkSales: drinkSalesData || []
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
