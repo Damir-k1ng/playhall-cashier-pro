@@ -16,7 +16,7 @@ interface ControllerDetail {
 export function PreCheckScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const { stations } = useStations();
+  const { stations, isLoading } = useStations();
   
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [gameCost, setGameCost] = useState(0);
@@ -65,6 +65,18 @@ export function PreCheckScreen() {
     const interval = setInterval(calculate, 1000);
     return () => clearInterval(interval);
   }, [station, session]);
+
+  // Show loading while stations are being fetched
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!station || !session) {
     return (
