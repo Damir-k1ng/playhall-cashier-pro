@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -23,11 +24,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { CLUB_NAME } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
+import { ShiftAnalyticsDashboard } from '@/components/admin/ShiftAnalyticsDashboard';
 
 interface Cashier {
   id: string;
@@ -40,6 +42,7 @@ export function AdminCashiers() {
   const { role, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   
+  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics'>('cashiers');
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -205,75 +208,99 @@ export function AdminCashiers() {
             <div className="flex-1">
               <h1 className="text-lg font-semibold flex items-center gap-2">
                 <Shield className="w-5 h-5 text-primary" />
-                Управление кассирами
+                Администрирование
               </h1>
-              <p className="text-sm text-muted-foreground">Администрирование</p>
+              <p className="text-sm text-muted-foreground">Кассиры и аналитика</p>
             </div>
             
-            <Button onClick={openCreateModal} className="gap-2">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Добавить</span>
-            </Button>
+            {activeTab === 'cashiers' && (
+              <Button onClick={openCreateModal} className="gap-2">
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Добавить</span>
+              </Button>
+            )}
+          </div>
+          
+          {/* Tabs */}
+          <div className="max-w-4xl mx-auto px-4 pb-2">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'cashiers' | 'analytics')}>
+              <TabsList className="glass-card border border-primary/20 w-full">
+                <TabsTrigger value="cashiers" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
+                  <Users className="h-4 w-4" />
+                  <span className="hidden sm:inline">Кассиры</span>
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Аналитика</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </header>
         
         {/* Content */}
         <main className="max-w-4xl mx-auto p-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : cashiers.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="py-12 text-center">
-                <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground mb-4">Нет кассиров</p>
-                <Button onClick={openCreateModal} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Добавить первого кассира
-                </Button>
-              </CardContent>
-            </Card>
+          {activeTab === 'cashiers' ? (
+            // Cashiers List
+            isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : cashiers.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground mb-4">Нет кассиров</p>
+                  <Button onClick={openCreateModal} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Добавить первого кассира
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {cashiers.map((cashier) => (
+                  <Card key={cashier.id} className="hover:border-primary/30 transition-colors">
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-xl font-bold text-primary">
+                          {cashier.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{cashier.name}</h3>
+                        <p className="text-sm text-muted-foreground font-mono">
+                          PIN: {cashier.pin}
+                        </p>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openEditModal(cashier)}
+                          className="h-9 w-9"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openDeleteDialog(cashier)}
+                          className="h-9 w-9 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
           ) : (
-            <div className="grid gap-3">
-              {cashiers.map((cashier) => (
-                <Card key={cashier.id} className="hover:border-primary/30 transition-colors">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xl font-bold text-primary">
-                        {cashier.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{cashier.name}</h3>
-                      <p className="text-sm text-muted-foreground font-mono">
-                        PIN: {cashier.pin}
-                      </p>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openEditModal(cashier)}
-                        className="h-9 w-9"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => openDeleteDialog(cashier)}
-                        className="h-9 w-9 text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            // Analytics Dashboard
+            <ShiftAnalyticsDashboard />
           )}
         </main>
       </div>
