@@ -1127,6 +1127,145 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // GET /admin/shifts-analytics - Get shifts analytics for dashboard
+      if (path === '/admin/shifts-analytics' && method === 'GET') {
+        const fromDate = url.searchParams.get('from')
+        const toDate = url.searchParams.get('to')
+        const cashierId = url.searchParams.get('cashier_id')
+
+        if (!fromDate || !toDate) {
+          return new Response(
+            JSON.stringify({ error: 'from and to dates are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Validate dates
+        const from = new Date(fromDate)
+        const to = new Date(toDate)
+        if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid date format' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get all cashiers for filter
+        const { data: cashiers } = await supabase
+          .from('cashiers')
+          .select('id, name')
+          .order('name')
+
+        // Build query for shifts
+        let shiftsQuery = supabase
+          .from('shifts')
+          .select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)')
+          .gte('started_at', from.toISOString())
+          .lte('started_at', to.toISOString())
+          .order('started_at', { ascending: false })
+
+        if (cashierId && isValidUUID(cashierId)) {
+          shiftsQuery = shiftsQuery.eq('cashier_id', cashierId)
+        }
+
+        const { data: shifts, error: shiftsError } = await shiftsQuery
+
+        if (shiftsError) {
+          console.error('Shifts analytics error:', shiftsError)
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch shifts' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get session counts per shift
+        const shiftIds = (shifts || []).map(s => s.id)
+        let sessionCounts: Record<string, number> = {}
+        
+        if (shiftIds.length > 0) {
+          const { data: sessions } = await supabase
+            .from('sessions')
+            .select('shift_id')
+            .in('shift_id', shiftIds)
+            .eq('status', 'completed')
+
+          sessionCounts = (sessions || []).reduce((acc: Record<string, number>, s: any) => {
+            acc[s.shift_id] = (acc[s.shift_id] || 0) + 1
+            return acc
+          }, {})
+        }
+
+        // Format shifts data
+        const formattedShifts = (shifts || []).map((s: any) => ({
+          id: s.id,
+          cashier_id: s.cashier_id,
+          cashier_name: s.cashiers?.name || 'Unknown',
+          started_at: s.started_at,
+          ended_at: s.ended_at,
+          is_active: s.is_active,
+          total_cash: s.total_cash || 0,
+          total_kaspi: s.total_kaspi || 0,
+          total_games: s.total_games || 0,
+          total_controllers: s.total_controllers || 0,
+          total_drinks: s.total_drinks || 0,
+          sessions_count: sessionCounts[s.id] || 0
+        }))
+
+        // Calculate totals
+        const rawTotals = formattedShifts.reduce((acc: any, s: any) => ({
+          revenue: acc.revenue + s.total_cash + s.total_kaspi,
+          cash: acc.cash + s.total_cash,
+          kaspi: acc.kaspi + s.total_kaspi,
+          games: acc.games + s.total_games,
+          controllers: acc.controllers + s.total_controllers,
+          drinks: acc.drinks + s.total_drinks,
+          sessions: acc.sessions + s.sessions_count
+        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0 })
+
+        const totals = {
+          ...rawTotals,
+          avgCheck: rawTotals.sessions > 0 ? Math.round(rawTotals.revenue / rawTotals.sessions) : 0
+        }
+
+        // Calculate previous period totals for comparison
+        const periodLength = to.getTime() - from.getTime()
+        const prevFrom = new Date(from.getTime() - periodLength)
+        const prevTo = new Date(from.getTime() - 1)
+
+        let prevShiftsQuery = supabase
+          .from('shifts')
+          .select('total_cash, total_kaspi, total_games, total_controllers, total_drinks')
+          .gte('started_at', prevFrom.toISOString())
+          .lte('started_at', prevTo.toISOString())
+
+        if (cashierId && isValidUUID(cashierId)) {
+          prevShiftsQuery = prevShiftsQuery.eq('cashier_id', cashierId)
+        }
+
+        const { data: prevShifts } = await prevShiftsQuery
+
+        const previousPeriodTotals = (prevShifts || []).reduce((acc: any, s: any) => ({
+          revenue: acc.revenue + (s.total_cash || 0) + (s.total_kaspi || 0),
+          cash: acc.cash + (s.total_cash || 0),
+          kaspi: acc.kaspi + (s.total_kaspi || 0),
+          games: acc.games + (s.total_games || 0),
+          controllers: acc.controllers + (s.total_controllers || 0),
+          drinks: acc.drinks + (s.total_drinks || 0),
+          sessions: 0,
+          avgCheck: 0
+        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, avgCheck: 0 })
+
+        return new Response(
+          JSON.stringify({
+            shifts: formattedShifts,
+            cashiers: cashiers || [],
+            totals,
+            previousPeriodTotals
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     return new Response(

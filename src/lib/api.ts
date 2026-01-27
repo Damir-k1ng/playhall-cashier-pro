@@ -225,6 +225,18 @@ class ApiClient {
     return this.request('/shift/history');
   }
 
+  // Admin: Shifts analytics
+  async getShiftsAnalytics(params: { from: string; to: string; cashier_id?: string }) {
+    const queryParams = new URLSearchParams({
+      from: params.from,
+      to: params.to,
+    });
+    if (params.cashier_id) {
+      queryParams.set('cashier_id', params.cashier_id);
+    }
+    return this.request(`/admin/shifts-analytics?${queryParams.toString()}`);
+  }
+
   // Admin: Cashiers management
   async getCashiers() {
     return this.request('/admin/cashiers');
