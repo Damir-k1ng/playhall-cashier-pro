@@ -278,6 +278,85 @@ Deno.serve(async (req) => {
       )
     }
 
+    // GET /sessions/:id - Get session with full details for payment
+    if (path.startsWith('/sessions/') && method === 'GET') {
+      const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid session ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const { data: session, error } = await supabase
+        .from('sessions')
+        .select('*, station:stations(*)')
+        .eq('id', id)
+        .single()
+
+      if (error || !session) {
+        return new Response(
+          JSON.stringify({ error: 'Session not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Get controllers and drinks for cost calculation
+      const { data: controllers } = await supabase
+        .from('controller_usage')
+        .select('*')
+        .eq('session_id', id)
+
+      const { data: drinks } = await supabase
+        .from('session_drinks')
+        .select('*, drink:drinks(*)')
+        .eq('session_id', id)
+
+      // Calculate costs
+      const now = new Date()
+      const startedAt = new Date(session.started_at)
+      const elapsedMinutes = Math.floor((now.getTime() - startedAt.getTime()) / 60000)
+
+      // Game cost calculation
+      let gameCost = 0
+      if (session.tariff_type === 'package') {
+        gameCost = session.station?.package_rate || 0
+      } else {
+        const hours = Math.ceil(elapsedMinutes / 60)
+        gameCost = hours * (session.station?.hourly_rate || 0)
+      }
+
+      // Controller cost: 200 per 30 min
+      let controllerCost = 0
+      for (const controller of (controllers || [])) {
+        const takenAt = new Date(controller.taken_at)
+        const returnedAt = controller.returned_at ? new Date(controller.returned_at) : now
+        const mins = Math.floor((returnedAt.getTime() - takenAt.getTime()) / 60000)
+        const periods = Math.ceil(mins / 30)
+        controllerCost += periods * 200
+      }
+
+      // Drink cost
+      const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
+
+      const totalCost = gameCost + controllerCost + drinkCost
+
+      return new Response(
+        JSON.stringify({
+          session,
+          station: session.station,
+          controllers: controllers || [],
+          drinks: drinks || [],
+          elapsedMinutes,
+          gameCost,
+          controllerCost,
+          drinkCost,
+          totalCost
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // PATCH /sessions/:id - Update session
     if (path.startsWith('/sessions/') && method === 'PATCH') {
       const id = path.split('/')[2]

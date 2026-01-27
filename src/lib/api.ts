@@ -82,6 +82,10 @@ class ApiClient {
   }
 
   // Sessions
+  async getSession(id: string) {
+    return this.request(`/sessions/${id}`);
+  }
+
   async createSession(data: { station_id: string; tariff_type: 'hourly' | 'package' }) {
     return this.request('/sessions', {
       method: 'POST',
