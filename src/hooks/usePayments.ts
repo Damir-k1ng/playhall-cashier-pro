@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/lib/api';
 
 export function usePayments() {
   const { shift, refreshShift } = useAuth();
@@ -19,47 +19,23 @@ export function usePayments() {
 
     try {
       // 1. Update session with final costs
-      const { error: sessionError } = await supabase
-        .from('sessions')
-        .update({
-          status: 'completed',
-          ended_at: new Date().toISOString(),
-          game_cost: gameCost,
-          controller_cost: controllerCost,
-          drink_cost: drinkCost,
-          total_cost: totalAmount,
-        })
-        .eq('id', sessionId);
-
-      if (sessionError) throw sessionError;
+      await apiClient.updateSession(sessionId, {
+        status: 'completed',
+        ended_at: new Date().toISOString(),
+        game_cost: gameCost,
+        controller_cost: controllerCost,
+        drink_cost: drinkCost,
+        total_cost: totalAmount,
+      });
 
       // 2. Create payment record
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          session_id: sessionId,
-          shift_id: shift.id,
-          payment_method: paymentMethod,
-          cash_amount: cashAmount,
-          kaspi_amount: kaspiAmount,
-          total_amount: totalAmount,
-        });
-
-      if (paymentError) throw paymentError;
-
-      // 3. Update shift totals
-      const { error: shiftError } = await supabase
-        .from('shifts')
-        .update({
-          total_cash: (shift.total_cash || 0) + cashAmount,
-          total_kaspi: (shift.total_kaspi || 0) + kaspiAmount,
-          total_games: (shift.total_games || 0) + gameCost,
-          total_controllers: (shift.total_controllers || 0) + controllerCost,
-          total_drinks: (shift.total_drinks || 0) + drinkCost,
-        })
-        .eq('id', shift.id);
-
-      if (shiftError) throw shiftError;
+      await apiClient.createPayment({
+        session_id: sessionId,
+        payment_method: paymentMethod,
+        cash_amount: cashAmount,
+        kaspi_amount: kaspiAmount,
+        total_amount: totalAmount,
+      });
 
       // Play success sound
       playSuccessSound();
@@ -90,32 +66,15 @@ export function usePayments() {
     if (!shift?.id) return { error: 'Нет активной смены' };
 
     try {
-      // 1. Create drink sale record
-      const { error: saleError } = await supabase
-        .from('drink_sales')
-        .insert({
-          shift_id: shift.id,
-          drink_id: drinkId,
-          quantity,
-          total_price: totalPrice,
-          payment_method: paymentMethod,
-          cash_amount: cashAmount,
-          kaspi_amount: kaspiAmount,
-        });
-
-      if (saleError) throw saleError;
-
-      // 2. Update shift totals
-      const { error: shiftError } = await supabase
-        .from('shifts')
-        .update({
-          total_cash: (shift.total_cash || 0) + cashAmount,
-          total_kaspi: (shift.total_kaspi || 0) + kaspiAmount,
-          total_drinks: (shift.total_drinks || 0) + totalPrice,
-        })
-        .eq('id', shift.id);
-
-      if (shiftError) throw shiftError;
+      // Create drink sale record
+      await apiClient.createDrinkSale({
+        drink_id: drinkId,
+        quantity,
+        total_price: totalPrice,
+        payment_method: paymentMethod,
+        cash_amount: cashAmount,
+        kaspi_amount: kaspiAmount,
+      });
 
       // Haptic feedback
       if (navigator.vibrate) {
