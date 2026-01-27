@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,8 +41,11 @@ interface Cashier {
 export function AdminCashiers() {
   const { role, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
-  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics'>('cashiers');
+  // Get initial tab from URL params
+  const initialTab = searchParams.get('tab') === 'analytics' ? 'analytics' : 'cashiers';
+  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics'>(initialTab);
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
