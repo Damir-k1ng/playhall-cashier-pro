@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
 export type BookingStatus = 'booked' | 'cancelled' | 'completed';
@@ -23,31 +23,13 @@ export interface BookingWithStation extends Booking {
   };
 }
 
-function getTodayDate(): string {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-}
-
 export function useBookings() {
   const [bookings, setBookings] = useState<BookingWithStation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchBookings = useCallback(async () => {
     try {
-      const today = getTodayDate();
-      
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          station:stations(id, name, zone, hourly_rate)
-        `)
-        .eq('booking_date', today)
-        .eq('status', 'booked')
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-
+      const data = await apiClient.getBookings();
       setBookings((data || []) as BookingWithStation[]);
     } catch (err) {
       console.error('Error fetching bookings:', err);
@@ -58,20 +40,6 @@ export function useBookings() {
 
   useEffect(() => {
     fetchBookings();
-
-    // Real-time subscription
-    const channel = supabase
-      .channel('bookings-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings' },
-        () => fetchBookings()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [fetchBookings]);
 
   const createBooking = async (
@@ -80,32 +48,14 @@ export function useBookings() {
     comment?: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const today = getTodayDate();
-
-      // Check if station already has an active booking for today
-      const { data: existing } = await supabase
-        .from('bookings')
-        .select('id')
-        .eq('station_id', stationId)
-        .eq('booking_date', today)
-        .eq('status', 'booked')
-        .single();
-
-      if (existing) {
-        return { success: false, error: 'Станция уже забронирована на сегодня' };
-      }
-
-      const { error } = await supabase.from('bookings').insert({
+      await apiClient.createBooking({
         station_id: stationId,
-        booking_date: today,
         start_time: startTime,
-        comment: comment || null,
-        status: 'booked' as BookingStatus,
+        comment: comment || undefined,
       });
 
-      if (error) throw error;
-
       toast.success('Бронь создана');
+      await fetchBookings();
       return { success: true };
     } catch (err: any) {
       console.error('Error creating booking:', err);
@@ -115,14 +65,9 @@ export function useBookings() {
 
   const cancelBooking = async (bookingId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'cancelled' as BookingStatus })
-        .eq('id', bookingId);
-
-      if (error) throw error;
-
+      await apiClient.updateBooking(bookingId, { status: 'cancelled' });
       toast.success('Бронь снята');
+      await fetchBookings();
       return { success: true };
     } catch (err: any) {
       console.error('Error canceling booking:', err);
@@ -132,13 +77,8 @@ export function useBookings() {
 
   const completeBooking = async (bookingId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'completed' as BookingStatus })
-        .eq('id', bookingId);
-
-      if (error) throw error;
-
+      await apiClient.updateBooking(bookingId, { status: 'completed' });
+      await fetchBookings();
       return { success: true };
     } catch (err: any) {
       console.error('Error completing booking:', err);
