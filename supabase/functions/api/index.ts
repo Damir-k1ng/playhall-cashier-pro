@@ -1196,23 +1196,30 @@ Deno.serve(async (req) => {
           }, {})
         }
 
-        // Format shifts data
-        const formattedShifts = (shifts || []).map((s: any) => ({
-          id: s.id,
-          cashier_id: s.cashier_id,
-          cashier_name: s.cashiers?.name || 'Unknown',
-          started_at: s.started_at,
-          ended_at: s.ended_at,
-          is_active: s.is_active,
-          total_cash: s.total_cash || 0,
-          total_kaspi: s.total_kaspi || 0,
-          total_games: s.total_games || 0,
-          total_controllers: s.total_controllers || 0,
-          total_drinks: s.total_drinks || 0,
-          sessions_count: sessionCounts[s.id] || 0
-        }))
+        // Format shifts data with duration calculation
+        const formattedShifts = (shifts || []).map((s: any) => {
+          const startedAt = new Date(s.started_at)
+          const endedAt = s.ended_at ? new Date(s.ended_at) : new Date()
+          const durationHours = (endedAt.getTime() - startedAt.getTime()) / (1000 * 60 * 60)
+          
+          return {
+            id: s.id,
+            cashier_id: s.cashier_id,
+            cashier_name: s.cashiers?.name || 'Unknown',
+            started_at: s.started_at,
+            ended_at: s.ended_at,
+            is_active: s.is_active,
+            total_cash: s.total_cash || 0,
+            total_kaspi: s.total_kaspi || 0,
+            total_games: s.total_games || 0,
+            total_controllers: s.total_controllers || 0,
+            total_drinks: s.total_drinks || 0,
+            sessions_count: sessionCounts[s.id] || 0,
+            duration_hours: Math.round(durationHours * 10) / 10
+          }
+        })
 
-        // Calculate totals
+        // Calculate totals including shift count and hours
         const rawTotals = formattedShifts.reduce((acc: any, s: any) => ({
           revenue: acc.revenue + s.total_cash + s.total_kaspi,
           cash: acc.cash + s.total_cash,
@@ -1220,12 +1227,15 @@ Deno.serve(async (req) => {
           games: acc.games + s.total_games,
           controllers: acc.controllers + s.total_controllers,
           drinks: acc.drinks + s.total_drinks,
-          sessions: acc.sessions + s.sessions_count
-        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0 })
+          sessions: acc.sessions + s.sessions_count,
+          shiftsCount: acc.shiftsCount + 1,
+          totalHours: acc.totalHours + s.duration_hours
+        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, shiftsCount: 0, totalHours: 0 })
 
         const totals = {
           ...rawTotals,
-          avgCheck: rawTotals.sessions > 0 ? Math.round(rawTotals.revenue / rawTotals.sessions) : 0
+          avgCheck: rawTotals.sessions > 0 ? Math.round(rawTotals.revenue / rawTotals.sessions) : 0,
+          revenuePerHour: rawTotals.totalHours > 0 ? Math.round(rawTotals.revenue / rawTotals.totalHours) : 0
         }
 
         // Calculate previous period totals for comparison
@@ -1253,8 +1263,11 @@ Deno.serve(async (req) => {
           controllers: acc.controllers + (s.total_controllers || 0),
           drinks: acc.drinks + (s.total_drinks || 0),
           sessions: 0,
-          avgCheck: 0
-        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, avgCheck: 0 })
+          avgCheck: 0,
+          shiftsCount: acc.shiftsCount + 1,
+          totalHours: 0,
+          revenuePerHour: 0
+        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, avgCheck: 0, shiftsCount: 0, totalHours: 0, revenuePerHour: 0 })
 
         return new Response(
           JSON.stringify({

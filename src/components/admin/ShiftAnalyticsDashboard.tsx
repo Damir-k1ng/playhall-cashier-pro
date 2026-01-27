@@ -55,6 +55,7 @@ interface ShiftData {
   total_controllers: number;
   total_drinks: number;
   sessions_count: number;
+  duration_hours: number;
 }
 
 interface CashierInfo {
@@ -71,6 +72,9 @@ interface TotalsSummary {
   drinks: number;
   sessions: number;
   avgCheck: number;
+  shiftsCount: number;
+  totalHours: number;
+  revenuePerHour: number;
 }
 
 type GroupBy = 'day' | 'week' | 'month';
@@ -162,23 +166,42 @@ export function ShiftAnalyticsDashboard() {
       }));
   }, [groupedData]);
 
-  // Cashier comparison data
+  // Cashier comparison data with hours and shifts count
   const cashierComparisonData = useMemo(() => {
     if (!data?.shifts || selectedCashier !== 'all') return [];
     
-    const cashierTotals = new Map<string, { name: string; revenue: number; sessions: number }>();
+    const cashierTotals = new Map<string, { 
+      name: string; 
+      revenue: number; 
+      sessions: number;
+      shiftsCount: number;
+      totalHours: number;
+      revenuePerHour: number;
+    }>();
     
     data.shifts.forEach(shift => {
       if (!cashierTotals.has(shift.cashier_id)) {
         cashierTotals.set(shift.cashier_id, {
           name: shift.cashier_name,
           revenue: 0,
-          sessions: 0
+          sessions: 0,
+          shiftsCount: 0,
+          totalHours: 0,
+          revenuePerHour: 0
         });
       }
       const totals = cashierTotals.get(shift.cashier_id)!;
       totals.revenue += shift.total_cash + shift.total_kaspi;
       totals.sessions += shift.sessions_count;
+      totals.shiftsCount += 1;
+      totals.totalHours += shift.duration_hours;
+    });
+    
+    // Calculate revenue per hour
+    cashierTotals.forEach(totals => {
+      totals.revenuePerHour = totals.totalHours > 0 
+        ? Math.round(totals.revenue / totals.totalHours) 
+        : 0;
     });
     
     return Array.from(cashierTotals.values())
@@ -221,7 +244,7 @@ export function ShiftAnalyticsDashboard() {
     return <AnalyticsSkeleton />;
   }
 
-  const totals = data?.totals || { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, avgCheck: 0 };
+  const totals = data?.totals || { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, avgCheck: 0, shiftsCount: 0, totalHours: 0, revenuePerHour: 0 };
   const prevTotals = data?.previousPeriodTotals || totals;
   const percentChange = prevTotals.revenue > 0 
     ? Math.round(((totals.revenue - prevTotals.revenue) / prevTotals.revenue) * 100) 
@@ -349,8 +372,8 @@ export function ShiftAnalyticsDashboard() {
         />
       </div>
 
-      {/* Secondary KPI */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Secondary KPI - Including new metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card className="glass-card border-primary/20">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
@@ -359,6 +382,39 @@ export function ShiftAnalyticsDashboard() {
             <div>
               <p className="text-2xl font-bold">{totals.sessions}</p>
               <p className="text-xs text-muted-foreground">Сессий</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-purple-500/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+              <Users className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{totals.shiftsCount}</p>
+              <p className="text-xs text-muted-foreground">Смен</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-blue-500/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{Math.round(totals.totalHours)}ч</p>
+              <p className="text-xs text-muted-foreground">Часов работы</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-green-500/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-green-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{formatCurrency(totals.revenuePerHour)}</p>
+              <p className="text-xs text-muted-foreground">₸/час</p>
             </div>
           </CardContent>
         </Card>
@@ -472,7 +528,7 @@ export function ShiftAnalyticsDashboard() {
         </Card>
       </div>
 
-      {/* Cashier Comparison */}
+      {/* Cashier Comparison Table */}
       {cashierComparisonData.length > 1 && (
         <Card className="glass-card border-primary/20">
           <CardHeader className="pb-2">
@@ -481,23 +537,57 @@ export function ShiftAnalyticsDashboard() {
               Сравнение кассиров
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={cashierComparisonData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickFormatter={(v) => `${v / 1000}k`} />
-                <YAxis dataKey="name" type="category" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} width={80} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value: number) => [formatCurrency(value), 'Выручка']}
-                />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="text-left p-3 font-medium">Кассир</th>
+                    <th className="text-center p-3 font-medium">Смен</th>
+                    <th className="text-center p-3 font-medium">Часов</th>
+                    <th className="text-right p-3 font-medium">Выручка</th>
+                    <th className="text-right p-3 font-medium">₸/час</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {cashierComparisonData.map((cashier, index) => (
+                    <tr key={cashier.name} className="hover:bg-muted/20 transition-colors">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="font-semibold text-primary text-xs">
+                              {cashier.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="font-medium">{cashier.name}</span>
+                          {index === 0 && (
+                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+                              Топ
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="text-center p-3">
+                        <Badge variant="outline" className="font-mono">
+                          {cashier.shiftsCount}
+                        </Badge>
+                      </td>
+                      <td className="text-center p-3">
+                        <span className="text-muted-foreground">{Math.round(cashier.totalHours)}ч</span>
+                      </td>
+                      <td className="text-right p-3 font-semibold text-primary">
+                        {formatCurrency(cashier.revenue)}
+                      </td>
+                      <td className="text-right p-3">
+                        <span className="text-green-400 font-medium">
+                          {formatCurrency(cashier.revenuePerHour)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -687,11 +777,14 @@ function calculateTotals(shifts: ShiftData[]): TotalsSummary {
     games: acc.games + shift.total_games,
     controllers: acc.controllers + shift.total_controllers,
     drinks: acc.drinks + shift.total_drinks,
-    sessions: acc.sessions + shift.sessions_count
-  }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0 });
+    sessions: acc.sessions + shift.sessions_count,
+    shiftsCount: acc.shiftsCount + 1,
+    totalHours: acc.totalHours + shift.duration_hours
+  }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, shiftsCount: 0, totalHours: 0 });
 
   return {
     ...totals,
-    avgCheck: totals.sessions > 0 ? Math.round(totals.revenue / totals.sessions) : 0
+    avgCheck: totals.sessions > 0 ? Math.round(totals.revenue / totals.sessions) : 0,
+    revenuePerHour: totals.totalHours > 0 ? Math.round(totals.revenue / totals.totalHours) : 0
   };
 }
