@@ -7,6 +7,16 @@ import { useBookings, BookingWithStation } from '@/hooks/useBookings';
 import { useStations } from '@/hooks/useStations';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface StationGridProps {
   stations: StationWithSession[];
@@ -21,6 +31,11 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
   // Booking modal state
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedStation, setSelectedStation] = useState<StationWithSession | null>(null);
+  
+  // Cancel confirmation dialog state
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
   
   const vipStations = stations.filter(s => s.zone === 'vip');
   const hallStations = stations.filter(s => s.zone === 'hall');
@@ -38,11 +53,25 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
     return result;
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
-    const result = await cancelBooking(bookingId);
-    if (result.success) {
-      // Immediately refetch both bookings and stations to ensure UI is updated
-      await Promise.all([refetchBookings(), refetchStations()]);
+  const handleRequestCancelBooking = (bookingId: string) => {
+    setBookingToCancel(bookingId);
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancelBooking = async () => {
+    if (!bookingToCancel) return;
+    
+    setIsCanceling(true);
+    try {
+      const result = await cancelBooking(bookingToCancel);
+      if (result.success) {
+        // Immediately refetch both bookings and stations to ensure UI is updated
+        await Promise.all([refetchBookings(), refetchStations()]);
+      }
+    } finally {
+      setIsCanceling(false);
+      setCancelDialogOpen(false);
+      setBookingToCancel(null);
     }
   };
 
@@ -87,7 +116,7 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
           key={station.id}
           station={station}
           booking={booking}
-          onCancelBooking={handleCancelBooking}
+          onCancelBooking={handleRequestCancelBooking}
           onStartSession={handleStartSession}
         />
       );
@@ -150,6 +179,30 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
           onCreateBooking={handleCreateBooking}
         />
       )}
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent className="bg-background border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Снять бронь?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите снять бронь? Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCanceling}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmCancelBooking}
+              disabled={isCanceling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCanceling ? 'Снимаем...' : 'Да, снять бронь'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
