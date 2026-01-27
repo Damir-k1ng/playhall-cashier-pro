@@ -170,36 +170,40 @@ Deno.serve(async (req) => {
     const method = req.method
 
     // Route handlers
-    // GET /stations - Get all stations with active sessions
+    // GET /stations - Get all stations with active sessions (optimized with parallel queries)
     if (path === '/stations' && method === 'GET') {
-      const { data: stations } = await supabase.from('stations').select('*').order('station_number')
+      const today = new Date().toISOString().split('T')[0]
       
-      const { data: activeSessions } = await supabase
-        .from('sessions')
-        .select('*, controller_usage(*), session_drinks(*, drinks(*))')
-        .eq('status', 'active')
+      // Run all queries in parallel for better performance
+      const [stationsResult, sessionsResult, reservationsResult, bookingsResult] = await Promise.all([
+        supabase.from('stations').select('*').order('station_number'),
+        supabase.from('sessions')
+          .select('*, controller_usage(*), session_drinks(*, drinks(*))')
+          .eq('status', 'active'),
+        supabase.from('reservations').select('*').eq('is_active', true),
+        supabase.from('bookings').select('*').eq('status', 'booked').eq('booking_date', today)
+      ])
 
-      const { data: activeReservations } = await supabase
-        .from('reservations')
-        .select('*')
-        .eq('is_active', true)
+      const stations = stationsResult.data || []
+      const activeSessions = sessionsResult.data || []
+      const activeReservations = reservationsResult.data || []
+      const activeBookings = bookingsResult.data || []
 
-      const { data: activeBookings } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('status', 'booked')
-        .eq('booking_date', new Date().toISOString().split('T')[0])
+      // Create lookup maps for O(1) access instead of O(n) find operations
+      const sessionMap = new Map(activeSessions.map(s => [s.station_id, s]))
+      const reservationMap = new Map(activeReservations.map(r => [r.station_id, r]))
+      const bookingMap = new Map(activeBookings.map(b => [b.station_id, b]))
 
-      const stationsWithData = stations?.map(station => ({
+      const stationsWithData = stations.map(station => ({
         ...station,
-        activeSession: activeSessions?.find(s => s.station_id === station.id) || null,
-        activeReservation: activeReservations?.find(r => r.station_id === station.id) || null,
-        activeBooking: activeBookings?.find(b => b.station_id === station.id) || null
+        activeSession: sessionMap.get(station.id) || null,
+        activeReservation: reservationMap.get(station.id) || null,
+        activeBooking: bookingMap.get(station.id) || null
       }))
 
       return new Response(
         JSON.stringify(stationsWithData),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=2' } }
       )
     }
 
