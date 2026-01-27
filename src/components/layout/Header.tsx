@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw, Shield } from 'lucide-react';
+import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw, Shield, BarChart3 } from 'lucide-react';
 import { CLUB_NAME } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
 import {
@@ -69,6 +69,30 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
 
         {/* Center: Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Analytics Button (Admin only) */}
+          {role === 'admin' && (
+            <>
+              <Button
+                onClick={() => navigate('/admin/cashiers?tab=analytics')}
+                className="hidden md:flex items-center gap-3 h-12 px-5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/20 transition-all duration-300 btn-press"
+                variant="ghost"
+              >
+                <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-amber-400" />
+                </div>
+                <span className="text-foreground font-medium">Аналитика</span>
+              </Button>
+              {/* Mobile analytics button */}
+              <Button
+                onClick={() => navigate('/admin/cashiers?tab=analytics')}
+                className="md:hidden w-11 h-11 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 p-0"
+                variant="ghost"
+              >
+                <BarChart3 className="w-5 h-5 text-amber-400" />
+              </Button>
+            </>
+          )}
+
           {/* History Button */}
           <Button
             onClick={onOpenHistory}
