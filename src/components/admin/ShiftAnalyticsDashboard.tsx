@@ -26,8 +26,13 @@ import {
   Monitor,
   ChevronDown,
   ChevronRight,
-  Receipt
+  Receipt,
+  Download,
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { exportToExcel, exportToPDF } from '@/lib/export-utils';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface AnalyticsData {
@@ -190,6 +195,28 @@ export function ShiftAnalyticsDashboard() {
     setExpandedDays(newExpanded);
   };
 
+  const handleExport = (type: 'excel' | 'pdf') => {
+    if (!data?.shifts) return;
+    
+    const cashierName = selectedCashier !== 'all' 
+      ? data.cashiers.find(c => c.id === selectedCashier)?.name 
+      : undefined;
+
+    const exportParams = {
+      shifts: data.shifts,
+      totals: data.totals,
+      dateFrom: dateRange.from,
+      dateTo: dateRange.to,
+      cashierName
+    };
+
+    if (type === 'excel') {
+      exportToExcel(exportParams);
+    } else {
+      exportToPDF(exportParams);
+    }
+  };
+
   if (isLoading && !data) {
     return <AnalyticsSkeleton />;
   }
@@ -257,13 +284,41 @@ export function ShiftAnalyticsDashboard() {
           </SelectContent>
         </Select>
 
-        <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)} className="ml-auto">
-          <TabsList className="glass-card border border-primary/20">
-            <TabsTrigger value="day">День</TabsTrigger>
-            <TabsTrigger value="week">Неделя</TabsTrigger>
-            <TabsTrigger value="month">Месяц</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2 ml-auto">
+          <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+            <TabsList className="glass-card border border-primary/20">
+              <TabsTrigger value="day">День</TabsTrigger>
+              <TabsTrigger value="week">Неделя</TabsTrigger>
+              <TabsTrigger value="month">Месяц</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Экспорт</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card border border-border">
+              <DropdownMenuItem 
+                onClick={() => handleExport('excel')}
+                className="gap-2 cursor-pointer"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-green-500" />
+                Скачать Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleExport('pdf')}
+                className="gap-2 cursor-pointer"
+              >
+                <FileText className="h-4 w-4 text-red-500" />
+                Скачать PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* KPI Cards */}
