@@ -216,12 +216,17 @@ Deno.serve(async (req) => {
       const reservationMap = new Map(activeReservations.map(r => [r.station_id, r]))
       const bookingMap = new Map(activeBookings.map(b => [b.station_id, b]))
 
-      const stationsWithData = stations.map(station => ({
-        ...station,
-        activeSession: sessionMap.get(station.id) || null,
-        activeReservation: reservationMap.get(station.id) || null,
-        activeBooking: bookingMap.get(station.id) || null
-      }))
+      const stationsWithData = stations.map(station => {
+        const activeSession = sessionMap.get(station.id) || null
+        return {
+          ...station,
+          activeSession,
+          activeReservation: reservationMap.get(station.id) || null,
+          activeBooking: bookingMap.get(station.id) || null,
+          // Flag indicating if current cashier owns this session
+          isOwnSession: activeSession ? activeSession.shift_id === shift.id : null
+        }
+      })
 
       return new Response(
         JSON.stringify(stationsWithData),
@@ -393,6 +398,27 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Verify session ownership - only the cashier who opened the session can modify it
+      const { data: existingSession } = await supabase
+        .from('sessions')
+        .select('shift_id')
+        .eq('id', id)
+        .single()
+
+      if (!existingSession) {
+        return new Response(
+          JSON.stringify({ error: 'Session not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (existingSession.shift_id !== shift.id) {
+        return new Response(
+          JSON.stringify({ error: 'Вы не можете управлять сессией другого кассира' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const body = await req.json()
       
       // Only allow specific fields to be updated
@@ -436,12 +462,27 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get session details to calculate category totals
+      // Get session details and verify ownership
       const { data: sessionData } = await supabase
         .from('sessions')
-        .select('game_cost, controller_cost, drink_cost')
+        .select('shift_id, game_cost, controller_cost, drink_cost')
         .eq('id', body.session_id)
         .single()
+
+      if (!sessionData) {
+        return new Response(
+          JSON.stringify({ error: 'Session not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Verify session ownership - only the cashier who opened the session can process payment
+      if (sessionData.shift_id !== shift.id) {
+        return new Response(
+          JSON.stringify({ error: 'Вы не можете принять оплату за сессию другого кассира' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
       const { data, error } = await supabase
         .from('payments')

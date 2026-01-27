@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StationWithSession } from '@/types/database';
 import { formatDurationHMS, formatCurrency, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { Gamepad2, Coffee, Play, Calendar } from 'lucide-react';
+import { Gamepad2, Coffee, Play, Calendar, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface StationCardProps {
@@ -12,7 +12,7 @@ interface StationCardProps {
   hasBooking?: boolean;
 }
 
-type StationStatus = 'FREE' | 'ACTIVE' | 'WARNING' | 'OVERTIME';
+type StationStatus = 'FREE' | 'ACTIVE' | 'WARNING' | 'OVERTIME' | 'LOCKED';
 
 export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   const navigate = useNavigate();
@@ -22,6 +22,8 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   const isPackage = station.activeSession?.tariff_type === 'package';
   const activeControllers = station.controllers?.filter(c => !c.returned_at) || [];
   const totalDrinks = station.drinks?.reduce((sum, d) => sum + d.quantity, 0) || 0;
+  // Check if current cashier owns this session
+  const isOwnSession = station.isOwnSession !== false; // null or true means own session
 
   useEffect(() => {
     if (!station.activeSession) return;
@@ -41,6 +43,8 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   // Determine status
   const getStatus = (): StationStatus => {
     if (!isActive) return 'FREE';
+    // If this is another cashier's session, show as LOCKED
+    if (!isOwnSession) return 'LOCKED';
     if (isPackage && remaining <= 0) return 'OVERTIME';
     if (isPackage && remaining <= 5) return 'WARNING';
     return 'ACTIVE';
@@ -59,6 +63,16 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
           borderColor: 'border-success/30 hover:border-success/60',
           bgGlow: 'hover:glow-emerald',
           statusBg: 'bg-success/15'
+        };
+      case 'LOCKED':
+        return { 
+          label: 'ДРУГОЙ КАССИР', 
+          color: 'text-muted-foreground', 
+          timerColor: 'text-muted-foreground',
+          glow: '',
+          borderColor: 'border-muted/40',
+          bgGlow: '',
+          statusBg: 'bg-muted/15'
         };
       case 'ACTIVE': 
         return { 
@@ -96,6 +110,10 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   const config = getStatusConfig();
 
   const handleClick = () => {
+    // Don't navigate to station details if it's another cashier's session
+    if (isActive && !isOwnSession) {
+      return;
+    }
     navigate(`/station/${station.id}`);
   };
 
@@ -103,12 +121,14 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
     <div
       onClick={handleClick}
       className={cn(
-        'relative rounded-xl sm:rounded-2xl p-3 sm:p-5 md:p-6 transition-all duration-300 cursor-pointer card-lift',
+        'relative rounded-xl sm:rounded-2xl p-3 sm:p-5 md:p-6 transition-all duration-300',
         'glass-card glass-card-hover',
         'border-2',
         config.borderColor,
         config.bgGlow,
-        'min-h-[180px] sm:min-h-[220px] md:min-h-[240px] flex flex-col'
+        'min-h-[180px] sm:min-h-[220px] md:min-h-[240px] flex flex-col',
+        // Make card non-clickable if it's another cashier's session
+        isActive && !isOwnSession ? 'cursor-not-allowed opacity-70' : 'cursor-pointer card-lift'
       )}
     >
       {/* Zone indicator line at top */}
@@ -146,7 +166,8 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
         'inline-flex items-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg w-fit mb-2 sm:mb-4',
         config.statusBg
       )}>
-        <div className={cn('w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full', config.color.replace('text-', 'bg-'), 'animate-pulse')} />
+        {status === 'LOCKED' && <Lock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />}
+        <div className={cn('w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full', config.color.replace('text-', 'bg-'), status !== 'LOCKED' && 'animate-pulse')} />
         <span className={cn('text-[10px] sm:text-xs font-bold uppercase tracking-widest', config.color)}>
           {config.label}
         </span>
