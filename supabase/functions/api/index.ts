@@ -128,6 +128,28 @@ function validateDrinkSale(body: any): { valid: boolean; error?: string } {
   return { valid: true }
 }
 
+function validateCashier(body: any): { valid: boolean; error?: string } {
+  if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) {
+    return { valid: false, error: 'Имя обязательно' }
+  }
+  if (body.name.length > 50) {
+    return { valid: false, error: 'Имя слишком длинное' }
+  }
+  if (!body.pin || typeof body.pin !== 'string' || !/^\d{4}$/.test(body.pin)) {
+    return { valid: false, error: 'PIN должен содержать 4 цифры' }
+  }
+  return { valid: true }
+}
+
+async function getUserRole(supabase: any, cashierId: string): Promise<string> {
+  const { data } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('cashier_id', cashierId)
+    .single()
+  return data?.role || 'cashier'
+}
+
 async function authenticateSession(supabase: any, sessionToken: string | null) {
   if (!sessionToken) return null
 
@@ -865,6 +887,205 @@ Deno.serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // ========== ADMIN ROUTES ==========
+    // Admin routes require admin role
+    if (path.startsWith('/admin/')) {
+      const userRole = await getUserRole(supabase, shift.cashier_id)
+      
+      if (userRole !== 'admin') {
+        return new Response(
+          JSON.stringify({ error: 'Доступ запрещён' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // GET /admin/cashiers - List all cashiers
+      if (path === '/admin/cashiers' && method === 'GET') {
+        const { data, error } = await supabase
+          .from('cashiers')
+          .select('id, name, pin, created_at')
+          .order('created_at')
+
+        if (error) {
+          console.error('Cashiers fetch error:', error)
+          return new Response(
+            JSON.stringify({ error: 'Ошибка загрузки кассиров' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        return new Response(
+          JSON.stringify(data),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // POST /admin/cashiers - Create new cashier
+      if (path === '/admin/cashiers' && method === 'POST') {
+        const body = await req.json()
+        const validation = validateCashier(body)
+        if (!validation.valid) {
+          return new Response(
+            JSON.stringify({ error: validation.error }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { data, error } = await supabase
+          .from('cashiers')
+          .insert({
+            name: body.name.trim(),
+            pin: body.pin
+          })
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Cashier create error:', error)
+          if (error.code === '23505') {
+            return new Response(
+              JSON.stringify({ error: 'PIN-код уже существует' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          return new Response(
+            JSON.stringify({ error: 'Ошибка создания кассира' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        return new Response(
+          JSON.stringify(data),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // PATCH /admin/cashiers/:id - Update cashier
+      if (path.startsWith('/admin/cashiers/') && method === 'PATCH') {
+        const id = path.split('/')[3]
+        if (!isValidUUID(id)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid cashier ID' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const body = await req.json()
+        
+        // Build update object
+        const updateData: Record<string, any> = {}
+        if (body.name !== undefined) {
+          if (typeof body.name !== 'string' || body.name.trim().length === 0) {
+            return new Response(
+              JSON.stringify({ error: 'Имя обязательно' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          if (body.name.length > 50) {
+            return new Response(
+              JSON.stringify({ error: 'Имя слишком длинное' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          updateData.name = body.name.trim()
+        }
+        if (body.pin !== undefined) {
+          if (!/^\d{4}$/.test(body.pin)) {
+            return new Response(
+              JSON.stringify({ error: 'PIN должен содержать 4 цифры' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          updateData.pin = body.pin
+        }
+
+        if (Object.keys(updateData).length === 0) {
+          return new Response(
+            JSON.stringify({ error: 'Нет данных для обновления' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { data, error } = await supabase
+          .from('cashiers')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Cashier update error:', error)
+          if (error.code === '23505') {
+            return new Response(
+              JSON.stringify({ error: 'PIN-код уже существует' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          return new Response(
+            JSON.stringify({ error: 'Ошибка обновления кассира' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        return new Response(
+          JSON.stringify(data),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // DELETE /admin/cashiers/:id - Delete cashier
+      if (path.startsWith('/admin/cashiers/') && method === 'DELETE') {
+        const id = path.split('/')[3]
+        if (!isValidUUID(id)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid cashier ID' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Prevent self-deletion
+        if (id === shift.cashier_id) {
+          return new Response(
+            JSON.stringify({ error: 'Нельзя удалить себя' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Check if cashier has active shift
+        const { data: activeShift } = await supabase
+          .from('shifts')
+          .select('id')
+          .eq('cashier_id', id)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        if (activeShift) {
+          return new Response(
+            JSON.stringify({ error: 'У кассира активная смена' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { error } = await supabase
+          .from('cashiers')
+          .delete()
+          .eq('id', id)
+
+        if (error) {
+          console.error('Cashier delete error:', error)
+          return new Response(
+            JSON.stringify({ error: 'Ошибка удаления кассира' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     return new Response(

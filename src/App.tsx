@@ -8,8 +8,8 @@ import Index from "./pages/Index";
 import { StationScreen } from "./pages/StationScreen";
 import { PreCheckScreen } from "./pages/PreCheckScreen";
 import { PaymentScreen } from "./pages/PaymentScreen";
+import { AdminCashiers } from "./pages/AdminCashiers";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -24,6 +24,7 @@ const App = () => (
             <Route path="/station/:stationId" element={<StationScreen />} />
             <Route path="/precheck/:sessionId" element={<PreCheckScreen />} />
             <Route path="/payment/:sessionId" element={<PaymentScreen />} />
+            <Route path="/admin/cashiers" element={<AdminCashiers />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
