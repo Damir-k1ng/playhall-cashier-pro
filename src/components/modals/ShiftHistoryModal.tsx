@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatTime, formatDuration } from '@/lib/utils';
 import { 
@@ -16,7 +15,7 @@ import {
   CreditCard,
   MonitorPlay
 } from 'lucide-react';
-import type { Session, DrinkSale, Station, Drink, ControllerUsage } from '@/types/database';
+import type { ControllerUsage, Drink, DrinkSale } from '@/types/database';
 
 interface ShiftHistoryModalProps {
   open: boolean;
@@ -75,62 +74,9 @@ export function ShiftHistoryModal({ open, onClose }: ShiftHistoryModalProps) {
     setIsLoading(true);
 
     try {
-      // Fetch paid sessions with station info
-      const { data: sessionsData } = await supabase
-        .from('sessions')
-        .select(`
-          *,
-          station:stations(*)
-        `)
-        .eq('shift_id', shift.id)
-        .eq('status', 'completed')
-        .order('ended_at', { ascending: false });
-
-      // Fetch session details (controllers, drinks, payment)
-      const sessionsWithDetails = await Promise.all(
-        (sessionsData || []).map(async (session) => {
-          // Get controllers
-          const { data: controllers } = await supabase
-            .from('controller_usage')
-            .select('*')
-            .eq('session_id', session.id);
-
-          // Get drinks count
-          const { count: drinksCount } = await supabase
-            .from('session_drinks')
-            .select('*', { count: 'exact', head: true })
-            .eq('session_id', session.id);
-
-          // Get payment info
-          const { data: payment } = await supabase
-            .from('payments')
-            .select('payment_method, cash_amount, kaspi_amount')
-            .eq('session_id', session.id)
-            .maybeSingle();
-          
-          return {
-            ...session,
-            controllers: controllers || [],
-            drinks_count: drinksCount || 0,
-            payment_method: payment?.payment_method || 'cash',
-            cash_amount: payment?.cash_amount || 0,
-            kaspi_amount: payment?.kaspi_amount || 0
-          } as PaidSession;
-        })
-      );
-
-      // Fetch standalone drink sales
-      const { data: drinkSalesData } = await supabase
-        .from('drink_sales')
-        .select(`
-          *,
-          drink:drinks(*)
-        `)
-        .eq('shift_id', shift.id)
-        .order('created_at', { ascending: false });
-
-      setSessions(sessionsWithDetails || []);
-      setDrinkSales(drinkSalesData || []);
+      const data = await apiClient.getShiftHistory();
+      setSessions(data.sessions || []);
+      setDrinkSales(data.drinkSales || []);
     } catch (error) {
       console.error('Error fetching history:', error);
     } finally {
