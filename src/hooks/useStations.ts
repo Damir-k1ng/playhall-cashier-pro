@@ -80,8 +80,9 @@ export function useStations() {
   useEffect(() => {
     fetchStations();
 
-    // Refresh every 5 seconds for timer accuracy
-    intervalRef.current = window.setInterval(() => fetchStations(true), 5000);
+    // Refresh every 15 seconds (reduced from 5s for performance)
+    // Timer calculations are done client-side, so less frequent updates are fine
+    intervalRef.current = window.setInterval(() => fetchStations(true), 15000);
 
     return () => {
       if (intervalRef.current) {
