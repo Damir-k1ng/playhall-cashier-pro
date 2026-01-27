@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
 export interface Reservation {
@@ -24,6 +24,7 @@ export function useReservations() {
   const { shift } = useAuth();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const intervalRef = useRef<number | null>(null);
 
   const fetchReservations = useCallback(async () => {
     if (!shift?.id) {
@@ -33,18 +34,7 @@ export function useReservations() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('reservations')
-        .select(`
-          *,
-          station:stations(id, name, zone)
-        `)
-        .eq('is_active', true)
-        .gte('reserved_for', new Date().toISOString())
-        .order('reserved_for', { ascending: true });
-
-      if (error) throw error;
-
+      const data = await apiClient.getReservations();
       setReservations(data || []);
     } catch (err) {
       console.error('Error fetching reservations:', err);
@@ -56,18 +46,13 @@ export function useReservations() {
   useEffect(() => {
     fetchReservations();
 
-    // Real-time subscription
-    const channel = supabase
-      .channel('reservations-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'reservations' },
-        () => fetchReservations()
-      )
-      .subscribe();
+    // Refresh every 30 seconds
+    intervalRef.current = window.setInterval(fetchReservations, 30000);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
   }, [fetchReservations]);
 
@@ -83,19 +68,16 @@ export function useReservations() {
     }
 
     try {
-      const { error } = await supabase.from('reservations').insert({
+      await apiClient.createReservation({
         station_id: stationId,
-        shift_id: shift.id,
         reserved_for: reservedFor.toISOString(),
-        customer_name: customerName || null,
-        phone: phone || null,
-        notes: notes || null,
-        is_active: true,
+        customer_name: customerName,
+        phone: phone,
+        notes: notes,
       });
 
-      if (error) throw error;
-
       toast.success('Бронь создана');
+      await fetchReservations();
       return { success: true };
     } catch (err: any) {
       console.error('Error creating reservation:', err);
@@ -105,14 +87,10 @@ export function useReservations() {
 
   const cancelReservation = async (reservationId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ is_active: false })
-        .eq('id', reservationId);
-
-      if (error) throw error;
+      await apiClient.updateReservation(reservationId, { is_active: false });
 
       toast.success('Бронь отменена');
+      await fetchReservations();
       return { success: true };
     } catch (err: any) {
       console.error('Error canceling reservation:', err);

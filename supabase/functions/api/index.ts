@@ -1,11 +1,128 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-token',
+// Get allowed origin from environment or use defaults
+const ALLOWED_ORIGINS = [
+  Deno.env.get('ALLOWED_ORIGIN'),
+  'https://id-preview--4c748cfc-e858-4479-b272-8168444e55f3.lovable.app',
+  'http://localhost:5173',
+  'http://localhost:8080'
+].filter(Boolean) as string[]
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o.replace(/\/$/, '')))
+    ? origin
+    : ALLOWED_ORIGINS[0]
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-token',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+  }
 }
 
-async function validateSession(supabase: any, sessionToken: string | null) {
+// Input validation helpers
+function isValidUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+}
+
+function validatePayment(body: any): { valid: boolean; error?: string } {
+  if (!body.session_id || !isValidUUID(body.session_id)) {
+    return { valid: false, error: 'Invalid session_id' }
+  }
+  if (!['cash', 'kaspi', 'split'].includes(body.payment_method)) {
+    return { valid: false, error: 'Invalid payment_method' }
+  }
+  if (typeof body.total_amount !== 'number' || body.total_amount < 0) {
+    return { valid: false, error: 'Invalid total_amount' }
+  }
+  if (body.cash_amount !== undefined && (typeof body.cash_amount !== 'number' || body.cash_amount < 0)) {
+    return { valid: false, error: 'Invalid cash_amount' }
+  }
+  if (body.kaspi_amount !== undefined && (typeof body.kaspi_amount !== 'number' || body.kaspi_amount < 0)) {
+    return { valid: false, error: 'Invalid kaspi_amount' }
+  }
+  return { valid: true }
+}
+
+function validateSession(body: any): { valid: boolean; error?: string } {
+  if (!body.station_id || !isValidUUID(body.station_id)) {
+    return { valid: false, error: 'Invalid station_id' }
+  }
+  if (!['hourly', 'package'].includes(body.tariff_type)) {
+    return { valid: false, error: 'Invalid tariff_type' }
+  }
+  return { valid: true }
+}
+
+function validateReservation(body: any): { valid: boolean; error?: string } {
+  if (!body.station_id || !isValidUUID(body.station_id)) {
+    return { valid: false, error: 'Invalid station_id' }
+  }
+  if (!body.reserved_for) {
+    return { valid: false, error: 'Invalid reserved_for' }
+  }
+  if (body.customer_name && body.customer_name.length > 100) {
+    return { valid: false, error: 'customer_name too long' }
+  }
+  if (body.phone && !/^[0-9+\-\s()]+$/.test(body.phone)) {
+    return { valid: false, error: 'Invalid phone format' }
+  }
+  return { valid: true }
+}
+
+function validateBooking(body: any): { valid: boolean; error?: string } {
+  if (!body.station_id || !isValidUUID(body.station_id)) {
+    return { valid: false, error: 'Invalid station_id' }
+  }
+  if (!body.start_time || !/^\d{2}:\d{2}(:\d{2})?$/.test(body.start_time)) {
+    return { valid: false, error: 'Invalid start_time format' }
+  }
+  if (body.comment && body.comment.length > 200) {
+    return { valid: false, error: 'comment too long' }
+  }
+  return { valid: true }
+}
+
+function validateControllerUsage(body: any): { valid: boolean; error?: string } {
+  if (!body.session_id || !isValidUUID(body.session_id)) {
+    return { valid: false, error: 'Invalid session_id' }
+  }
+  return { valid: true }
+}
+
+function validateSessionDrink(body: any): { valid: boolean; error?: string } {
+  if (!body.session_id || !isValidUUID(body.session_id)) {
+    return { valid: false, error: 'Invalid session_id' }
+  }
+  if (!body.drink_id || !isValidUUID(body.drink_id)) {
+    return { valid: false, error: 'Invalid drink_id' }
+  }
+  if (typeof body.quantity !== 'number' || body.quantity < 1 || body.quantity > 100) {
+    return { valid: false, error: 'Invalid quantity' }
+  }
+  if (typeof body.total_price !== 'number' || body.total_price < 0) {
+    return { valid: false, error: 'Invalid total_price' }
+  }
+  return { valid: true }
+}
+
+function validateDrinkSale(body: any): { valid: boolean; error?: string } {
+  if (!body.drink_id || !isValidUUID(body.drink_id)) {
+    return { valid: false, error: 'Invalid drink_id' }
+  }
+  if (typeof body.quantity !== 'number' || body.quantity < 1 || body.quantity > 100) {
+    return { valid: false, error: 'Invalid quantity' }
+  }
+  if (typeof body.total_price !== 'number' || body.total_price < 0) {
+    return { valid: false, error: 'Invalid total_price' }
+  }
+  if (!['cash', 'kaspi', 'split'].includes(body.payment_method)) {
+    return { valid: false, error: 'Invalid payment_method' }
+  }
+  return { valid: true }
+}
+
+async function authenticateSession(supabase: any, sessionToken: string | null) {
   if (!sessionToken) return null
 
   const { data: shift } = await supabase
@@ -19,6 +136,9 @@ async function validateSession(supabase: any, sessionToken: string | null) {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin')
+  const corsHeaders = getCorsHeaders(origin)
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -30,7 +150,7 @@ Deno.serve(async (req) => {
     )
 
     const sessionToken = req.headers.get('x-session-token')
-    const shift = await validateSession(supabase, sessionToken)
+    const shift = await authenticateSession(supabase, sessionToken)
 
     if (!shift) {
       return new Response(
@@ -86,18 +206,62 @@ Deno.serve(async (req) => {
       )
     }
 
+    // GET /reservations - Get active reservations
+    if (path === '/reservations' && method === 'GET') {
+      const { data } = await supabase
+        .from('reservations')
+        .select('*, station:stations(id, name, zone)')
+        .eq('is_active', true)
+        .gte('reserved_for', new Date().toISOString())
+        .order('reserved_for', { ascending: true })
+      
+      return new Response(
+        JSON.stringify(data),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // GET /bookings - Get today's bookings
+    if (path === '/bookings' && method === 'GET') {
+      const today = new Date().toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('bookings')
+        .select('*, station:stations(id, name, zone)')
+        .eq('booking_date', today)
+        .order('start_time', { ascending: true })
+      
+      return new Response(
+        JSON.stringify(data),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // POST /sessions - Create session
     if (path === '/sessions' && method === 'POST') {
       const body = await req.json()
+      const validation = validateSession(body)
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data, error } = await supabase
         .from('sessions')
-        .insert({ ...body, shift_id: shift.id })
+        .insert({ 
+          station_id: body.station_id,
+          tariff_type: body.tariff_type,
+          status: 'active',
+          shift_id: shift.id 
+        })
         .select()
         .single()
 
       if (error) {
+        console.error('Session create error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to create session' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -111,17 +275,35 @@ Deno.serve(async (req) => {
     // PATCH /sessions/:id - Update session
     if (path.startsWith('/sessions/') && method === 'PATCH') {
       const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid session ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const body = await req.json()
+      
+      // Only allow specific fields to be updated
+      const allowedFields = ['status', 'ended_at', 'game_cost', 'controller_cost', 'drink_cost', 'total_cost']
+      const updateData: Record<string, any> = {}
+      for (const field of allowedFields) {
+        if (body[field] !== undefined) {
+          updateData[field] = body[field]
+        }
+      }
+
       const { data, error } = await supabase
         .from('sessions')
-        .update(body)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single()
 
       if (error) {
+        console.error('Session update error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to update session' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -135,21 +317,34 @@ Deno.serve(async (req) => {
     // POST /payments - Create payment
     if (path === '/payments' && method === 'POST') {
       const body = await req.json()
-      const { data, error } = await supabase
-        .from('payments')
-        .insert({ ...body, shift_id: shift.id })
-        .select()
-        .single()
-
-      if (error) {
+      const validation = validatePayment(body)
+      if (!validation.valid) {
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: validation.error }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      // Update shift totals
-      await supabase.rpc('update_shift_totals', { shift_id: shift.id })
+      const { data, error } = await supabase
+        .from('payments')
+        .insert({ 
+          session_id: body.session_id,
+          payment_method: body.payment_method,
+          cash_amount: body.cash_amount || 0,
+          kaspi_amount: body.kaspi_amount || 0,
+          total_amount: body.total_amount,
+          shift_id: shift.id 
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Payment create error:', error)
+        return new Response(
+          JSON.stringify({ error: 'Unable to create payment' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
       return new Response(
         JSON.stringify(data),
@@ -160,15 +355,24 @@ Deno.serve(async (req) => {
     // POST /controller-usage - Create controller usage
     if (path === '/controller-usage' && method === 'POST') {
       const body = await req.json()
+      const validation = validateControllerUsage(body)
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data, error } = await supabase
         .from('controller_usage')
-        .insert(body)
+        .insert({ session_id: body.session_id })
         .select()
         .single()
 
       if (error) {
+        console.error('Controller usage create error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to add controller' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -182,17 +386,30 @@ Deno.serve(async (req) => {
     // PATCH /controller-usage/:id - Update controller usage
     if (path.startsWith('/controller-usage/') && method === 'PATCH') {
       const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid controller usage ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const body = await req.json()
+      const updateData: Record<string, any> = {}
+      
+      if (body.returned_at) updateData.returned_at = body.returned_at
+      if (typeof body.cost === 'number' && body.cost >= 0) updateData.cost = body.cost
+
       const { data, error } = await supabase
         .from('controller_usage')
-        .update(body)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single()
 
       if (error) {
+        console.error('Controller usage update error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to update controller usage' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -206,15 +423,29 @@ Deno.serve(async (req) => {
     // POST /session-drinks - Add drink to session
     if (path === '/session-drinks' && method === 'POST') {
       const body = await req.json()
+      const validation = validateSessionDrink(body)
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data, error } = await supabase
         .from('session_drinks')
-        .insert(body)
+        .insert({
+          session_id: body.session_id,
+          drink_id: body.drink_id,
+          quantity: body.quantity,
+          total_price: body.total_price
+        })
         .select()
         .single()
 
       if (error) {
+        console.error('Session drink create error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to add drink' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -228,15 +459,32 @@ Deno.serve(async (req) => {
     // POST /drink-sales - Sell drink
     if (path === '/drink-sales' && method === 'POST') {
       const body = await req.json()
+      const validation = validateDrinkSale(body)
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data, error } = await supabase
         .from('drink_sales')
-        .insert({ ...body, shift_id: shift.id })
+        .insert({ 
+          drink_id: body.drink_id,
+          quantity: body.quantity,
+          total_price: body.total_price,
+          payment_method: body.payment_method,
+          cash_amount: body.cash_amount || 0,
+          kaspi_amount: body.kaspi_amount || 0,
+          shift_id: shift.id 
+        })
         .select()
         .single()
 
       if (error) {
+        console.error('Drink sale create error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to create drink sale' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -250,15 +498,32 @@ Deno.serve(async (req) => {
     // POST /reservations - Create reservation
     if (path === '/reservations' && method === 'POST') {
       const body = await req.json()
+      const validation = validateReservation(body)
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data, error } = await supabase
         .from('reservations')
-        .insert({ ...body, shift_id: shift.id })
+        .insert({ 
+          station_id: body.station_id,
+          reserved_for: body.reserved_for,
+          customer_name: body.customer_name || null,
+          phone: body.phone || null,
+          notes: body.notes || null,
+          is_active: true,
+          shift_id: shift.id 
+        })
         .select()
         .single()
 
       if (error) {
+        console.error('Reservation create error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to create reservation' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -272,17 +537,29 @@ Deno.serve(async (req) => {
     // PATCH /reservations/:id - Update reservation
     if (path.startsWith('/reservations/') && method === 'PATCH') {
       const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid reservation ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const body = await req.json()
+      const updateData: Record<string, any> = {}
+      
+      if (typeof body.is_active === 'boolean') updateData.is_active = body.is_active
+
       const { data, error } = await supabase
         .from('reservations')
-        .update(body)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single()
 
       if (error) {
+        console.error('Reservation update error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to update reservation' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -296,15 +573,29 @@ Deno.serve(async (req) => {
     // POST /bookings - Create booking
     if (path === '/bookings' && method === 'POST') {
       const body = await req.json()
+      const validation = validateBooking(body)
+      if (!validation.valid) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const { data, error } = await supabase
         .from('bookings')
-        .insert(body)
+        .insert({
+          station_id: body.station_id,
+          start_time: body.start_time,
+          comment: body.comment || null,
+          status: 'booked'
+        })
         .select()
         .single()
 
       if (error) {
+        console.error('Booking create error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to create booking' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -318,17 +609,31 @@ Deno.serve(async (req) => {
     // PATCH /bookings/:id - Update booking
     if (path.startsWith('/bookings/') && method === 'PATCH') {
       const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid booking ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const body = await req.json()
+      const updateData: Record<string, any> = {}
+      
+      if (['booked', 'cancelled', 'completed'].includes(body.status)) {
+        updateData.status = body.status
+      }
+
       const { data, error } = await supabase
         .from('bookings')
-        .update(body)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single()
 
       if (error) {
+        console.error('Booking update error:', error)
         return new Response(
-          JSON.stringify({ error: error.message }),
+          JSON.stringify({ error: 'Unable to update booking' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -389,7 +694,7 @@ Deno.serve(async (req) => {
     console.error('API error:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(null), 'Content-Type': 'application/json' } }
     )
   }
 })
