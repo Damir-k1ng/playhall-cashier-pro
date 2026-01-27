@@ -224,6 +224,31 @@ class ApiClient {
   async getShiftHistory() {
     return this.request('/shift/history');
   }
+
+  // Admin: Cashiers management
+  async getCashiers() {
+    return this.request('/admin/cashiers');
+  }
+
+  async createCashier(data: { name: string; pin: string }) {
+    return this.request('/admin/cashiers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCashier(id: string, data: { name?: string; pin?: string }) {
+    return this.request(`/admin/cashiers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCashier(id: string) {
+    return this.request(`/admin/cashiers/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 

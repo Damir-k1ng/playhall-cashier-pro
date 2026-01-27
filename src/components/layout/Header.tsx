@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw } from 'lucide-react';
+import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw, Shield } from 'lucide-react';
 import { CLUB_NAME } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
 import {
@@ -24,7 +24,7 @@ interface HeaderProps {
 
 export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
   const navigate = useNavigate();
-  const { cashier, shift, logout } = useAuth();
+  const { cashier, shift, role, logout } = useAuth();
 
   const handleLogout = async () => {
     if (confirm('Вы уверены, что хотите завершить смену?')) {
@@ -149,9 +149,23 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
             <DropdownMenuContent align="end" className="w-52 glass-card border-primary/20">
               <div className="px-4 py-3">
                 <p className="font-medium text-foreground">{cashier?.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Кассир</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {role === 'admin' ? 'Администратор' : 'Кассир'}
+                </p>
               </div>
               <DropdownMenuSeparator className="bg-border/50" />
+              {role === 'admin' && (
+                <>
+                  <DropdownMenuItem 
+                    onClick={() => navigate('/admin/cashiers')} 
+                    className="cursor-pointer py-3 px-4"
+                  >
+                    <Shield className="w-4 h-4 mr-3 text-primary" />
+                    Управление кассирами
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-border/50" />
+                </>
+              )}
               <DropdownMenuItem 
                 onClick={onOpenShiftReport} 
                 className="cursor-pointer py-3 px-4"
