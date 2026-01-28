@@ -191,7 +191,7 @@ export function AdminCashiers() {
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(185_100%_50%_/_0.03)_0%,transparent_50%)] pointer-events-none" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(155_100%_45%_/_0.02)_0%,transparent_50%)] pointer-events-none" />
       
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col h-screen">
         {/* Header */}
         <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
@@ -242,69 +242,71 @@ export function AdminCashiers() {
         </header>
         
         {/* Content */}
-        <main className="max-w-4xl mx-auto p-4">
-          {activeTab === 'cashiers' ? (
-            // Cashiers List
-            isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : cashiers.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="py-12 text-center">
-                  <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground mb-4">Нет кассиров</p>
-                  <Button onClick={openCreateModal} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Добавить первого кассира
-                  </Button>
-                </CardContent>
-              </Card>
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 pb-8">
+            {activeTab === 'cashiers' ? (
+              // Cashiers List
+              isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : cashiers.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-12 text-center">
+                    <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <p className="text-muted-foreground mb-4">Нет кассиров</p>
+                    <Button onClick={openCreateModal} className="gap-2">
+                      <Plus className="w-4 h-4" />
+                      Добавить первого кассира
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-3">
+                  {cashiers.map((cashier) => (
+                    <Card key={cashier.id} className="hover:border-primary/30 transition-colors">
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-xl font-bold text-primary">
+                            {cashier.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{cashier.name}</h3>
+                          <p className="text-sm text-muted-foreground font-mono">
+                            PIN: {cashier.pin}
+                          </p>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openEditModal(cashier)}
+                            className="h-9 w-9"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openDeleteDialog(cashier)}
+                            className="h-9 w-9 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )
             ) : (
-              <div className="grid gap-3">
-                {cashiers.map((cashier) => (
-                  <Card key={cashier.id} className="hover:border-primary/30 transition-colors">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-xl font-bold text-primary">
-                          {cashier.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{cashier.name}</h3>
-                        <p className="text-sm text-muted-foreground font-mono">
-                          PIN: {cashier.pin}
-                        </p>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openEditModal(cashier)}
-                          className="h-9 w-9"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openDeleteDialog(cashier)}
-                          className="h-9 w-9 text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )
-          ) : (
-            // Analytics Dashboard
-            <ShiftAnalyticsDashboard />
-          )}
+              // Analytics Dashboard
+              <ShiftAnalyticsDashboard />
+            )}
+          </div>
         </main>
       </div>
 
