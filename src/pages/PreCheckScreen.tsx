@@ -27,6 +27,7 @@ export function PreCheckScreen() {
 
   const station = stations.find(s => s.activeSession?.id === sessionId);
   const session = station?.activeSession;
+  const packageCount = session?.package_count || 1;
 
   useEffect(() => {
     if (!station || !session) return;
@@ -40,7 +41,8 @@ export function PreCheckScreen() {
         station.hourly_rate,
         station.package_rate,
         session.tariff_type,
-        elapsedMins
+        elapsedMins,
+        packageCount
       );
       setGameCost(gCost);
 
@@ -146,7 +148,11 @@ export function PreCheckScreen() {
           </div>
           <div className="text-center mt-4 pt-4 border-t border-border/50">
             <span className="text-sm text-muted-foreground">
-              Тариф: <span className="text-foreground font-medium">{session.tariff_type === 'package' ? 'Пакет 2+1' : 'Почасовая'}</span>
+              Тариф: <span className="text-foreground font-medium">
+                {session.tariff_type === 'package' 
+                  ? `Пакет 2+1 × ${packageCount}` 
+                  : 'Почасовая'}
+              </span>
             </span>
           </div>
         </div>
@@ -164,7 +170,7 @@ export function PreCheckScreen() {
                   <div className="font-semibold text-lg">Игра</div>
                   <div className="text-sm text-muted-foreground">
                     {session.tariff_type === 'package' 
-                      ? 'Пакет 2+1' 
+                      ? `Пакет 2+1 × ${packageCount}` 
                       : `${formatDuration(Math.floor(elapsedSeconds / 60))}`}
                   </div>
                 </div>
