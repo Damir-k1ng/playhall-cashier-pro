@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StationWithSession } from '@/types/database';
-import { formatDurationHMS, formatCurrency, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
+import { formatDurationHMS, formatCurrency } from '@/lib/utils';
+import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { cn } from '@/lib/utils';
 import { Gamepad2, Coffee, Play, Calendar, Lock, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,30 +17,18 @@ type StationStatus = 'FREE' | 'ACTIVE' | 'WARNING' | 'OVERTIME' | 'LOCKED';
 
 export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   const navigate = useNavigate();
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [remaining, setRemaining] = useState(0);
+  const { getElapsedSeconds } = useGlobalTimer();
+  
   const isActive = !!station.activeSession;
   const isPackage = station.activeSession?.tariff_type === 'package';
   const packageCount = station.activeSession?.package_count || 1;
   const activeControllers = station.controllers?.filter(c => !c.returned_at) || [];
   const totalDrinks = station.drinks?.reduce((sum, d) => sum + d.quantity, 0) || 0;
-  // Check if current cashier owns this session
-  const isOwnSession = station.isOwnSession !== false; // null or true means own session
+  const isOwnSession = station.isOwnSession !== false;
 
-  useEffect(() => {
-    if (!station.activeSession) return;
-
-    const updateTime = () => {
-      setElapsedSeconds(getElapsedSeconds(station.activeSession!.started_at));
-      if (isPackage) {
-        setRemaining(getPackageRemainingMinutes(station.activeSession!.started_at, packageCount));
-      }
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, [station.activeSession, isPackage]);
+  // Use global timer instead of local interval
+  const elapsedSeconds = isActive ? getElapsedSeconds(station.activeSession!.started_at) : 0;
+  const remaining = usePackageRemaining(station.activeSession?.started_at, packageCount);
 
   // Determine status
   const getStatus = (): StationStatus => {
