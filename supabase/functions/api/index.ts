@@ -1279,6 +1279,238 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // GET /admin/active-sessions - Get all active sessions across all shifts
+      if (path === '/admin/active-sessions' && method === 'GET') {
+        const { data: sessions, error } = await supabase
+          .from('sessions')
+          .select(`
+            id, station_id, shift_id, tariff_type, started_at, status,
+            station:stations(id, name, zone, station_number, hourly_rate, package_rate),
+            shift:shifts(id, cashier_id, is_active, cashiers(id, name))
+          `)
+          .eq('status', 'active')
+          .order('started_at', { ascending: true })
+
+        if (error) {
+          console.error('Active sessions fetch error:', error)
+          return new Response(
+            JSON.stringify({ error: 'Ошибка загрузки сессий' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Calculate current cost for each session
+        const sessionsWithCost = await Promise.all((sessions || []).map(async (session: any) => {
+          const now = new Date()
+          const startedAt = new Date(session.started_at)
+          const elapsedMinutes = Math.floor((now.getTime() - startedAt.getTime()) / 60000)
+
+          // Game cost
+          let gameCost = 0
+          if (session.tariff_type === 'package') {
+            gameCost = session.station?.package_rate || 0
+          } else {
+            const hours = Math.ceil(elapsedMinutes / 60)
+            gameCost = hours * (session.station?.hourly_rate || 0)
+          }
+
+          // Controller cost
+          const { data: controllers } = await supabase
+            .from('controller_usage')
+            .select('*')
+            .eq('session_id', session.id)
+
+          let controllerCost = 0
+          for (const c of (controllers || [])) {
+            const takenAt = new Date(c.taken_at)
+            const returnedAt = c.returned_at ? new Date(c.returned_at) : now
+            const mins = Math.floor((returnedAt.getTime() - takenAt.getTime()) / 60000)
+            const periods = Math.ceil(mins / 30)
+            controllerCost += periods * 200
+          }
+
+          // Drink cost
+          const { data: drinks } = await supabase
+            .from('session_drinks')
+            .select('total_price')
+            .eq('session_id', session.id)
+
+          const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
+
+          return {
+            ...session,
+            cashier_name: session.shift?.cashiers?.name || 'Unknown',
+            shift_is_active: session.shift?.is_active || false,
+            elapsed_minutes: elapsedMinutes,
+            game_cost: gameCost,
+            controller_cost: controllerCost,
+            drink_cost: drinkCost,
+            total_cost: gameCost + controllerCost + drinkCost,
+            controllers_count: (controllers || []).filter((c: any) => !c.returned_at).length
+          }
+        }))
+
+        return new Response(
+          JSON.stringify(sessionsWithCost),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // POST /admin/force-close-session - Force close a session with payment to original cashier
+      if (path === '/admin/force-close-session' && method === 'POST') {
+        const body = await req.json()
+        
+        if (!body.session_id || !isValidUUID(body.session_id)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid session_id' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        if (!['cash', 'kaspi', 'split'].includes(body.payment_method)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid payment_method' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get session details
+        const { data: session, error: sessionError } = await supabase
+          .from('sessions')
+          .select('*, station:stations(*), shift:shifts(*)')
+          .eq('id', body.session_id)
+          .eq('status', 'active')
+          .single()
+
+        if (sessionError || !session) {
+          return new Response(
+            JSON.stringify({ error: 'Сессия не найдена или уже завершена' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Calculate costs at current time
+        const now = new Date()
+        const startedAt = new Date(session.started_at)
+        const elapsedMinutes = Math.floor((now.getTime() - startedAt.getTime()) / 60000)
+
+        // Game cost
+        let gameCost = 0
+        if (session.tariff_type === 'package') {
+          gameCost = session.station?.package_rate || 0
+        } else {
+          const hours = Math.ceil(elapsedMinutes / 60)
+          gameCost = hours * (session.station?.hourly_rate || 0)
+        }
+
+        // Controller cost
+        const { data: controllers } = await supabase
+          .from('controller_usage')
+          .select('*')
+          .eq('session_id', session.id)
+
+        let controllerCost = 0
+        for (const c of (controllers || [])) {
+          const takenAt = new Date(c.taken_at)
+          const returnedAt = c.returned_at ? new Date(c.returned_at) : now
+          const mins = Math.floor((returnedAt.getTime() - takenAt.getTime()) / 60000)
+          const periods = Math.ceil(mins / 30)
+          controllerCost += periods * 200
+        }
+
+        // Return all active controllers
+        const activeControllers = (controllers || []).filter((c: any) => !c.returned_at)
+        for (const c of activeControllers) {
+          const takenAt = new Date(c.taken_at)
+          const mins = Math.floor((now.getTime() - takenAt.getTime()) / 60000)
+          const periods = Math.ceil(mins / 30)
+          const cost = periods * 200
+
+          await supabase
+            .from('controller_usage')
+            .update({ returned_at: now.toISOString(), cost })
+            .eq('id', c.id)
+        }
+
+        // Drink cost
+        const { data: drinks } = await supabase
+          .from('session_drinks')
+          .select('total_price')
+          .eq('session_id', session.id)
+
+        const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
+        const totalCost = gameCost + controllerCost + drinkCost
+
+        // Determine cash/kaspi amounts
+        let cashAmount = 0
+        let kaspiAmount = 0
+        if (body.payment_method === 'cash') {
+          cashAmount = totalCost
+        } else if (body.payment_method === 'kaspi') {
+          kaspiAmount = totalCost
+        } else if (body.payment_method === 'split') {
+          cashAmount = body.cash_amount || 0
+          kaspiAmount = body.kaspi_amount || 0
+        }
+
+        // Update session
+        await supabase
+          .from('sessions')
+          .update({
+            status: 'completed',
+            ended_at: now.toISOString(),
+            game_cost: gameCost,
+            controller_cost: controllerCost,
+            drink_cost: drinkCost,
+            total_cost: totalCost
+          })
+          .eq('id', session.id)
+
+        // Create payment record pointing to ORIGINAL shift
+        await supabase
+          .from('payments')
+          .insert({
+            session_id: session.id,
+            shift_id: session.shift_id, // Original cashier's shift
+            payment_method: body.payment_method,
+            cash_amount: cashAmount,
+            kaspi_amount: kaspiAmount,
+            total_amount: totalCost
+          })
+
+        // Update original shift totals
+        const { data: originalShift } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('id', session.shift_id)
+          .single()
+
+        if (originalShift) {
+          await supabase
+            .from('shifts')
+            .update({
+              total_cash: (originalShift.total_cash || 0) + cashAmount,
+              total_kaspi: (originalShift.total_kaspi || 0) + kaspiAmount,
+              total_games: (originalShift.total_games || 0) + gameCost,
+              total_controllers: (originalShift.total_controllers || 0) + controllerCost,
+              total_drinks: (originalShift.total_drinks || 0) + drinkCost
+            })
+            .eq('id', session.shift_id)
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            session_id: session.id,
+            total_cost: totalCost,
+            game_cost: gameCost,
+            controller_cost: controllerCost,
+            drink_cost: drinkCost
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     return new Response(
