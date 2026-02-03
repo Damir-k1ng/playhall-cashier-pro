@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStations } from '@/hooks/useStations';
+import { useGlobalTimer } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
 import { PreCheckSkeleton } from '@/components/skeletons/PreCheckSkeleton';
-import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, getElapsedSeconds, calculateGameCost } from '@/lib/utils';
+import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCost } from '@/lib/utils';
 import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard } from 'lucide-react';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -18,56 +19,37 @@ export function PreCheckScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const { stations, isLoading } = useStations();
-  
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [gameCost, setGameCost] = useState(0);
-  const [controllerDetails, setControllerDetails] = useState<ControllerDetail[]>([]);
-  const [totalControllerCost, setTotalControllerCost] = useState(0);
-  const [drinkCost, setDrinkCost] = useState(0);
+  const { getElapsedSeconds, getElapsedMinutes } = useGlobalTimer();
 
   const station = stations.find(s => s.activeSession?.id === sessionId);
   const session = station?.activeSession;
   const packageCount = session?.package_count || 1;
 
-  useEffect(() => {
-    if (!station || !session) return;
+  // Calculate all values using global timer (no local state needed for timer)
+  const elapsedSeconds = session ? getElapsedSeconds(session.started_at) : 0;
+  const elapsedMins = Math.floor(elapsedSeconds / 60);
 
-    const calculate = () => {
-      const seconds = getElapsedSeconds(session.started_at);
-      setElapsedSeconds(seconds);
-      const elapsedMins = Math.floor(seconds / 60);
+  const gameCost = station && session ? calculateGameCost(
+    station.hourly_rate,
+    station.package_rate,
+    session.tariff_type,
+    elapsedMins,
+    packageCount
+  ) : 0;
 
-      const gCost = calculateGameCost(
-        station.hourly_rate,
-        station.package_rate,
-        session.tariff_type,
-        elapsedMins,
-        packageCount
-      );
-      setGameCost(gCost);
+  const controllerDetails: ControllerDetail[] = (station?.controllers || []).map(c => {
+    let minutes: number;
+    if (c.returned_at) {
+      minutes = Math.ceil((new Date(c.returned_at).getTime() - new Date(c.taken_at).getTime()) / 60000);
+    } else {
+      minutes = getElapsedMinutes(c.taken_at);
+    }
+    const cost = c.cost ?? Math.ceil((minutes / 60) * CONTROLLER_RATE);
+    return { id: c.id, minutes, cost };
+  });
 
-      const allControllers = station.controllers || [];
-      const details: ControllerDetail[] = allControllers.map(c => {
-        let minutes: number;
-        if (c.returned_at) {
-          minutes = Math.ceil((new Date(c.returned_at).getTime() - new Date(c.taken_at).getTime()) / 60000);
-        } else {
-          minutes = getElapsedMinutes(c.taken_at);
-        }
-        const cost = c.cost ?? Math.ceil((minutes / 60) * CONTROLLER_RATE);
-        return { id: c.id, minutes, cost };
-      });
-      setControllerDetails(details);
-      setTotalControllerCost(details.reduce((sum, c) => sum + c.cost, 0));
-
-      const dCost = (station.drinks || []).reduce((sum, d) => sum + d.total_price, 0);
-      setDrinkCost(dCost);
-    };
-
-    calculate();
-    const interval = setInterval(calculate, 1000);
-    return () => clearInterval(interval);
-  }, [station, session]);
+  const totalControllerCost = controllerDetails.reduce((sum, c) => sum + c.cost, 0);
+  const drinkCost = (station?.drinks || []).reduce((sum, d) => sum + d.total_price, 0);
 
   // Show skeleton loading while stations are being fetched
   if (isLoading) {

@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStations } from '@/hooks/useStations';
 import { useDrinks } from '@/hooks/useDrinks';
+import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
-import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
+import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes } from '@/lib/utils';
 import { ArrowLeft, Play, Square, Gamepad2, Plus, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -15,10 +16,8 @@ export function StationScreen() {
   const navigate = useNavigate();
   const { stations, isLoading, startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
   const { drinks, addDrinkToSession } = useDrinks();
+  const { getElapsedSeconds } = useGlobalTimer();
   
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [remaining, setRemaining] = useState(0);
-  const [controllerSeconds, setControllerSeconds] = useState<Record<string, number>>({});
   const [showDrinks, setShowDrinks] = useState(false);
   const [isAddingController, setIsAddingController] = useState(false);
   const [isExtendingPackage, setIsExtendingPackage] = useState(false);
@@ -26,6 +25,7 @@ export function StationScreen() {
   const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
+  const prevRemainingRef = useRef<number | null>(null);
 
   const station = stations.find(s => s.id === stationId);
   const isActive = !!station?.activeSession;
@@ -35,49 +35,47 @@ export function StationScreen() {
   const sessionDrinks = station?.drinks || [];
   const hasDrinks = sessionDrinks.length > 0;
 
+  // Use global timer instead of local interval
+  const elapsedSeconds = isActive ? getElapsedSeconds(station.activeSession!.started_at) : 0;
+  const remaining = usePackageRemaining(station?.activeSession?.started_at, packageCount);
+
+  // Controller times from global timer
+  const controllerSeconds: Record<string, number> = {};
+  activeControllers.forEach(c => {
+    controllerSeconds[c.id] = getElapsedSeconds(c.taken_at);
+  });
+
+  // Handle warning/end sounds with effects (no interval needed)
   useEffect(() => {
     if (!station?.activeSession) {
       warningPlayedRef.current = false;
       endPlayedRef.current = false;
+      prevRemainingRef.current = null;
       return;
     }
 
-    const updateTime = () => {
-      setElapsedSeconds(getElapsedSeconds(station.activeSession!.started_at));
-      if (isPackage) {
-        const rem = getPackageRemainingMinutes(station.activeSession!.started_at, packageCount);
-        setRemaining(rem);
-        
-        // Play warning sound once at 5 minutes
-        if (rem <= PACKAGE_WARNING_MINUTES && rem > 0 && !warningPlayedRef.current) {
-          playWarningSound();
-          warningPlayedRef.current = true;
-          toast.warning('⚠ Осталось 5 минут до окончания пакета', {
-            duration: 5000,
-          });
-        }
-        
-        // Play end sound when package expires
-        if (rem <= 0 && !endPlayedRef.current) {
-          playPackageEndSound();
-          endPlayedRef.current = true;
-          toast.error('🚨 Пакет закончился! Открытое время начислено.', {
-            duration: 8000,
-          });
-        }
-      }
-      
-      const times: Record<string, number> = {};
-      activeControllers.forEach(c => {
-        times[c.id] = getElapsedSeconds(c.taken_at);
-      });
-      setControllerSeconds(times);
-    };
+    if (!isPackage) return;
 
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, [station?.activeSession, isPackage, activeControllers.length]);
+    // Play warning sound once at 5 minutes
+    if (remaining <= PACKAGE_WARNING_MINUTES && remaining > 0 && !warningPlayedRef.current) {
+      playWarningSound();
+      warningPlayedRef.current = true;
+      toast.warning('⚠ Осталось 5 минут до окончания пакета', {
+        duration: 5000,
+      });
+    }
+    
+    // Play end sound when package expires
+    if (remaining <= 0 && !endPlayedRef.current) {
+      playPackageEndSound();
+      endPlayedRef.current = true;
+      toast.error('🚨 Пакет закончился! Открытое время начислено.', {
+        duration: 8000,
+      });
+    }
+
+    prevRemainingRef.current = remaining;
+  }, [station?.activeSession, isPackage, remaining]);
 
   // Show skeleton loading while stations are being fetched
   if (isLoading) {
