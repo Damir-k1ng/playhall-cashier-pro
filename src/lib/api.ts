@@ -261,6 +261,23 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Admin: Active sessions
+  async getActiveSessions() {
+    return this.request('/admin/active-sessions');
+  }
+
+  async forceCloseSession(data: {
+    session_id: string;
+    payment_method: 'cash' | 'kaspi' | 'split';
+    cash_amount?: number;
+    kaspi_amount?: number;
+  }) {
+    return this.request('/admin/force-close-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 

@@ -24,12 +24,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { CLUB_NAME } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
 import { ShiftAnalyticsDashboard } from '@/components/admin/ShiftAnalyticsDashboard';
+import { ActiveSessionsManager } from '@/components/admin/ActiveSessionsManager';
 
 interface Cashier {
   id: string;
@@ -44,8 +45,13 @@ export function AdminCashiers() {
   const [searchParams] = useSearchParams();
   
   // Get initial tab from URL params
-  const initialTab = searchParams.get('tab') === 'analytics' ? 'analytics' : 'cashiers';
-  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics'>(initialTab);
+  const getInitialTab = () => {
+    const tab = searchParams.get('tab');
+    if (tab === 'analytics') return 'analytics';
+    if (tab === 'sessions') return 'sessions';
+    return 'cashiers';
+  };
+  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions'>(getInitialTab());
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -226,11 +232,15 @@ export function AdminCashiers() {
           
           {/* Tabs */}
           <div className="max-w-4xl mx-auto px-4 pb-2">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'cashiers' | 'analytics')}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'cashiers' | 'analytics' | 'sessions')}>
               <TabsList className="glass-card border border-primary/20 w-full">
                 <TabsTrigger value="cashiers" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Кассиры</span>
+                </TabsTrigger>
+                <TabsTrigger value="sessions" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
+                  <MonitorPlay className="h-4 w-4" />
+                  <span className="hidden sm:inline">Сессии</span>
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
                   <BarChart3 className="h-4 w-4" />
@@ -302,6 +312,9 @@ export function AdminCashiers() {
                   ))}
                 </div>
               )
+            ) : activeTab === 'sessions' ? (
+              // Sessions Manager
+              <ActiveSessionsManager />
             ) : (
               // Analytics Dashboard
               <ShiftAnalyticsDashboard />
