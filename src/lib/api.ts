@@ -107,6 +107,13 @@ class ApiClient {
     });
   }
 
+  // Extend package session (add +3 hours)
+  async extendPackage(sessionId: string) {
+    return this.request(`/sessions/${sessionId}/extend-package`, {
+      method: 'POST',
+    });
+  }
+
   // Payments
   async createPayment(data: {
     session_id: string;

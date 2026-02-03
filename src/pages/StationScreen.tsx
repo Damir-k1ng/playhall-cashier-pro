@@ -5,7 +5,7 @@ import { useDrinks } from '@/hooks/useDrinks';
 import { Button } from '@/components/ui/button';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
-import { ArrowLeft, Play, Square, Gamepad2 } from 'lucide-react';
+import { ArrowLeft, Play, Square, Gamepad2, Plus, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CONTROLLER_RATE, CLUB_NAME, PACKAGE_WARNING_MINUTES } from '@/lib/constants';
@@ -13,7 +13,7 @@ import { CONTROLLER_RATE, CLUB_NAME, PACKAGE_WARNING_MINUTES } from '@/lib/const
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
   const navigate = useNavigate();
-  const { stations, isLoading, startSession, addController, returnController, refetch: refetchStations } = useStations();
+  const { stations, isLoading, startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
   const { drinks, addDrinkToSession } = useDrinks();
   
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -21,6 +21,7 @@ export function StationScreen() {
   const [controllerSeconds, setControllerSeconds] = useState<Record<string, number>>({});
   const [showDrinks, setShowDrinks] = useState(false);
   const [isAddingController, setIsAddingController] = useState(false);
+  const [isExtendingPackage, setIsExtendingPackage] = useState(false);
   const [returningControllerId, setReturningControllerId] = useState<string | null>(null);
   const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
   const warningPlayedRef = useRef(false);
@@ -29,6 +30,7 @@ export function StationScreen() {
   const station = stations.find(s => s.id === stationId);
   const isActive = !!station?.activeSession;
   const isPackage = station?.activeSession?.tariff_type === 'package';
+  const packageCount = station?.activeSession?.package_count || 1;
   const activeControllers = station?.controllers?.filter(c => !c.returned_at) || [];
   const sessionDrinks = station?.drinks || [];
   const hasDrinks = sessionDrinks.length > 0;
@@ -43,7 +45,7 @@ export function StationScreen() {
     const updateTime = () => {
       setElapsedSeconds(getElapsedSeconds(station.activeSession!.started_at));
       if (isPackage) {
-        const rem = getPackageRemainingMinutes(station.activeSession!.started_at);
+        const rem = getPackageRemainingMinutes(station.activeSession!.started_at, packageCount);
         setRemaining(rem);
         
         // Play warning sound once at 5 minutes
@@ -156,14 +158,34 @@ export function StationScreen() {
     }
   };
 
+  const handleExtendPackage = async () => {
+    if (!station.activeSession || !isPackage || isExtendingPackage) return;
+    
+    setIsExtendingPackage(true);
+    try {
+      const result = await extendPackage(station.activeSession.id);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        // Reset warning/end flags so they can trigger again for the new package
+        warningPlayedRef.current = false;
+        endPlayedRef.current = false;
+        toast.success(`🎮 Пакет 2+1 добавлен! Всего пакетов: ${result.package_count}`);
+      }
+    } finally {
+      setIsExtendingPackage(false);
+    }
+  };
+
   const handleEndSession = () => {
     if (!station.activeSession) return;
     navigate(`/precheck/${station.activeSession.id}`);
   };
 
   const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  const totalPackageMinutes = 180 * packageCount;
   const isWarning = isPackage && remaining <= PACKAGE_WARNING_MINUTES && remaining > 0;
-  const isOvertime = isPackage && remaining <= 0 && elapsedMinutes >= 180;
+  const isOvertime = isPackage && remaining <= 0 && elapsedMinutes >= totalPackageMinutes;
 
   const getControllerCost = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -225,7 +247,7 @@ export function StationScreen() {
                 {isOvertime ? 'Переигрывает' : isWarning ? '⚠ Осталось 5 минут' : 'Активна'}
               </span>
               <span className="text-muted-foreground/30">•</span>
-              <span>{isPackage ? 'Пакет 2+1' : 'Почасовая'}</span>
+              <span>{isPackage ? `Пакет 2+1 × ${packageCount}` : 'Почасовая'}</span>
               <span className="text-muted-foreground/30">•</span>
               <span>с {new Date(station.activeSession!.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -287,16 +309,46 @@ export function StationScreen() {
                 {formatDurationHMS(elapsedSeconds)}
               </div>
               {isPackage && (
-                <div className={cn(
-                  'text-xl mt-6 font-medium',
-                  isWarning && 'text-warning',
-                  isOvertime && 'text-destructive',
-                  !isWarning && !isOvertime && 'text-muted-foreground'
-                )}>
-                  {isOvertime 
-                    ? 'Пакет закончился — открытое время'
-                    : `Осталось: ${formatDuration(remaining)}`
-                  }
+                <div className="flex flex-col items-center gap-4 mt-6">
+                  <div className={cn(
+                    'text-xl font-medium',
+                    isWarning && 'text-warning',
+                    isOvertime && 'text-destructive',
+                    !isWarning && !isOvertime && 'text-muted-foreground'
+                  )}>
+                    {isOvertime 
+                      ? 'Пакет закончился — открытое время'
+                      : `Осталось: ${formatDuration(remaining)}`
+                    }
+                  </div>
+                  
+                  {/* Package counter and extend button */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-success/10 border border-success/30">
+                      <Package className="w-5 h-5 text-success" />
+                      <span className="text-success font-bold text-lg">×{packageCount}</span>
+                    </div>
+                    
+                    <Button
+                      size="lg"
+                      onClick={handleExtendPackage}
+                      disabled={isExtendingPackage}
+                      className={cn(
+                        'gap-2 rounded-xl font-bold transition-all',
+                        'bg-gradient-to-r from-success to-emerald-600 hover:opacity-90',
+                        'disabled:opacity-50 disabled:cursor-not-allowed'
+                      )}
+                    >
+                      {isExtendingPackage ? (
+                        '⏳ Добавляю...'
+                      ) : (
+                        <>
+                          <Plus className="w-5 h-5" />
+                          Пакет 2+1
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

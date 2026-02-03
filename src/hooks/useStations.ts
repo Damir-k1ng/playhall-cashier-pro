@@ -47,6 +47,7 @@ export function useStations() {
           drink_cost: station.activeSession.drink_cost || 0,
           total_cost: station.activeSession.total_cost || 0,
           created_at: station.activeSession.created_at,
+          package_count: station.activeSession.package_count || 0,
         } : undefined,
         controllers: station.activeSession?.controller_usage?.map((c: any) => ({
           id: c.id,
@@ -174,6 +175,26 @@ export function useStations() {
     }
   };
 
+  const extendPackage = async (sessionId: string): Promise<{ success?: boolean; error?: string; package_count?: number }> => {
+    try {
+      const result = await apiClient.extendPackage(sessionId);
+
+      // Play success sound
+      playSound('success');
+
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate([50, 50, 50]);
+      }
+
+      await fetchStations();
+      return { success: true, package_count: result.package_count };
+    } catch (err: any) {
+      console.error('Error extending package:', err);
+      return { error: err.message || 'Ошибка продления пакета' };
+    }
+  };
+
   return {
     stations,
     isLoading,
@@ -184,6 +205,7 @@ export function useStations() {
     endSession,
     addController,
     returnController,
+    extendPackage,
   };
 }
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StationWithSession } from '@/types/database';
 import { formatDurationHMS, formatCurrency, getElapsedSeconds, getPackageRemainingMinutes } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { Gamepad2, Coffee, Play, Calendar, Lock } from 'lucide-react';
+import { Gamepad2, Coffee, Play, Calendar, Lock, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface StationCardProps {
@@ -20,6 +20,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
   const [remaining, setRemaining] = useState(0);
   const isActive = !!station.activeSession;
   const isPackage = station.activeSession?.tariff_type === 'package';
+  const packageCount = station.activeSession?.package_count || 1;
   const activeControllers = station.controllers?.filter(c => !c.returned_at) || [];
   const totalDrinks = station.drinks?.reduce((sum, d) => sum + d.quantity, 0) || 0;
   // Check if current cashier owns this session
@@ -31,7 +32,7 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
     const updateTime = () => {
       setElapsedSeconds(getElapsedSeconds(station.activeSession!.started_at));
       if (isPackage) {
-        setRemaining(getPackageRemainingMinutes(station.activeSession!.started_at));
+        setRemaining(getPackageRemainingMinutes(station.activeSession!.started_at, packageCount));
       }
     };
 
@@ -197,9 +198,17 @@ export function StationCard({ station, onBook, hasBooking }: StationCardProps) {
         )}
       </div>
 
-      {/* Bottom: Badges for controllers and drinks */}
-      {isActive && (activeControllers.length > 0 || totalDrinks > 0) && (
+      {/* Bottom: Badges for controllers, drinks, and packages */}
+      {isActive && (activeControllers.length > 0 || totalDrinks > 0 || (isPackage && packageCount > 1)) && (
         <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border/30">
+          {isPackage && packageCount > 1 && (
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-success/15 border border-success/25 flex items-center justify-center">
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success" />
+              </div>
+              <span className="text-success font-bold text-sm sm:text-lg">×{packageCount}</span>
+            </div>
+          )}
           {activeControllers.length > 0 && (
             <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">

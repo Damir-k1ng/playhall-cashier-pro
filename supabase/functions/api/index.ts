@@ -284,14 +284,20 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Set package_count to 1 for package sessions
+      const insertData: any = { 
+        station_id: body.station_id,
+        tariff_type: body.tariff_type,
+        status: 'active',
+        shift_id: shift.id
+      }
+      if (body.tariff_type === 'package') {
+        insertData.package_count = 1
+      }
+
       const { data, error } = await supabase
         .from('sessions')
-        .insert({ 
-          station_id: body.station_id,
-          tariff_type: body.tariff_type,
-          status: 'active',
-          shift_id: shift.id 
-        })
+        .insert(insertData)
         .select()
         .single()
 
@@ -348,10 +354,21 @@ Deno.serve(async (req) => {
       const startedAt = new Date(session.started_at)
       const elapsedMinutes = Math.floor((now.getTime() - startedAt.getTime()) / 60000)
 
-      // Game cost calculation
+      // Game cost calculation - account for package_count
       let gameCost = 0
+      const packageCount = session.package_count || 1
+      const packageDurationMinutes = 180 * packageCount // 3 hours per package
+      
       if (session.tariff_type === 'package') {
-        gameCost = session.station?.package_rate || 0
+        // Base cost is package_rate * number of packages
+        gameCost = (session.station?.package_rate || 0) * packageCount
+        
+        // Add overtime cost if elapsed time exceeds total package duration
+        if (elapsedMinutes > packageDurationMinutes) {
+          const overtimeMinutes = elapsedMinutes - packageDurationMinutes
+          const overtimeHours = Math.ceil(overtimeMinutes / 60)
+          gameCost += overtimeHours * (session.station?.hourly_rate || 0)
+        }
       } else {
         const hours = Math.ceil(elapsedMinutes / 60)
         gameCost = hours * (session.station?.hourly_rate || 0)
@@ -383,6 +400,82 @@ Deno.serve(async (req) => {
           controllerCost,
           drinkCost,
           totalCost
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // POST /sessions/:id/extend-package - Add another 2+1 package to extend session
+    if (path.match(/^\/sessions\/[^/]+\/extend-package$/) && method === 'POST') {
+      const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid session ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Get session details
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .select('*, station:stations(*)')
+        .eq('id', id)
+        .single()
+
+      if (sessionError || !session) {
+        return new Response(
+          JSON.stringify({ error: 'Session not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Verify session ownership
+      if (session.shift_id !== shift.id) {
+        return new Response(
+          JSON.stringify({ error: 'Вы не можете управлять сессией другого кассира' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Only package sessions can be extended
+      if (session.tariff_type !== 'package') {
+        return new Response(
+          JSON.stringify({ error: 'Только пакетные сессии могут быть продлены' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Only active sessions can be extended
+      if (session.status !== 'active') {
+        return new Response(
+          JSON.stringify({ error: 'Сессия уже завершена' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Increment package_count
+      const newPackageCount = (session.package_count || 1) + 1
+
+      const { data: updatedSession, error: updateError } = await supabase
+        .from('sessions')
+        .update({ package_count: newPackageCount })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (updateError) {
+        console.error('Extend package error:', updateError)
+        return new Response(
+          JSON.stringify({ error: 'Не удалось продлить пакет' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          package_count: newPackageCount,
+          session: updatedSession 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

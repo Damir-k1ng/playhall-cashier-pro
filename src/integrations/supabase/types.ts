@@ -326,6 +326,7 @@ export type Database = {
           ended_at: string | null
           game_cost: number | null
           id: string
+          package_count: number
           shift_id: string
           started_at: string
           station_id: string
@@ -340,6 +341,7 @@ export type Database = {
           ended_at?: string | null
           game_cost?: number | null
           id?: string
+          package_count?: number
           shift_id: string
           started_at?: string
           station_id: string
@@ -354,6 +356,7 @@ export type Database = {
           ended_at?: string | null
           game_cost?: number | null
           id?: string
+          package_count?: number
           shift_id?: string
           started_at?: string
           station_id?: string
