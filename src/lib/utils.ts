@@ -83,16 +83,17 @@ export function calculateGameCost(
   packageCount: number = 1
 ): number {
   if (tariffType === 'package') {
-    // Package: fixed price per package (3 hours each), then hourly after total package time
+    // Package: fixed price per package (3 hours each), then per-minute rate after
     const totalPackageMinutes = 180 * packageCount; // 3 hours per package
     const baseCost = packageRate * packageCount;
     
     if (elapsedMinutes <= totalPackageMinutes) {
       return baseCost;
     } else {
-      // Overtime: hourly rate for extra time beyond all packages
+      // Overtime: per-minute rate (hourly / 60) for exact time beyond all packages
       const extraMinutes = elapsedMinutes - totalPackageMinutes;
-      const extraCost = Math.ceil((extraMinutes / 60) * hourlyRate);
+      const minuteRate = hourlyRate / 60;
+      const extraCost = Math.round(extraMinutes * minuteRate);
       return baseCost + extraCost;
     }
   } else {
