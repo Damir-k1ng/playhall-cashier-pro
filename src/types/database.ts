@@ -50,6 +50,7 @@ export interface Session {
   total_cost: number;
   created_at: string;
   station?: Station;
+  package_count?: number; // Number of 2+1 packages purchased (default 1 for package sessions)
 }
 
 export interface ControllerUsage {

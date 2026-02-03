@@ -67,9 +67,9 @@ export function getElapsedMinutes(startedAt: string): number {
   return Math.floor((now.getTime() - start.getTime()) / 60000);
 }
 
-// Calculate remaining package time in minutes (3 hours total)
-export function getPackageRemainingMinutes(startedAt: string): number {
-  const totalPackageMinutes = 180; // 3 hours
+// Calculate remaining package time in minutes (3 hours per package)
+export function getPackageRemainingMinutes(startedAt: string, packageCount: number = 1): number {
+  const totalPackageMinutes = 180 * packageCount; // 3 hours per package
   const elapsed = getElapsedMinutes(startedAt);
   return Math.max(0, totalPackageMinutes - elapsed);
 }
