@@ -122,11 +122,26 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
       );
     }
     
-    // Otherwise show regular card with booking capability
+    // Extract primitive values for memoized StationCard
+    const activeSession = station.activeSession;
+    const activeControllers = station.controllers?.filter(c => !c.returned_at) || [];
+    const totalDrinks = station.drinks?.reduce((sum, d) => sum + d.quantity, 0) || 0;
+    
+    // Pass only primitives to StationCard for optimal memoization
     return (
       <StationCard
         key={station.id}
-        station={station}
+        id={station.id}
+        name={station.name}
+        zone={station.zone as 'vip' | 'hall'}
+        hourlyRate={station.hourly_rate}
+        isActive={!!activeSession}
+        startedAt={activeSession?.started_at}
+        tariffType={activeSession?.tariff_type}
+        packageCount={activeSession?.package_count}
+        isOwnSession={station.isOwnSession !== false}
+        activeControllersCount={activeControllers.length}
+        totalDrinksCount={totalDrinks}
         onBook={() => handleOpenBookingModal(station)}
         hasBooking={!!booking}
       />
