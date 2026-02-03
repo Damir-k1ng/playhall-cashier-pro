@@ -1,27 +1,34 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { StationWithSession } from '@/types/database';
-import { BookingWithStation } from '@/hooks/useBookings';
+import React, { memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Play, X, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Primitive props only - no objects!
 interface BookedStationCardProps {
-  station: StationWithSession;
-  booking: BookingWithStation;
+  stationId: string;
+  stationName: string;
+  zone: 'vip' | 'hall';
+  bookingId: string;
+  bookingStartTime: string;
+  bookingComment?: string | null;
   onCancelBooking: (bookingId: string) => void;
   onStartSession: (stationId: string, bookingId: string) => void;
 }
 
-export function BookedStationCard({ station, booking, onCancelBooking, onStartSession }: BookedStationCardProps) {
-  const navigate = useNavigate();
-
-  // Format time from HH:MM:SS to HH:MM
-  const formatBookingTime = (time: string) => {
-    return time.substring(0, 5);
-  };
-
-  const bookingTime = formatBookingTime(booking.start_time);
+function BookedStationCardComponent({
+  stationId,
+  stationName,
+  zone,
+  bookingId,
+  bookingStartTime,
+  bookingComment,
+  onCancelBooking,
+  onStartSession
+}: BookedStationCardProps) {
+  // Memoized formatted time
+  const bookingTime = useMemo(() => {
+    return bookingStartTime.substring(0, 5);
+  }, [bookingStartTime]);
 
   return (
     <div
@@ -35,7 +42,7 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
       {/* Zone indicator line at top */}
       <div className={cn(
         'absolute top-0 left-3 right-3 sm:left-4 sm:right-4 h-0.5 sm:h-1 rounded-b-full',
-        station.zone === 'vip' 
+        zone === 'vip' 
           ? 'bg-gradient-to-r from-transparent via-vip to-transparent shadow-[0_0_20px_hsl(42_100%_55%_/_0.5)]' 
           : 'bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_20px_hsl(185_100%_50%_/_0.5)]'
       )} />
@@ -43,15 +50,15 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
       {/* Top: Station Name + Zone Badge */}
       <div className="flex items-start justify-between mb-2 sm:mb-4">
         <h3 className="font-gaming font-bold text-base sm:text-xl md:text-2xl text-foreground tracking-wide">
-          {station.name}
+          {stationName}
         </h3>
         <span className={cn(
           'text-[8px] sm:text-[10px] font-bold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full uppercase tracking-widest',
-          station.zone === 'vip' 
+          zone === 'vip' 
             ? 'bg-vip/20 text-vip border border-vip/40 shadow-[0_0_15px_hsl(42_100%_55%_/_0.3)]' 
             : 'bg-primary/20 text-primary border border-primary/40 shadow-[0_0_15px_hsl(185_100%_50%_/_0.3)]'
         )}>
-          {station.zone === 'vip' ? 'VIP' : 'ЗАЛ'}
+          {zone === 'vip' ? 'VIP' : 'ЗАЛ'}
         </span>
       </div>
 
@@ -78,9 +85,9 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
         </div>
 
         {/* Client info */}
-        {booking.comment && (
+        {bookingComment && (
           <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground text-center max-w-full px-2">
-            <span className="truncate block">{booking.comment}</span>
+            <span className="truncate block">{bookingComment}</span>
           </div>
         )}
       </div>
@@ -91,7 +98,7 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
           className="w-full h-9 sm:h-11 rounded-lg bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-sm sm:text-base"
           onClick={(e) => {
             e.stopPropagation();
-            onStartSession(station.id, booking.id);
+            onStartSession(stationId, bookingId);
           }}
         >
           <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
@@ -102,7 +109,7 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
           className="w-full h-8 sm:h-10 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive font-medium text-xs sm:text-sm"
           onClick={(e) => {
             e.stopPropagation();
-            onCancelBooking(booking.id);
+            onCancelBooking(bookingId);
           }}
         >
           <X className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
@@ -112,3 +119,6 @@ export function BookedStationCard({ station, booking, onCancelBooking, onStartSe
     </div>
   );
 }
+
+// Memoized component - only re-renders when primitive props change
+export const BookedStationCard = memo(BookedStationCardComponent);

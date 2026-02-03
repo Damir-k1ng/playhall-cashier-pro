@@ -110,12 +110,17 @@ export function StationGrid({ stations, refetchStations }: StationGridProps) {
     const booking = getStationBooking(station.id);
     
     // If station has active booking and no active session, show booked card
+    // Pass only primitive props for optimal memoization
     if (booking && !station.activeSession) {
       return (
         <BookedStationCard
           key={station.id}
-          station={station}
-          booking={booking}
+          stationId={station.id}
+          stationName={station.name}
+          zone={station.zone as 'vip' | 'hall'}
+          bookingId={booking.id}
+          bookingStartTime={booking.start_time}
+          bookingComment={booking.comment}
           onCancelBooking={handleRequestCancelBooking}
           onStartSession={handleStartSession}
         />
