@@ -6,9 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useReservations, Reservation } from '@/hooks/useReservations';
 import { useStations } from '@/hooks/useStations';
-import { formatCurrency } from '@/lib/utils';
-import { generateTimeSlots } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import { formatCurrency, generateTimeSlots, cn, formatTimeFromISO } from '@/lib/utils';
 import { Calendar, Clock, User, Phone, X, Plus, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -82,8 +80,7 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
   };
 
   const formatReservationTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return formatTimeFromISO(dateStr);
   };
 
   const formatReservationDate = (dateStr: string) => {
@@ -94,7 +91,11 @@ export function ReservationModal({ open, onClose }: ReservationModalProps) {
     
     if (date.toDateString() === today.toDateString()) return 'Сегодня';
     if (date.toDateString() === tomorrow.toDateString()) return 'Завтра';
-    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return new Date(dateStr).toLocaleDateString('ru-RU', { 
+      day: 'numeric', 
+      month: 'short',
+      timeZone: 'Asia/Almaty'
+    });
   };
 
   const getStationById = (stationId: string) => {

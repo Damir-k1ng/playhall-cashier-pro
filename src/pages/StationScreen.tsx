@@ -5,7 +5,7 @@ import { useDrinks } from '@/hooks/useDrinks';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
-import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes } from '@/lib/utils';
+import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, formatTimeFromISO } from '@/lib/utils';
 import { ArrowLeft, Play, Square, Gamepad2, Plus, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -247,7 +247,7 @@ export function StationScreen() {
               <span className="text-muted-foreground/30">•</span>
               <span>{isPackage ? `Пакет 2+1 × ${packageCount}` : 'Почасовая'}</span>
               <span className="text-muted-foreground/30">•</span>
-              <span>с {new Date(station.activeSession!.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>с {formatTimeFromISO(station.activeSession!.started_at)}</span>
             </div>
           )}
         </div>
