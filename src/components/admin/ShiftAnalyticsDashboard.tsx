@@ -218,7 +218,7 @@ export function ShiftAnalyticsDashboard() {
     setExpandedDays(newExpanded);
   };
 
-  const handleExport = (type: 'excel' | 'pdf') => {
+  const handleExport = async (type: 'excel' | 'pdf') => {
     if (!data?.shifts) return;
     
     const cashierName = selectedCashier !== 'all' 
@@ -234,7 +234,7 @@ export function ShiftAnalyticsDashboard() {
     };
 
     if (type === 'excel') {
-      exportToExcel(exportParams);
+      await exportToExcel(exportParams);
     } else {
       exportToPDF(exportParams);
     }
