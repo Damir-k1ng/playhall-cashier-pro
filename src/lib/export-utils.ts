@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -47,37 +47,48 @@ const formatDatePlain = (dateStr: string): string => {
   return format(new Date(dateStr), 'dd.MM.yyyy HH:mm', { locale: ru });
 };
 
-export function exportToExcel(params: ExportParams) {
+export async function exportToExcel(params: ExportParams) {
   const { shifts, totals, dateFrom, dateTo, cashierName } = params;
   
   // Create workbook
-  const wb = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'PlayHall Cashier Pro';
+  workbook.created = new Date();
   
   // Summary sheet
-  const summaryData = [
-    ['Отчёт по сменам'],
-    ['Период:', `${format(dateFrom, 'dd.MM.yyyy')} — ${format(dateTo, 'dd.MM.yyyy')}`],
-    ['Кассир:', cashierName || 'Все кассиры'],
-    [''],
-    ['ИТОГО'],
-    ['Общая выручка', formatCurrencyPlain(totals.revenue)],
-    ['Наличные', formatCurrencyPlain(totals.cash)],
-    ['Kaspi', formatCurrencyPlain(totals.kaspi)],
-    ['Игры', formatCurrencyPlain(totals.games)],
-    ['Джойстики', formatCurrencyPlain(totals.controllers)],
-    ['Напитки', formatCurrencyPlain(totals.drinks)],
-    ['Количество сессий', totals.sessions.toString()],
-    ['Количество смен', totals.shiftsCount.toString()],
-    ['Часов работы', `${Math.round(totals.totalHours)}ч`],
-    ['Средний чек', formatCurrencyPlain(totals.avgCheck)],
-    ['Выручка в час', formatCurrencyPlain(totals.revenuePerHour)],
-  ];
+  const summarySheet = workbook.addWorksheet('Итого');
   
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  XLSX.utils.book_append_sheet(wb, summarySheet, 'Итого');
+  // Add summary data
+  summarySheet.addRow(['Отчёт по сменам']);
+  summarySheet.addRow(['Период:', `${format(dateFrom, 'dd.MM.yyyy')} — ${format(dateTo, 'dd.MM.yyyy')}`]);
+  summarySheet.addRow(['Кассир:', cashierName || 'Все кассиры']);
+  summarySheet.addRow([]);
+  summarySheet.addRow(['ИТОГО']);
+  summarySheet.addRow(['Общая выручка', formatCurrencyPlain(totals.revenue)]);
+  summarySheet.addRow(['Наличные', formatCurrencyPlain(totals.cash)]);
+  summarySheet.addRow(['Kaspi', formatCurrencyPlain(totals.kaspi)]);
+  summarySheet.addRow(['Игры', formatCurrencyPlain(totals.games)]);
+  summarySheet.addRow(['Джойстики', formatCurrencyPlain(totals.controllers)]);
+  summarySheet.addRow(['Напитки', formatCurrencyPlain(totals.drinks)]);
+  summarySheet.addRow(['Количество сессий', totals.sessions.toString()]);
+  summarySheet.addRow(['Количество смен', totals.shiftsCount.toString()]);
+  summarySheet.addRow(['Часов работы', `${Math.round(totals.totalHours)}ч`]);
+  summarySheet.addRow(['Средний чек', formatCurrencyPlain(totals.avgCheck)]);
+  summarySheet.addRow(['Выручка в час', formatCurrencyPlain(totals.revenuePerHour)]);
+  
+  // Style title
+  summarySheet.getCell('A1').font = { bold: true, size: 14 };
+  summarySheet.getCell('A5').font = { bold: true };
+  
+  // Set column widths
+  summarySheet.getColumn(1).width = 20;
+  summarySheet.getColumn(2).width = 30;
   
   // Shifts detail sheet
-  const shiftsHeaders = [
+  const shiftsSheet = workbook.addWorksheet('Детализация');
+  
+  // Add headers
+  shiftsSheet.addRow([
     'Кассир',
     'Начало смены',
     'Конец смены',
@@ -89,47 +100,59 @@ export function exportToExcel(params: ExportParams) {
     'Джойстики',
     'Напитки',
     'Сессий'
-  ];
-  
-  const shiftsRows = shifts.map(shift => [
-    shift.cashier_name,
-    formatDatePlain(shift.started_at),
-    shift.ended_at ? formatDatePlain(shift.ended_at) : 'Активна',
-    `${shift.duration_hours}ч`,
-    shift.total_cash,
-    shift.total_kaspi,
-    shift.total_cash + shift.total_kaspi,
-    shift.total_games,
-    shift.total_controllers,
-    shift.total_drinks,
-    shift.sessions_count
   ]);
   
-  const shiftsData = [shiftsHeaders, ...shiftsRows];
-  const shiftsSheet = XLSX.utils.aoa_to_sheet(shiftsData);
+  // Style header row
+  shiftsSheet.getRow(1).font = { bold: true };
+  shiftsSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF008B8B' }
+  };
+  shiftsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  
+  // Add data rows
+  shifts.forEach(shift => {
+    shiftsSheet.addRow([
+      shift.cashier_name,
+      formatDatePlain(shift.started_at),
+      shift.ended_at ? formatDatePlain(shift.ended_at) : 'Активна',
+      `${shift.duration_hours}ч`,
+      shift.total_cash,
+      shift.total_kaspi,
+      shift.total_cash + shift.total_kaspi,
+      shift.total_games,
+      shift.total_controllers,
+      shift.total_drinks,
+      shift.sessions_count
+    ]);
+  });
   
   // Set column widths
-  shiftsSheet['!cols'] = [
-    { wch: 15 }, // Кассир
-    { wch: 18 }, // Начало
-    { wch: 18 }, // Конец
-    { wch: 10 }, // Длительность
-    { wch: 12 }, // Наличные
-    { wch: 12 }, // Kaspi
-    { wch: 12 }, // Выручка
-    { wch: 12 }, // Игры
-    { wch: 12 }, // Джойстики
-    { wch: 12 }, // Напитки
-    { wch: 8 },  // Сессий
-  ];
-  
-  XLSX.utils.book_append_sheet(wb, shiftsSheet, 'Детализация');
+  shiftsSheet.getColumn(1).width = 15;
+  shiftsSheet.getColumn(2).width = 18;
+  shiftsSheet.getColumn(3).width = 18;
+  shiftsSheet.getColumn(4).width = 12;
+  shiftsSheet.getColumn(5).width = 12;
+  shiftsSheet.getColumn(6).width = 12;
+  shiftsSheet.getColumn(7).width = 12;
+  shiftsSheet.getColumn(8).width = 12;
+  shiftsSheet.getColumn(9).width = 12;
+  shiftsSheet.getColumn(10).width = 12;
+  shiftsSheet.getColumn(11).width = 10;
   
   // Generate filename
   const filename = `shifts_report_${format(dateFrom, 'dd-MM-yyyy')}_${format(dateTo, 'dd-MM-yyyy')}.xlsx`;
   
   // Download
-  XLSX.writeFile(wb, filename);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export function exportToPDF(params: ExportParams) {
