@@ -4,7 +4,7 @@ import { useStations } from '@/hooks/useStations';
 import { useGlobalTimer } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
 import { PreCheckSkeleton } from '@/components/skeletons/PreCheckSkeleton';
-import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCost } from '@/lib/utils';
+import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCost, formatTimeFromISO, formatTime } from '@/lib/utils';
 import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard } from 'lucide-react';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -65,8 +65,8 @@ export function PreCheckScreen() {
   }
 
   const totalCost = gameCost + totalControllerCost + drinkCost;
-  const startTime = new Date(session.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  const endTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const startTime = formatTimeFromISO(session.started_at);
+  const endTime = formatTime(new Date());
 
   const handleProceedToPayment = () => {
     navigate(`/payment/${sessionId}`, {

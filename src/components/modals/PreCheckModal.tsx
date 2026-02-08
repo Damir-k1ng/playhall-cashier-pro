@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { CLUB_NAME, CONTROLLER_RATE } from '@/lib/constants';
-import { formatCurrency, formatDuration, formatTime, getElapsedMinutes, calculateGameCost, calculateControllerCost } from '@/lib/utils';
+import { formatCurrency, formatDuration, formatTime, formatDate, getElapsedMinutes, calculateGameCost, calculateControllerCost } from '@/lib/utils';
 import { Banknote, Smartphone, CreditCard, Gamepad2, Coffee, Clock, Loader2, Printer } from 'lucide-react';
 import logoImage from '@/assets/logo.jpg';
 import type { StationWithSession, ControllerUsage, SessionDrink, PaymentMethod } from '@/types/database';
@@ -192,7 +192,7 @@ export function PreCheckModal({ open, onClose, station, onConfirmPayment }: PreC
         <div class="header">
           <div class="logo">${CLUB_NAME}</div>
           <div class="station">${station.name}</div>
-          <div class="date">${new Date().toLocaleDateString('ru-RU')} ${formatTime(new Date())}</div>
+          <div class="date">${formatDate(new Date())} ${formatTime(new Date())}</div>
         </div>
         
         <div class="section">

@@ -37,9 +37,35 @@ export function getElapsedSeconds(startedAt: string): number {
   return Math.floor((now.getTime() - start.getTime()) / 1000);
 }
 
-// Format time as HH:MM
+// Fixed timezone for Kazakhstan (Astana UTC+5)
+const TIMEZONE = 'Asia/Almaty';
+
+// Format time as HH:MM (fixed to Astana timezone)
 export function formatTime(date: Date): string {
-  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('ru-RU', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: TIMEZONE 
+  });
+}
+
+// Format time from ISO string as HH:MM (fixed to Astana timezone)
+export function formatTimeFromISO(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString('ru-RU', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: TIMEZONE 
+  });
+}
+
+// Format date as DD.MM.YYYY (fixed to Astana timezone)
+export function formatDate(date: Date): string {
+  return date.toLocaleDateString('ru-RU', { timeZone: TIMEZONE });
+}
+
+// Format date and time (fixed to Astana timezone)
+export function formatDateTime(date: Date): string {
+  return `${formatDate(date)} ${formatTime(date)}`;
 }
 
 // Format date as "25 декабря (четверг)"
