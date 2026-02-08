@@ -105,23 +105,29 @@ export function PaymentScreen() {
   const handleSinglePayment = async (method: 'cash' | 'kaspi') => {
     setIsProcessing(true);
     
-    const result = await processPayment(
-      sessionId,
-      gameCost,
-      controllerCost,
-      drinkCost,
-      method,
-      method === 'cash' ? totalCost : 0,
-      method === 'kaspi' ? totalCost : 0
-    );
+    try {
+      const result = await processPayment(
+        sessionId,
+        gameCost,
+        controllerCost,
+        drinkCost,
+        method,
+        method === 'cash' ? totalCost : 0,
+        method === 'kaspi' ? totalCost : 0
+      );
 
-    if (result.error) {
-      toast.error(result.error);
-      setIsProcessing(false);
-    } else {
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      
       toast.success('Оплата принята');
-      await refetch();
+      // Навигация сразу — Dashboard обновится автоматически (polling 15 сек)
       navigate('/');
+      // Фоновое обновление без блокировки
+      refetch().catch(console.error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -136,23 +142,29 @@ export function PaymentScreen() {
 
     setIsProcessing(true);
     
-    const result = await processPayment(
-      sessionId,
-      gameCost,
-      controllerCost,
-      drinkCost,
-      'split',
-      cash,
-      kaspi
-    );
+    try {
+      const result = await processPayment(
+        sessionId,
+        gameCost,
+        controllerCost,
+        drinkCost,
+        'split',
+        cash,
+        kaspi
+      );
 
-    if (result.error) {
-      toast.error(result.error);
-      setIsProcessing(false);
-    } else {
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      
       toast.success('Оплата принята');
-      await refetch();
+      // Навигация сразу — Dashboard обновится автоматически (polling 15 сек)
       navigate('/');
+      // Фоновое обновление без блокировки
+      refetch().catch(console.error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
