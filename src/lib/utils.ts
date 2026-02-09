@@ -58,6 +58,26 @@ export function formatTimeFromISO(isoString: string): string {
   });
 }
 
+// Calculate package end time and format as "С HH:MM до HH:MM"
+export function formatPackageTimeRange(startedAt: string, packageCount: number = 1): string {
+  const startDate = new Date(startedAt);
+  const endDate = new Date(startDate.getTime() + (packageCount * 180 * 60 * 1000)); // 180 min per package
+  
+  const startTime = startDate.toLocaleTimeString('ru-RU', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: TIMEZONE 
+  });
+  
+  const endTime = endDate.toLocaleTimeString('ru-RU', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: TIMEZONE 
+  });
+  
+  return `С ${startTime} до ${endTime}`;
+}
+
 // Format date as DD.MM.YYYY (fixed to Astana timezone)
 export function formatDate(date: Date): string {
   return date.toLocaleDateString('ru-RU', { timeZone: TIMEZONE });
