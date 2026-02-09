@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_type: Database["public"]["Enums"]["audit_action_type"]
+          admin_id: string
+          cashier_name: string | null
+          created_at: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          reason: string
+          shift_id: string | null
+          station_name: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["audit_action_type"]
+          admin_id: string
+          cashier_name?: string | null
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason: string
+          shift_id?: string | null
+          station_name?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["audit_action_type"]
+          admin_id?: string
+          cashier_name?: string | null
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string
+          shift_id?: string | null
+          station_name?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_log_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "cashiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_audit_log_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booking_date: string
@@ -505,6 +565,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "cashier"
+      audit_action_type:
+        | "edit_session"
+        | "delete_session"
+        | "delete_drink_sale"
+        | "edit_controller"
       booking_status: "booked" | "cancelled" | "completed"
       payment_method: "cash" | "kaspi" | "split"
       session_status: "active" | "completed"
@@ -637,6 +702,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "cashier"],
+      audit_action_type: [
+        "edit_session",
+        "delete_session",
+        "delete_drink_sale",
+        "edit_controller",
+      ],
       booking_status: ["booked", "cancelled", "completed"],
       payment_method: ["cash", "kaspi", "split"],
       session_status: ["active", "completed"],
