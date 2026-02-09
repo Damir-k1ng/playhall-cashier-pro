@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, subDays, parseISO, startOfWeek, startOfMonth, isSameDay } from 'date-fns';
+import { format, subDays, parseISO, startOfWeek, startOfMonth, isSameDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -101,9 +101,10 @@ export function ShiftAnalyticsDashboard() {
   const fetchAnalytics = async () => {
     setIsLoading(true);
     try {
+      // CRITICAL: Use endOfDay for 'to' date to include the entire last day
       const result = await apiClient.getShiftsAnalytics({
         from: dateRange.from.toISOString(),
-        to: dateRange.to.toISOString(),
+        to: endOfDay(dateRange.to).toISOString(),
         cashier_id: selectedCashier !== 'all' ? selectedCashier : undefined
       });
       setData(result);
