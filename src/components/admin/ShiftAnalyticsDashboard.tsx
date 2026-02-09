@@ -389,11 +389,11 @@ export function ShiftAnalyticsDashboard() {
         <Card className="glass-card border-purple-500/20">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-              <Users className="h-5 w-5 text-purple-400" />
+              <CalendarIcon className="h-5 w-5 text-purple-400" />
             </div>
             <div>
               <p className="text-2xl font-bold">{totals.shiftsCount}</p>
-              <p className="text-xs text-muted-foreground">Смен</p>
+              <p className="text-xs text-muted-foreground">Раб. дней</p>
             </div>
           </CardContent>
         </Card>
