@@ -1636,6 +1636,575 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      // GET /admin/completed-sessions - Get completed sessions for last 7 days
+      if (path === '/admin/completed-sessions' && method === 'GET') {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+        const { data: sessions, error } = await supabase
+          .from('sessions')
+          .select(`
+            id, station_id, shift_id, tariff_type, started_at, ended_at, status,
+            game_cost, controller_cost, drink_cost, total_cost, package_count,
+            station:stations(id, name, zone, station_number),
+            shift:shifts(id, cashier_id, cashiers(id, name))
+          `)
+          .eq('status', 'completed')
+          .gte('ended_at', sevenDaysAgo.toISOString())
+          .order('ended_at', { ascending: false })
+          .limit(100)
+
+        if (error) {
+          console.error('Completed sessions fetch error:', error)
+          return new Response(
+            JSON.stringify({ error: 'Ошибка загрузки сессий' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get payment info for each session
+        const sessionIds = (sessions || []).map(s => s.id)
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('session_id, payment_method, cash_amount, kaspi_amount, total_amount')
+          .in('session_id', sessionIds)
+
+        const paymentMap = new Map((payments || []).map(p => [p.session_id, p]))
+
+        // Get controller usage for each session
+        const { data: controllers } = await supabase
+          .from('controller_usage')
+          .select('id, session_id, taken_at, returned_at, cost')
+          .in('session_id', sessionIds)
+
+        const controllerMap = new Map<string, any[]>()
+        for (const c of (controllers || [])) {
+          if (!controllerMap.has(c.session_id)) {
+            controllerMap.set(c.session_id, [])
+          }
+          controllerMap.get(c.session_id)!.push(c)
+        }
+
+        const formattedSessions = (sessions || []).map((s: any) => ({
+          id: s.id,
+          station_id: s.station_id,
+          station_name: s.station?.name || 'Unknown',
+          station_zone: s.station?.zone || '',
+          shift_id: s.shift_id,
+          cashier_id: s.shift?.cashier_id,
+          cashier_name: s.shift?.cashiers?.name || 'Unknown',
+          tariff_type: s.tariff_type,
+          package_count: s.package_count,
+          started_at: s.started_at,
+          ended_at: s.ended_at,
+          game_cost: s.game_cost || 0,
+          controller_cost: s.controller_cost || 0,
+          drink_cost: s.drink_cost || 0,
+          total_cost: s.total_cost || 0,
+          payment: paymentMap.get(s.id) || null,
+          controllers: controllerMap.get(s.id) || []
+        }))
+
+        return new Response(
+          JSON.stringify(formattedSessions),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // GET /admin/drink-sales - Get drink sales for last 7 days
+      if (path === '/admin/drink-sales' && method === 'GET') {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+        const { data: sales, error } = await supabase
+          .from('drink_sales')
+          .select(`
+            id, shift_id, drink_id, quantity, total_price, 
+            payment_method, cash_amount, kaspi_amount, created_at,
+            drink:drinks(id, name, price),
+            shift:shifts(id, cashier_id, cashiers(id, name))
+          `)
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(100)
+
+        if (error) {
+          console.error('Drink sales fetch error:', error)
+          return new Response(
+            JSON.stringify({ error: 'Ошибка загрузки продаж' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const formattedSales = (sales || []).map((s: any) => ({
+          id: s.id,
+          shift_id: s.shift_id,
+          cashier_name: s.shift?.cashiers?.name || 'Unknown',
+          drink_id: s.drink_id,
+          drink_name: s.drink?.name || 'Unknown',
+          quantity: s.quantity,
+          total_price: s.total_price,
+          payment_method: s.payment_method,
+          cash_amount: s.cash_amount || 0,
+          kaspi_amount: s.kaspi_amount || 0,
+          created_at: s.created_at
+        }))
+
+        return new Response(
+          JSON.stringify(formattedSales),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // GET /admin/audit-log - Get audit log
+      if (path === '/admin/audit-log' && method === 'GET') {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+        const { data: logs, error } = await supabase
+          .from('admin_audit_log')
+          .select(`
+            id, admin_id, action_type, target_type, target_id,
+            shift_id, cashier_name, station_name, old_values, new_values,
+            reason, created_at,
+            admin:cashiers!admin_audit_log_admin_id_fkey(id, name)
+          `)
+          .gte('created_at', thirtyDaysAgo.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(100)
+
+        if (error) {
+          console.error('Audit log fetch error:', error)
+          return new Response(
+            JSON.stringify({ error: 'Ошибка загрузки журнала' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const formattedLogs = (logs || []).map((l: any) => ({
+          id: l.id,
+          admin_id: l.admin_id,
+          admin_name: l.admin?.name || 'Unknown',
+          action_type: l.action_type,
+          target_type: l.target_type,
+          target_id: l.target_id,
+          shift_id: l.shift_id,
+          cashier_name: l.cashier_name,
+          station_name: l.station_name,
+          old_values: l.old_values,
+          new_values: l.new_values,
+          reason: l.reason,
+          created_at: l.created_at
+        }))
+
+        return new Response(
+          JSON.stringify(formattedLogs),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // PATCH /admin/sessions/:id - Edit completed session
+      if (pathParts.length === 3 && pathParts[1] === 'sessions' && method === 'PATCH') {
+        const sessionId = pathParts[2]
+        if (!isValidUUID(sessionId)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid session ID' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const body = await req.json()
+        if (!body.reason || body.reason.trim().length < 5) {
+          return new Response(
+            JSON.stringify({ error: 'Укажите причину корректировки (минимум 5 символов)' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get current session with payment
+        const { data: session, error: sessionError } = await supabase
+          .from('sessions')
+          .select(`
+            id, station_id, shift_id, tariff_type, started_at, ended_at, status,
+            game_cost, controller_cost, drink_cost, total_cost, package_count,
+            station:stations(id, name),
+            shift:shifts(id, cashier_id, cashiers(id, name))
+          `)
+          .eq('id', sessionId)
+          .eq('status', 'completed')
+          .single()
+
+        if (sessionError || !session) {
+          return new Response(
+            JSON.stringify({ error: 'Сессия не найдена' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get current payment
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('session_id', sessionId)
+          .single()
+
+        if (!payment) {
+          return new Response(
+            JSON.stringify({ error: 'Платёж не найден' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Calculate differences for shift update
+        const oldGameCost = session.game_cost || 0
+        const oldControllerCost = session.controller_cost || 0
+        const oldDrinkCost = session.drink_cost || 0
+        const oldCashAmount = payment.cash_amount || 0
+        const oldKaspiAmount = payment.kaspi_amount || 0
+
+        const newGameCost = body.game_cost ?? oldGameCost
+        const newControllerCost = body.controller_cost ?? oldControllerCost
+        const newDrinkCost = body.drink_cost ?? oldDrinkCost
+        const newTotalCost = newGameCost + newControllerCost + newDrinkCost
+        const newCashAmount = body.cash_amount ?? oldCashAmount
+        const newKaspiAmount = body.kaspi_amount ?? oldKaspiAmount
+
+        // Validate payment amounts
+        if (newCashAmount + newKaspiAmount !== newTotalCost) {
+          return new Response(
+            JSON.stringify({ error: 'Сумма наличных + Kaspi должна равняться итогу' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Determine payment method
+        let newPaymentMethod = payment.payment_method
+        if (newCashAmount > 0 && newKaspiAmount > 0) {
+          newPaymentMethod = 'split'
+        } else if (newCashAmount > 0) {
+          newPaymentMethod = 'cash'
+        } else {
+          newPaymentMethod = 'kaspi'
+        }
+
+        // Update session
+        await supabase
+          .from('sessions')
+          .update({
+            game_cost: newGameCost,
+            controller_cost: newControllerCost,
+            drink_cost: newDrinkCost,
+            total_cost: newTotalCost
+          })
+          .eq('id', sessionId)
+
+        // Update payment
+        await supabase
+          .from('payments')
+          .update({
+            payment_method: newPaymentMethod,
+            cash_amount: newCashAmount,
+            kaspi_amount: newKaspiAmount,
+            total_amount: newTotalCost
+          })
+          .eq('session_id', sessionId)
+
+        // Update controller times if provided
+        if (body.controllers && Array.isArray(body.controllers)) {
+          for (const ctrl of body.controllers) {
+            if (ctrl.id && isValidUUID(ctrl.id)) {
+              const updateData: any = {}
+              if (ctrl.taken_at) updateData.taken_at = ctrl.taken_at
+              if (ctrl.returned_at) updateData.returned_at = ctrl.returned_at
+              if (ctrl.cost !== undefined) updateData.cost = ctrl.cost
+
+              if (Object.keys(updateData).length > 0) {
+                await supabase
+                  .from('controller_usage')
+                  .update(updateData)
+                  .eq('id', ctrl.id)
+              }
+            }
+          }
+        }
+
+        // Update shift totals (subtract old, add new)
+        const { data: shift } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('id', session.shift_id)
+          .single()
+
+        if (shift) {
+          await supabase
+            .from('shifts')
+            .update({
+              total_cash: (shift.total_cash || 0) - oldCashAmount + newCashAmount,
+              total_kaspi: (shift.total_kaspi || 0) - oldKaspiAmount + newKaspiAmount,
+              total_games: (shift.total_games || 0) - oldGameCost + newGameCost,
+              total_controllers: (shift.total_controllers || 0) - oldControllerCost + newControllerCost,
+              total_drinks: (shift.total_drinks || 0) - oldDrinkCost + newDrinkCost
+            })
+            .eq('id', session.shift_id)
+        }
+
+        // Create audit log entry
+        await supabase
+          .from('admin_audit_log')
+          .insert({
+            admin_id: cashier.id,
+            action_type: 'edit_session',
+            target_type: 'session',
+            target_id: sessionId,
+            shift_id: session.shift_id,
+            cashier_name: (session as any).shift?.cashiers?.name || 'Unknown',
+            station_name: (session as any).station?.name || 'Unknown',
+            old_values: {
+              game_cost: oldGameCost,
+              controller_cost: oldControllerCost,
+              drink_cost: oldDrinkCost,
+              total_cost: session.total_cost,
+              cash_amount: oldCashAmount,
+              kaspi_amount: oldKaspiAmount,
+              payment_method: payment.payment_method
+            },
+            new_values: {
+              game_cost: newGameCost,
+              controller_cost: newControllerCost,
+              drink_cost: newDrinkCost,
+              total_cost: newTotalCost,
+              cash_amount: newCashAmount,
+              kaspi_amount: newKaspiAmount,
+              payment_method: newPaymentMethod
+            },
+            reason: body.reason.trim()
+          })
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // DELETE /admin/sessions/:id - Delete completed session
+      if (pathParts.length === 3 && pathParts[1] === 'sessions' && method === 'DELETE') {
+        const sessionId = pathParts[2]
+        if (!isValidUUID(sessionId)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid session ID' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get reason from query params or body
+        let reason = url.searchParams.get('reason') || ''
+        if (!reason) {
+          try {
+            const body = await req.json()
+            reason = body.reason || ''
+          } catch {}
+        }
+
+        if (!reason || reason.trim().length < 5) {
+          return new Response(
+            JSON.stringify({ error: 'Укажите причину удаления (минимум 5 символов)' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get session with all details
+        const { data: session, error: sessionError } = await supabase
+          .from('sessions')
+          .select(`
+            id, station_id, shift_id, tariff_type, started_at, ended_at, status,
+            game_cost, controller_cost, drink_cost, total_cost, package_count,
+            station:stations(id, name),
+            shift:shifts(id, cashier_id, cashiers(id, name))
+          `)
+          .eq('id', sessionId)
+          .eq('status', 'completed')
+          .single()
+
+        if (sessionError || !session) {
+          return new Response(
+            JSON.stringify({ error: 'Сессия не найдена' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get payment
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('session_id', sessionId)
+          .single()
+
+        const oldCashAmount = payment?.cash_amount || 0
+        const oldKaspiAmount = payment?.kaspi_amount || 0
+        const oldGameCost = session.game_cost || 0
+        const oldControllerCost = session.controller_cost || 0
+        const oldDrinkCost = session.drink_cost || 0
+
+        // Delete related records
+        await supabase.from('payments').delete().eq('session_id', sessionId)
+        await supabase.from('session_drinks').delete().eq('session_id', sessionId)
+        await supabase.from('controller_usage').delete().eq('session_id', sessionId)
+        await supabase.from('sessions').delete().eq('id', sessionId)
+
+        // Update shift totals
+        const { data: shift } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('id', session.shift_id)
+          .single()
+
+        if (shift) {
+          await supabase
+            .from('shifts')
+            .update({
+              total_cash: Math.max(0, (shift.total_cash || 0) - oldCashAmount),
+              total_kaspi: Math.max(0, (shift.total_kaspi || 0) - oldKaspiAmount),
+              total_games: Math.max(0, (shift.total_games || 0) - oldGameCost),
+              total_controllers: Math.max(0, (shift.total_controllers || 0) - oldControllerCost),
+              total_drinks: Math.max(0, (shift.total_drinks || 0) - oldDrinkCost)
+            })
+            .eq('id', session.shift_id)
+        }
+
+        // Create audit log entry
+        await supabase
+          .from('admin_audit_log')
+          .insert({
+            admin_id: cashier.id,
+            action_type: 'delete_session',
+            target_type: 'session',
+            target_id: sessionId,
+            shift_id: session.shift_id,
+            cashier_name: (session as any).shift?.cashiers?.name || 'Unknown',
+            station_name: (session as any).station?.name || 'Unknown',
+            old_values: {
+              station_name: (session as any).station?.name,
+              tariff_type: session.tariff_type,
+              started_at: session.started_at,
+              ended_at: session.ended_at,
+              game_cost: oldGameCost,
+              controller_cost: oldControllerCost,
+              drink_cost: oldDrinkCost,
+              total_cost: session.total_cost,
+              cash_amount: oldCashAmount,
+              kaspi_amount: oldKaspiAmount,
+              payment_method: payment?.payment_method
+            },
+            new_values: null,
+            reason: reason.trim()
+          })
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // DELETE /admin/drink-sales/:id - Delete drink sale
+      if (pathParts.length === 3 && pathParts[1] === 'drink-sales' && method === 'DELETE') {
+        const saleId = pathParts[2]
+        if (!isValidUUID(saleId)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid sale ID' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get reason from query params or body
+        let reason = url.searchParams.get('reason') || ''
+        if (!reason) {
+          try {
+            const body = await req.json()
+            reason = body.reason || ''
+          } catch {}
+        }
+
+        if (!reason || reason.trim().length < 5) {
+          return new Response(
+            JSON.stringify({ error: 'Укажите причину удаления (минимум 5 символов)' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Get sale details
+        const { data: sale, error: saleError } = await supabase
+          .from('drink_sales')
+          .select(`
+            id, shift_id, drink_id, quantity, total_price,
+            payment_method, cash_amount, kaspi_amount, created_at,
+            drink:drinks(id, name),
+            shift:shifts(id, cashier_id, cashiers(id, name))
+          `)
+          .eq('id', saleId)
+          .single()
+
+        if (saleError || !sale) {
+          return new Response(
+            JSON.stringify({ error: 'Продажа не найдена' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const oldCashAmount = sale.cash_amount || 0
+        const oldKaspiAmount = sale.kaspi_amount || 0
+        const oldTotalPrice = sale.total_price || 0
+
+        // Delete sale
+        await supabase.from('drink_sales').delete().eq('id', saleId)
+
+        // Update shift totals
+        const { data: shift } = await supabase
+          .from('shifts')
+          .select('*')
+          .eq('id', sale.shift_id)
+          .single()
+
+        if (shift) {
+          await supabase
+            .from('shifts')
+            .update({
+              total_cash: Math.max(0, (shift.total_cash || 0) - oldCashAmount),
+              total_kaspi: Math.max(0, (shift.total_kaspi || 0) - oldKaspiAmount),
+              total_drinks: Math.max(0, (shift.total_drinks || 0) - oldTotalPrice)
+            })
+            .eq('id', sale.shift_id)
+        }
+
+        // Create audit log entry
+        await supabase
+          .from('admin_audit_log')
+          .insert({
+            admin_id: cashier.id,
+            action_type: 'delete_drink_sale',
+            target_type: 'drink_sale',
+            target_id: saleId,
+            shift_id: sale.shift_id,
+            cashier_name: (sale as any).shift?.cashiers?.name || 'Unknown',
+            station_name: null,
+            old_values: {
+              drink_name: (sale as any).drink?.name,
+              quantity: sale.quantity,
+              total_price: oldTotalPrice,
+              payment_method: sale.payment_method,
+              cash_amount: oldCashAmount,
+              kaspi_amount: oldKaspiAmount,
+              created_at: sale.created_at
+            },
+            new_values: null,
+            reason: reason.trim()
+          })
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     return new Response(

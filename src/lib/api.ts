@@ -285,6 +285,53 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Admin: Completed sessions for corrections
+  async getCompletedSessions() {
+    return this.request('/admin/completed-sessions');
+  }
+
+  // Admin: Drink sales for corrections
+  async getDrinkSales() {
+    return this.request('/admin/drink-sales');
+  }
+
+  // Admin: Audit log
+  async getAuditLog() {
+    return this.request('/admin/audit-log');
+  }
+
+  // Admin: Edit completed session
+  async editSession(sessionId: string, data: {
+    game_cost?: number;
+    controller_cost?: number;
+    drink_cost?: number;
+    cash_amount?: number;
+    kaspi_amount?: number;
+    controllers?: Array<{ id: string; taken_at?: string; returned_at?: string; cost?: number }>;
+    reason: string;
+  }) {
+    return this.request(`/admin/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Admin: Delete completed session
+  async deleteSession(sessionId: string, reason: string) {
+    return this.request(`/admin/sessions/${sessionId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  // Admin: Delete drink sale
+  async deleteDrinkSale(saleId: string, reason: string) {
+    return this.request(`/admin/drink-sales/${saleId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    });
+  }
 }
 
 
