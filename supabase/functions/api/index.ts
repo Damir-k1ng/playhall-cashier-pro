@@ -1035,6 +1035,9 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Parse path parts for routes with dynamic segments
+      const pathParts = path.split('/').filter(Boolean) // ['admin', 'sessions', ':id']
+
       // GET /admin/cashiers - List all cashiers
       if (path === '/admin/cashiers' && method === 'GET') {
         const { data, error } = await supabase
@@ -1953,7 +1956,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('admin_audit_log')
           .insert({
-            admin_id: cashier.id,
+            admin_id: shift.cashier_id,
             action_type: 'edit_session',
             target_type: 'session',
             target_id: sessionId,
@@ -2076,7 +2079,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('admin_audit_log')
           .insert({
-            admin_id: cashier.id,
+            admin_id: shift.cashier_id,
             action_type: 'delete_session',
             target_type: 'session',
             target_id: sessionId,
@@ -2180,7 +2183,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('admin_audit_log')
           .insert({
-            admin_id: cashier.id,
+            admin_id: shift.cashier_id,
             action_type: 'delete_drink_sale',
             target_type: 'drink_sale',
             target_id: saleId,
