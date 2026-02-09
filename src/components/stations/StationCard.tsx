@@ -1,9 +1,9 @@
 import React, { useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatDurationHMS, formatCurrency } from '@/lib/utils';
+import { formatDurationHMS, formatCurrency, formatPackageTimeRange } from '@/lib/utils';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { cn } from '@/lib/utils';
-import { Gamepad2, Coffee, Play, Calendar, Lock, Package } from 'lucide-react';
+import { Gamepad2, Coffee, Play, Calendar, Lock, Package, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Primitive props only - no objects!
@@ -127,6 +127,12 @@ function StationCardComponent({
     return formatCurrency(hourlyRate);
   }, [hourlyRate]);
 
+  // Memoized package time range (e.g., "С 20:00 до 23:00")
+  const packageTimeRange = useMemo(() => {
+    if (!isPackage || !startedAt) return null;
+    return formatPackageTimeRange(startedAt, packageCount);
+  }, [isPackage, startedAt, packageCount]);
+
   const handleClick = () => {
     if (isActive && !isOwnSession) return;
     navigate(`/station/${id}`);
@@ -220,6 +226,16 @@ function StationCardComponent({
           </div>
         )}
       </div>
+
+      {/* Package time range (e.g., "С 20:00 до 23:00") */}
+      {isActive && isPackage && packageTimeRange && (
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-2">
+          <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+          <span className="text-xs sm:text-sm text-muted-foreground font-medium">
+            {packageTimeRange}
+          </span>
+        </div>
+      )}
 
       {/* Bottom: Badges for controllers, drinks, and packages */}
       {isActive && (activeControllersCount > 0 || totalDrinksCount > 0 || (isPackage && packageCount > 1)) && (
