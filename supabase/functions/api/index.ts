@@ -1251,11 +1251,15 @@ Deno.serve(async (req) => {
           .order('name')
 
         // Build query for shifts
+        // FIXED: Include shifts that OVERLAP the selected period:
+        // 1. Shift started within the period, OR
+        // 2. Shift ended within the period (for multi-day shifts that started earlier)
+        // This uses: started_at <= to AND (ended_at >= from OR ended_at IS NULL for active shifts)
         let shiftsQuery = supabase
           .from('shifts')
           .select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)')
-          .gte('started_at', from.toISOString())
           .lte('started_at', to.toISOString())
+          .or(`ended_at.gte.${from.toISOString()},ended_at.is.null`)
           .order('started_at', { ascending: false })
 
         if (cashierId && isValidUUID(cashierId)) {
@@ -1339,8 +1343,8 @@ Deno.serve(async (req) => {
         let prevShiftsQuery = supabase
           .from('shifts')
           .select('total_cash, total_kaspi, total_games, total_controllers, total_drinks')
-          .gte('started_at', prevFrom.toISOString())
           .lte('started_at', prevTo.toISOString())
+          .or(`ended_at.gte.${prevFrom.toISOString()},ended_at.is.null`)
 
         if (cashierId && isValidUUID(cashierId)) {
           prevShiftsQuery = prevShiftsQuery.eq('cashier_id', cashierId)
