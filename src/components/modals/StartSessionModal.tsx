@@ -8,19 +8,25 @@ interface StartSessionModalProps {
   open: boolean;
   onClose: () => void;
   station: Station | null;
-  onConfirm: (tariffType: 'hourly' | 'package') => void;
+  onConfirm: (tariffType: 'hourly' | 'package') => void | Promise<any>;
 }
 
 export function StartSessionModal({ open, onClose, station, onConfirm }: StartSessionModalProps) {
   const [selected, setSelected] = useState<'hourly' | 'package' | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!station) return null;
 
-  const handleConfirm = () => {
-    if (selected) {
-      onConfirm(selected);
-      setSelected(null);
-      onClose();
+  const handleConfirm = async () => {
+    if (selected && !isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        await onConfirm(selected);
+        setSelected(null);
+        onClose();
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -65,8 +71,8 @@ export function StartSessionModal({ open, onClose, station, onConfirm }: StartSe
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Отмена
           </Button>
-          <Button className="flex-1" disabled={!selected} onClick={handleConfirm}>
-            Начать
+          <Button className="flex-1" disabled={!selected || isSubmitting} onClick={handleConfirm}>
+            {isSubmitting ? 'Запуск...' : 'Начать'}
           </Button>
         </div>
       </DialogContent>

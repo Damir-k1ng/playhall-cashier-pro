@@ -284,6 +284,21 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Check for existing active session on this station (prevents duplicates)
+      const { data: existingSession } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('station_id', body.station_id)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      if (existingSession) {
+        return new Response(
+          JSON.stringify({ error: 'На этой станции уже есть активная сессия' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       // Set package_count to 1 for package sessions
       const insertData: any = { 
         station_id: body.station_id,
