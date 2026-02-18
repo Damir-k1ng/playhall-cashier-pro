@@ -659,7 +659,7 @@ Deno.serve(async (req) => {
         const timeSinceLastAdd = Date.now() - new Date(recentController.taken_at).getTime()
         if (timeSinceLastAdd < 3000) {
           return new Response(
-            JSON.stringify({ error: 'Джойстик уже добавлен, подождите' }),
+            JSON.stringify({ error: 'Защита от дублей! Добавьте через 3 секунды!' }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
