@@ -646,6 +646,25 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Debounce: check if a controller was added to this session in the last 3 seconds
+      const { data: recentController } = await supabase
+        .from('controller_usage')
+        .select('id, taken_at')
+        .eq('session_id', body.session_id)
+        .order('taken_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (recentController) {
+        const timeSinceLastAdd = Date.now() - new Date(recentController.taken_at).getTime()
+        if (timeSinceLastAdd < 3000) {
+          return new Response(
+            JSON.stringify({ error: 'Джойстик уже добавлен, подождите' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+
       const { data, error } = await supabase
         .from('controller_usage')
         .insert({ session_id: body.session_id })
