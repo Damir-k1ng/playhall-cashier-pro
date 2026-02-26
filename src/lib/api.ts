@@ -1,3 +1,5 @@
+import { setCacheEntry, getCacheEntry, isNetworkError } from './offline-cache';
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 export async function authPinLogin(pin: string) {
@@ -53,22 +55,40 @@ class ApiClient {
       throw new Error('Not authenticated');
     }
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/api${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-session-token': this.sessionToken,
-        ...options.headers,
-      },
-    });
+    const isGet = !options.method || options.method === 'GET';
 
-    const data = await response.json();
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/api${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-token': this.sessionToken,
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(data.error || 'API Error');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'API Error');
+      }
+
+      // Cache successful GET responses
+      if (isGet) {
+        setCacheEntry(path, data);
+      }
+
+      return data;
+    } catch (err) {
+      // For GET requests, try to serve from cache when offline
+      if (isGet && isNetworkError(err)) {
+        const cached = getCacheEntry(path);
+        if (cached !== null) {
+          return cached;
+        }
+      }
+      throw err;
     }
-
-    return data;
   }
 
   // Stations

@@ -1,23 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStations } from '@/hooks/useStations';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Header } from '@/components/layout/Header';
 import { StationGrid } from '@/components/stations/StationGrid';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { CashDeskModal } from '@/components/modals/CashDeskModal';
 import { ShiftReportModal } from '@/components/modals/ShiftReportModal';
 import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
 import { ShiftHistoryModal } from '@/components/modals/ShiftHistoryModal';
 import { Loader2 } from 'lucide-react';
 import { CLUB_NAME, APP_VERSION } from '@/lib/constants';
+import { getQueue, dequeue } from '@/lib/offline-queue';
+import { apiClient } from '@/lib/api';
 import logoImage from '@/assets/logo.jpg';
 
 export function Dashboard() {
   const { stations, isLoading, isRefreshing, refetch: refetchStations } = useStations();
+  const { isOnline, wasOffline, clearWasOffline } = useNetworkStatus();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [queueLength, setQueueLength] = useState(0);
   
   // Modals
   const [cashDeskModalOpen, setCashDeskModalOpen] = useState(false);
   const [shiftReportModalOpen, setShiftReportModalOpen] = useState(false);
   const [drinkSalesModalOpen, setDrinkSalesModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
+  // Sync offline queue when coming back online
+  const syncQueue = useCallback(async () => {
+    const queue = getQueue();
+    if (queue.length === 0) return;
+    
+    setIsSyncing(true);
+    setQueueLength(queue.length);
+
+    for (const action of queue) {
+      try {
+        if (action.type === 'create_session') {
+          await apiClient.createSession(action.payload as any);
+        }
+        dequeue(action.id);
+        setQueueLength(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error('Sync failed for action:', action.id, err);
+        // Stop syncing on first failure — will retry next time
+        break;
+      }
+    }
+
+    setIsSyncing(false);
+    setQueueLength(getQueue().length);
+    refetchStations();
+  }, [refetchStations]);
+
+  useEffect(() => {
+    if (wasOffline && isOnline) {
+      syncQueue().then(() => clearWasOffline());
+    }
+  }, [wasOffline, isOnline, syncQueue, clearWasOffline]);
+
+  // Update queue length on interval (for display)
+  useEffect(() => {
+    if (!isOnline) {
+      const interval = setInterval(() => setQueueLength(getQueue().length), 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isOnline]);
 
   if (isLoading) {
     return (
@@ -43,6 +91,7 @@ export function Dashboard() {
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(155_100%_45%_/_0.02)_0%,transparent_50%)] pointer-events-none" />
       
       <div className="relative z-10 flex flex-col h-full">
+        <OfflineBanner isOnline={isOnline} isSyncing={isSyncing} queueLength={queueLength} />
         <Header 
           onOpenCashDesk={() => setCashDeskModalOpen(true)}
           onOpenShiftReport={() => setShiftReportModalOpen(true)}

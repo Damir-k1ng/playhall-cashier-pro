@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
+import { isNetworkError } from '@/lib/offline-cache';
+import { enqueue } from '@/lib/offline-queue';
 import { CONTROLLER_RATE } from '@/lib/constants';
 import type { StationWithSession } from '@/types/database';
 
@@ -112,6 +114,13 @@ export function useStations() {
       await fetchStations();
       return { data };
     } catch (err: any) {
+      // If offline, queue the action
+      if (isNetworkError(err)) {
+        enqueue('create_session', { station_id: stationId, tariff_type: tariffType });
+        playSound('start');
+        if (navigator.vibrate) navigator.vibrate(50);
+        return { data: null, queued: true };
+      }
       console.error('Error starting session:', err);
       return { error: err.message || 'Ошибка запуска сессии' };
     }
