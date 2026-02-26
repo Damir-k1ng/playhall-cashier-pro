@@ -71,6 +71,10 @@ const ROUTES_TO_CHECK: Array<{ path: string; method: string }> = [
   { path: "/admin/sessions/00000000-0000-0000-0000-000000000000", method: "PATCH" },
   { path: "/admin/sessions/00000000-0000-0000-0000-000000000000", method: "DELETE" },
   { path: "/admin/drink-sales/00000000-0000-0000-0000-000000000000", method: "DELETE" },
+  // Admin drinks management
+  { path: "/admin/drinks", method: "POST" },
+  { path: "/admin/drinks/00000000-0000-0000-0000-000000000000", method: "PATCH" },
+  { path: "/admin/drinks/00000000-0000-0000-0000-000000000000", method: "DELETE" },
 ];
 
 Deno.test("All routes return 401 without auth (no 404 = route exists)", async () => {
@@ -889,5 +893,91 @@ Deno.test("Security: any cashier can manage another cashier's session", async ()
     await logout(tokenA!);
     await logout(tokenB!);
     await logout(adminToken!);
+  }
+});
+
+// 24. Admin: CRUD drinks management
+Deno.test("Admin: create, update, and delete drink", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null, "Admin login failed");
+
+  let drinkId: string | null = null;
+
+  try {
+    // 1. Create drink
+    const { status: createStatus, body: created } = await apiAuth("/admin/drinks", token!, {
+      method: "POST",
+      body: JSON.stringify({ name: "Тест Автотест", price: 777 }),
+    });
+    assertEquals(createStatus, 200, `create drink failed: ${JSON.stringify(created)}`);
+    assertNotEquals(created.id, undefined, "drink should have id");
+    assertEquals(created.name, "Тест Автотест");
+    assertEquals(created.price, 777);
+    drinkId = created.id;
+
+    // 2. Update drink
+    const { status: updateStatus, body: updated } = await apiAuth(`/admin/drinks/${drinkId}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({ name: "Тест Обновлённый", price: 888 }),
+    });
+    assertEquals(updateStatus, 200, `update drink failed: ${JSON.stringify(updated)}`);
+    assertEquals(updated.name, "Тест Обновлённый");
+    assertEquals(updated.price, 888);
+
+    // 3. Verify drink appears in drinks list
+    const { status: listStatus, body: drinks } = await apiAuth("/drinks", token!);
+    assertEquals(listStatus, 200);
+    const found = drinks.find((d: any) => d.id === drinkId);
+    assertNotEquals(found, undefined, "created drink should be in drinks list");
+    assertEquals(found.name, "Тест Обновлённый");
+
+    // 4. Delete drink
+    const { status: deleteStatus, body: deleted } = await apiAuth(`/admin/drinks/${drinkId}`, token!, {
+      method: "DELETE",
+    });
+    assertEquals(deleteStatus, 200, `delete drink failed: ${JSON.stringify(deleted)}`);
+    assertEquals(deleted.success, true);
+    drinkId = null;
+
+    // 5. Verify drink is gone
+    const { body: drinksAfter } = await apiAuth("/drinks", token!);
+    const notFound = drinksAfter.find((d: any) => d.id === deleted.id || d.name === "Тест Обновлённый");
+    assertEquals(notFound, undefined, "deleted drink should not appear in list");
+  } finally {
+    // Cleanup if test failed mid-way
+    if (drinkId) {
+      await apiAuth(`/admin/drinks/${drinkId}`, token!, { method: "DELETE" });
+    }
+    await logout(token!);
+  }
+});
+
+// 25. Non-admin cannot manage drinks
+Deno.test("Security: non-admin cannot create/update/delete drinks", async () => {
+  const token = await loginWithPin("5288"); // Cashier ALI
+  assertNotEquals(token, null, "Cashier login failed");
+
+  try {
+    // Try to create drink — should be 403
+    const { status: createStatus } = await apiAuth("/admin/drinks", token!, {
+      method: "POST",
+      body: JSON.stringify({ name: "Хакер", price: 100 }),
+    });
+    assertEquals(createStatus, 403, "non-admin should get 403 on create drink");
+
+    // Try to update — should be 403
+    const { status: updateStatus } = await apiAuth("/admin/drinks/00000000-0000-0000-0000-000000000000", token!, {
+      method: "PATCH",
+      body: JSON.stringify({ name: "Хакер" }),
+    });
+    assertEquals(updateStatus, 403, "non-admin should get 403 on update drink");
+
+    // Try to delete — should be 403
+    const { status: deleteStatus } = await apiAuth("/admin/drinks/00000000-0000-0000-0000-000000000000", token!, {
+      method: "DELETE",
+    });
+    assertEquals(deleteStatus, 403, "non-admin should get 403 on delete drink");
+  } finally {
+    await logout(token!);
   }
 });
