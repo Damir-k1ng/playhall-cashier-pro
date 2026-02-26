@@ -4,6 +4,7 @@ import { useStations } from '@/hooks/useStations';
 import { useDrinks } from '@/hooks/useDrinks';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, formatTimeFromISO } from '@/lib/utils';
 import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2 } from 'lucide-react';
@@ -24,6 +25,7 @@ export function StationScreen() {
   const [returningControllerId, setReturningControllerId] = useState<string | null>(null);
   const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
   const [removingDrinkId, setRemovingDrinkId] = useState<string | null>(null);
+  const [drinkToDelete, setDrinkToDelete] = useState<{ id: string; name: string } | null>(null);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
   const prevRemainingRef = useRef<number | null>(null);
@@ -176,12 +178,16 @@ export function StationScreen() {
     }
   };
 
-  const handleRemoveDrink = async (sessionDrinkId: string) => {
-    if (removingDrinkId) return;
+  const confirmRemoveDrink = (sessionDrinkId: string, drinkName: string) => {
+    setDrinkToDelete({ id: sessionDrinkId, name: drinkName });
+  };
+
+  const handleRemoveDrink = async () => {
+    if (!drinkToDelete || removingDrinkId) return;
     
-    setRemovingDrinkId(sessionDrinkId);
+    setRemovingDrinkId(drinkToDelete.id);
     try {
-      const result = await removeSessionDrink(sessionDrinkId);
+      const result = await removeSessionDrink(drinkToDelete.id);
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -190,6 +196,7 @@ export function StationScreen() {
       }
     } finally {
       setRemovingDrinkId(null);
+      setDrinkToDelete(null);
     }
   };
 
@@ -478,7 +485,7 @@ export function StationScreen() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleRemoveDrink(drink.id)}
+                          onClick={() => confirmRemoveDrink(drink.id, drink.drink?.name || 'напиток')}
                           disabled={removingDrinkId === drink.id}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -489,6 +496,27 @@ export function StationScreen() {
                 </div>
               )}
             </section>
+
+            {/* Delete Drink Confirmation */}
+            <AlertDialog open={!!drinkToDelete} onOpenChange={(open) => !open && setDrinkToDelete(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Удалить напиток?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Вы уверены, что хотите удалить «{drinkToDelete?.name}» из сессии?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleRemoveDrink}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Удалить
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {/* End Session Button */}
             <Button 
