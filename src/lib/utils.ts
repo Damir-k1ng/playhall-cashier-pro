@@ -148,6 +148,32 @@ export function calculateGameCost(
   }
 }
 
+// Break down game cost into package (fixed) and overtime (discountable) parts
+export function calculateGameCostBreakdown(
+  hourlyRate: number,
+  packageRate: number,
+  tariffType: 'hourly' | 'package',
+  elapsedMinutes: number,
+  packageCount: number = 1
+): { packageCost: number; overtimeCost: number; totalGameCost: number } {
+  if (tariffType === 'package') {
+    const totalPackageMinutes = 180 * packageCount;
+    const baseCost = packageRate * packageCount;
+    
+    if (elapsedMinutes <= totalPackageMinutes) {
+      return { packageCost: baseCost, overtimeCost: 0, totalGameCost: baseCost };
+    } else {
+      const extraMinutes = elapsedMinutes - totalPackageMinutes;
+      const minuteRate = hourlyRate / 60;
+      const extraCost = Math.round(extraMinutes * minuteRate);
+      return { packageCost: baseCost, overtimeCost: extraCost, totalGameCost: baseCost + extraCost };
+    }
+  } else {
+    const cost = Math.ceil((elapsedMinutes / 60) * hourlyRate);
+    return { packageCost: 0, overtimeCost: cost, totalGameCost: cost };
+  }
+}
+
 // Calculate controller cost (600 ₸/hour, pro-rated)
 export function calculateControllerCost(usageMinutes: number): number {
   const CONTROLLER_RATE = 600;
