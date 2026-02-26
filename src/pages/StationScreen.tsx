@@ -10,7 +10,7 @@ import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, f
 import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { CONTROLLER_RATE, CLUB_NAME, PACKAGE_WARNING_MINUTES } from '@/lib/constants';
+import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -28,7 +28,6 @@ export function StationScreen() {
   const [drinkToDelete, setDrinkToDelete] = useState<{ id: string; name: string } | null>(null);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
-  const prevRemainingRef = useRef<number | null>(null);
 
   const station = stations.find(s => s.id === stationId);
   const isActive = !!station?.activeSession;
@@ -48,37 +47,13 @@ export function StationScreen() {
     controllerSeconds[c.id] = getElapsedSeconds(c.taken_at);
   });
 
-  // Handle warning/end sounds with effects (no interval needed)
+  // Reset warning refs when session changes (alerts now handled by PackageAlerts on Dashboard)
   useEffect(() => {
     if (!station?.activeSession) {
       warningPlayedRef.current = false;
       endPlayedRef.current = false;
-      prevRemainingRef.current = null;
-      return;
     }
-
-    if (!isPackage) return;
-
-    // Play warning sound once at 5 minutes
-    if (remaining <= PACKAGE_WARNING_MINUTES && remaining > 0 && !warningPlayedRef.current) {
-      playWarningSound();
-      warningPlayedRef.current = true;
-      toast.warning('⚠ Осталось 5 минут до окончания пакета', {
-        duration: 5000,
-      });
-    }
-    
-    // Play end sound when package expires
-    if (remaining <= 0 && !endPlayedRef.current) {
-      playPackageEndSound();
-      endPlayedRef.current = true;
-      toast.error('🚨 Пакет закончился! Открытое время начислено.', {
-        duration: 8000,
-      });
-    }
-
-    prevRemainingRef.current = remaining;
-  }, [station?.activeSession, isPackage, remaining]);
+  }, [station?.activeSession]);
 
   // Show skeleton loading while stations are being fetched
   if (isLoading) {
@@ -207,7 +182,7 @@ export function StationScreen() {
 
   const elapsedMinutes = Math.floor(elapsedSeconds / 60);
   const totalPackageMinutes = 180 * packageCount;
-  const isWarning = isPackage && remaining <= PACKAGE_WARNING_MINUTES && remaining > 0;
+  const isWarning = isPackage && remaining <= 5 && remaining > 0;
   const isOvertime = isPackage && remaining <= 0 && elapsedMinutes >= totalPackageMinutes;
 
   const getControllerCost = (seconds: number) => {
@@ -539,50 +514,3 @@ export function StationScreen() {
   );
 }
 
-function playWarningSound() {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = 440; // A4
-    gainNode.gain.value = 0.15;
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.5);
-  } catch (err) {
-    // Audio not supported
-  }
-}
-
-function playPackageEndSound() {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const gainNode = audioContext.createGain();
-    gainNode.connect(audioContext.destination);
-    gainNode.gain.value = 0.25;
-    
-    // Play 3 ascending beeps
-    const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
-    frequencies.forEach((freq, i) => {
-      const osc = audioContext.createOscillator();
-      osc.connect(gainNode);
-      osc.frequency.value = freq;
-      osc.start(audioContext.currentTime + i * 0.2);
-      osc.stop(audioContext.currentTime + i * 0.2 + 0.15);
-    });
-    
-    // Final longer warning tone
-    setTimeout(() => {
-      const osc2 = audioContext.createOscillator();
-      osc2.connect(gainNode);
-      osc2.frequency.value = 880; // A5
-      osc2.start();
-      osc2.stop(audioContext.currentTime + 0.4);
-    }, 700);
-  } catch (err) {
-    // Audio not supported
-  }
-}

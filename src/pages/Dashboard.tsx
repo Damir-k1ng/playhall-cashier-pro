@@ -4,6 +4,7 @@ import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { Header } from '@/components/layout/Header';
 import { StationGrid } from '@/components/stations/StationGrid';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { PackageAlerts } from '@/components/PackageAlerts';
 import { CashDeskModal } from '@/components/modals/CashDeskModal';
 import { ShiftReportModal } from '@/components/modals/ShiftReportModal';
 import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
@@ -99,6 +100,7 @@ export function Dashboard() {
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(155_100%_45%_/_0.02)_0%,transparent_50%)] pointer-events-none" />
       
       <div className="relative z-10 flex flex-col h-full">
+        <PackageAlerts stations={stations} />
         <OfflineBanner isOnline={isOnline} isSyncing={isSyncing} queueLength={queueLength} />
         <Header 
           onOpenCashDesk={() => setCashDeskModalOpen(true)}
