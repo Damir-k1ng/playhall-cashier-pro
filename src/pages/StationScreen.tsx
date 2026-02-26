@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStations } from '@/hooks/useStations';
+import { useStations, useStation } from '@/hooks/useStations';
 import { useDrinks } from '@/hooks/useDrinks';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,8 @@ import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
   const navigate = useNavigate();
-  const { stations, isLoading, startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
+  const { station, isLoading: isStationLoading } = useStation(stationId);
+  const { startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
   const { drinks, addDrinkToSession, removeSessionDrink } = useDrinks();
   const { getElapsedSeconds } = useGlobalTimer();
   
@@ -29,7 +30,7 @@ export function StationScreen() {
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
 
-  const station = stations.find(s => s.id === stationId);
+  const isLoading = isStationLoading;
   const isActive = !!station?.activeSession;
   const isPackage = station?.activeSession?.tariff_type === 'package';
   const packageCount = station?.activeSession?.package_count || 1;

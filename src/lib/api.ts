@@ -96,6 +96,10 @@ class ApiClient {
     return this.request('/stations');
   }
 
+  async getStation(id: string) {
+    return this.request(`/stations/${id}`);
+  }
+
   // Drinks
   async getDrinks() {
     return this.request('/drinks');

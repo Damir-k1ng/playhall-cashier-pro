@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStations } from '@/hooks/useStations';
+import { useStationBySession } from '@/hooks/useStations';
 import { useGlobalTimer } from '@/contexts/GlobalTimerContext';
 import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ interface DiscountPreset {
 export function PreCheckScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const { stations, isLoading } = useStations();
+  const { station, isLoading } = useStationBySession(sessionId);
   const { getElapsedSeconds, getElapsedMinutes } = useGlobalTimer();
   const { isOnline } = useNetworkStatusContext();
 
@@ -33,7 +33,6 @@ export function PreCheckScreen() {
   const [maxDiscountPercent, setMaxDiscountPercent] = useState(0);
   const [selectedDiscount, setSelectedDiscount] = useState(0);
 
-  const station = stations.find(s => s.activeSession?.id === sessionId);
   const session = station?.activeSession;
   const packageCount = session?.package_count || 1;
 
