@@ -19,6 +19,12 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_TOKEN_KEY = 'svoy_session_token';
+// Migration: move token from sessionStorage to localStorage (one-time)
+const migratedToken = sessionStorage.getItem('svoy_session_token');
+if (migratedToken && !localStorage.getItem(SESSION_TOKEN_KEY)) {
+  localStorage.setItem(SESSION_TOKEN_KEY, migratedToken);
+  sessionStorage.removeItem('svoy_session_token');
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -32,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check for active session on mount
   const checkActiveSession = useCallback(async () => {
     try {
-      const storedToken = sessionStorage.getItem(SESSION_TOKEN_KEY);
+      const storedToken = localStorage.getItem(SESSION_TOKEN_KEY);
       
       if (!storedToken) {
         setState(prev => ({ ...prev, isLoading: false }));
@@ -51,17 +57,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           shift: result.shift,
           role: result.role || 'cashier',
         });
-      } else {
-        // Invalid token, clear it
-        sessionStorage.removeItem(SESSION_TOKEN_KEY);
+      } else if (result.valid === false) {
+        // Only clear token if server explicitly says it's invalid
+        // (not on network errors)
+        localStorage.removeItem(SESSION_TOKEN_KEY);
         apiClient.setSessionToken(null);
+        setState(prev => ({ ...prev, isLoading: false }));
+      } else {
+        // Ambiguous response — keep token, let user retry
         setState(prev => ({ ...prev, isLoading: false }));
       }
     } catch (err) {
-      console.error('Error in checkActiveSession:', err);
-      sessionStorage.removeItem(SESSION_TOKEN_KEY);
-      apiClient.setSessionToken(null);
-      setState(prev => ({ ...prev, isLoading: false }));
+      // Network error or edge function unavailable — DON'T remove the token!
+      // Keep the user logged in and let them retry on next navigation/refresh
+      console.warn('Session validation failed (network issue), keeping token:', err);
+      
+      const storedToken = localStorage.getItem(SESSION_TOKEN_KEY);
+      if (storedToken) {
+        // Restore session from token — user stays logged in
+        apiClient.setSessionToken(storedToken);
+        // We don't have cashier/shift data, so mark as loading=false but not authenticated
+        // The next successful API call will work; if token is truly invalid, 401 will handle it
+        setState(prev => ({ ...prev, isLoading: false }));
+      } else {
+        setState(prev => ({ ...prev, isLoading: false }));
+      }
     }
   }, []);
 
@@ -89,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (result.cashier && result.shift && result.session_token) {
         // Store session token
-        sessionStorage.setItem(SESSION_TOKEN_KEY, result.session_token);
+        localStorage.setItem(SESSION_TOKEN_KEY, result.session_token);
         apiClient.setSessionToken(result.session_token);
 
         setState({
@@ -111,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      const token = sessionStorage.getItem(SESSION_TOKEN_KEY);
+      const token = localStorage.getItem(SESSION_TOKEN_KEY);
       if (token) {
         await authPinLogout(token);
       }
@@ -119,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error during logout:', err);
     }
 
-    sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    localStorage.removeItem(SESSION_TOKEN_KEY);
     apiClient.setSessionToken(null);
     
     setState({
