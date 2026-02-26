@@ -478,7 +478,7 @@ export function StationScreen() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                           onClick={() => confirmRemoveDrink(drink.id, drink.drink?.name || 'напиток')}
                           disabled={removingDrinkId === drink.id}
                         >
