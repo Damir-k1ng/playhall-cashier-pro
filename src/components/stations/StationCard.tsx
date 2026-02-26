@@ -232,7 +232,7 @@ function StationCardComponent({
         {isActive ? (
           <div 
             className={cn(
-              'font-gaming text-2xl sm:text-3xl md:text-4xl font-bold tracking-wide',
+              'font-gaming text-xl sm:text-3xl md:text-4xl font-bold tracking-wide truncate',
               config.timerColor,
               config.glow
             )}
