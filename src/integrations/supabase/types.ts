@@ -447,6 +447,7 @@ export type Database = {
           ended_at: string | null
           id: string
           is_active: boolean
+          is_admin_session: boolean
           session_token: string | null
           started_at: string
           total_cash: number
@@ -460,6 +461,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           is_active?: boolean
+          is_admin_session?: boolean
           session_token?: string | null
           started_at?: string
           total_cash?: number
@@ -473,6 +475,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           is_active?: boolean
+          is_admin_session?: boolean
           session_token?: string | null
           started_at?: string
           total_cash?: number
