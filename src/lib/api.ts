@@ -2,6 +2,10 @@ import { setCacheEntry, getCacheEntry, isNetworkError } from './offline-cache';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+// Track consecutive 401 errors to avoid logout on transient failures
+let consecutive401Count = 0;
+const MAX_401_BEFORE_LOGOUT = 2;
+
 export async function authPinLogin(pin: string) {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/auth-pin`, {
     method: 'POST',
@@ -70,16 +74,24 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
-        // If server says unauthorized, clear stored token to force re-login
         if (response.status === 401) {
-          localStorage.removeItem('svoy_session_token');
-          this.sessionToken = null;
-          // Force reload to show login screen
-          window.location.reload();
-          throw new Error('Session expired');
+          consecutive401Count++;
+          if (consecutive401Count >= MAX_401_BEFORE_LOGOUT) {
+            // Only force logout after multiple consecutive 401s
+            localStorage.removeItem('svoy_session_token');
+            localStorage.removeItem('svoy_cached_session');
+            this.sessionToken = null;
+            window.location.reload();
+            throw new Error('Session expired');
+          }
+          // First 401 — might be transient, just throw without logout
+          throw new Error('Authorization error');
         }
         throw new Error(data.error || 'API Error');
       }
+
+      // Reset counter on any successful response
+      consecutive401Count = 0;
 
       // Cache successful GET responses
       if (isGet) {
