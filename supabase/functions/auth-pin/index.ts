@@ -216,12 +216,13 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Only deactivate the shift — don't nullify session_token
+      // This prevents other devices using the same cashier from losing their session
       await supabase
         .from('shifts')
         .update({
           is_active: false,
-          ended_at: new Date().toISOString(),
-          session_token: null
+          ended_at: new Date().toISOString()
         })
         .eq('session_token', session_token)
 
