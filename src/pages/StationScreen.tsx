@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStations, useStation } from '@/hooks/useStations';
+import { useQueryClient } from '@tanstack/react-query';
+import { useStations, useStation, stationQueryKey, STATIONS_QUERY_KEY } from '@/hooks/useStations';
 import { useDrinks } from '@/hooks/useDrinks';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
   const navigate = useNavigate();
   const { station, isLoading: isStationLoading } = useStation(stationId);
+  const queryClient = useQueryClient();
   const { startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
   const { drinks, addDrinkToSession, removeSessionDrink } = useDrinks();
   const { getElapsedSeconds } = useGlobalTimer();
@@ -118,17 +120,24 @@ export function StationScreen() {
     }
   };
 
-  const handleAddDrink = async (drinkId: string, price: number) => {
+  const invalidateStation = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: stationQueryKey(stationId!) }),
+      queryClient.invalidateQueries({ queryKey: STATIONS_QUERY_KEY }),
+    ]);
+  };
+
+  const handleAddDrink = async (drinkId: string, price: number, quantity: number = 1) => {
     if (!station.activeSession || addingDrinkId) return;
     
     setAddingDrinkId(drinkId);
     try {
-      const result = await addDrinkToSession(station.activeSession.id, drinkId, 1, price);
+      const result = await addDrinkToSession(station.activeSession.id, drinkId, quantity, price);
       if (result.error) {
         toast.error(result.error);
       } else {
         toast.success('🥤 Напиток добавлен');
-        setShowDrinks(false);
+        await invalidateStation();
       }
     } finally {
       setAddingDrinkId(null);
@@ -168,7 +177,7 @@ export function StationScreen() {
         toast.error(result.error);
       } else {
         toast.success('🗑 Напиток удалён');
-        await refetchStations();
+        await invalidateStation();
       }
     } finally {
       setRemovingDrinkId(null);
@@ -428,19 +437,28 @@ export function StationScreen() {
               {showDrinks && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 pb-6 border-b border-border/50">
                   {drinks.map(drink => (
-                    <Button
+                    <div
                       key={drink.id}
-                      variant="outline"
-                      size="lg"
-                      className="justify-between h-16 rounded-xl border-border/50 hover:border-success/50 hover:bg-success/5 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => handleAddDrink(drink.id, drink.price)}
-                      disabled={addingDrinkId !== null}
+                      className="flex items-center justify-between h-16 rounded-xl border border-border/50 hover:border-success/50 hover:bg-success/5 px-4 transition-colors"
                     >
-                      <span className="font-medium">
-                        {addingDrinkId === drink.id ? '⏳ Добавляю...' : drink.name}
-                      </span>
-                      <span className="text-success font-semibold">{formatCurrency(drink.price)}</span>
-                    </Button>
+                      <div className="min-w-0 flex-1 mr-2">
+                        <span className="font-medium text-sm truncate block">{drink.name}</span>
+                        <span className="text-success font-semibold text-xs">{formatCurrency(drink.price)}</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 border-success/30 text-success hover:bg-success/20 hover:border-success"
+                        onClick={() => handleAddDrink(drink.id, drink.price)}
+                        disabled={addingDrinkId !== null}
+                      >
+                        {addingDrinkId === drink.id ? (
+                          <span className="text-xs">⏳</span>
+                        ) : (
+                          <Plus className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
                   ))}
                 </div>
               )}
