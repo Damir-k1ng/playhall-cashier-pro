@@ -5,6 +5,7 @@ import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw, Shield, BarChart3, Wifi, WifiOff } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CLUB_NAME } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
 import {
@@ -71,24 +72,42 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
               <RefreshCw className="w-4 h-4 text-primary animate-spin" />
             )}
             {/* Network quality indicator */}
-            <div className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg ${net.bg} transition-all duration-500`} title={net.label}>
-              <NetIcon className={`w-3.5 h-3.5 ${net.color} transition-colors duration-500`} />
-              {net.pulse && (
-                <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${quality === 'offline' ? 'bg-red-400' : 'bg-amber-400'} animate-pulse`} />
-              )}
-            </div>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg ${net.bg} transition-all duration-500 cursor-default`}>
+                    <NetIcon className={`w-3.5 h-3.5 ${net.color} transition-colors duration-500`} />
+                    {net.pulse && (
+                      <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${quality === 'offline' ? 'bg-red-400' : 'bg-amber-400'} animate-pulse`} />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="glass-card border-border/50 text-xs">
+                  {net.label}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           {/* Mobile indicators */}
           <div className="sm:hidden flex items-center gap-1 ml-2">
             {isRefreshing && (
               <RefreshCw className="w-4 h-4 text-primary animate-spin" />
             )}
-            <div className={`relative p-1 rounded-md ${net.bg}`} title={net.label}>
-              <NetIcon className={`w-3.5 h-3.5 ${net.color}`} />
-              {net.pulse && (
-                <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${quality === 'offline' ? 'bg-red-400' : 'bg-amber-400'} animate-pulse`} />
-              )}
-            </div>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`relative p-1 rounded-md ${net.bg} cursor-default`}>
+                    <NetIcon className={`w-3.5 h-3.5 ${net.color}`} />
+                    {net.pulse && (
+                      <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${quality === 'offline' ? 'bg-red-400' : 'bg-amber-400'} animate-pulse`} />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="glass-card border-border/50 text-xs">
+                  {net.label}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </button>
 
