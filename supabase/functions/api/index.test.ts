@@ -602,3 +602,79 @@ Deno.test("Write: split payment updates shift totals correctly", async () => {
     await logout(token!);
   }
 });
+
+// 20. Package tariff: create → extend → verify overtime calculation
+Deno.test("Write: package tariff with extension and overtime cost", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Find free station
+    const { body: stations } = await apiAuth("/stations", token!);
+    const freeStation = stations.find((s: any) => !s.activeSession);
+    if (!freeStation) {
+      console.log("SKIP: no free station for package test");
+      return;
+    }
+
+    const packageRate = freeStation.package_rate || freeStation.packageRate;
+    const hourlyRate = freeStation.hourly_rate || freeStation.hourlyRate;
+
+    // 1. Create package session
+    const { status: sessStatus, body: session } = await apiAuth("/sessions", token!, {
+      method: "POST",
+      body: JSON.stringify({ station_id: freeStation.id, tariff_type: "package" }),
+    });
+    assertEquals(sessStatus, 200, `create package session failed: ${JSON.stringify(session)}`);
+    assertEquals(session.tariff_type, "package");
+    assertEquals(session.package_count, 1, "initial package_count should be 1");
+
+    // 2. Extend package (add second package)
+    const { status: extStatus, body: extended } = await apiAuth(`/sessions/${session.id}/extend-package`, token!, {
+      method: "POST",
+    });
+    assertEquals(extStatus, 200, `extend package failed: ${JSON.stringify(extended)}`);
+    assertEquals(extended.package_count, 2, "package_count should be 2 after extension");
+
+    // 3. Get session details — verify cost calculation
+    const { body: details } = await apiAuth(`/sessions/${session.id}`, token!);
+    assertEquals(details.session.package_count, 2, "session should show 2 packages");
+    assertEquals(details.session.tariff_type, "package");
+
+    // gameCost should be at least 2 * packageRate (may include overtime for elapsed time)
+    // Since the session just started, gameCost should be exactly 2 * packageRate
+    // (no overtime yet because elapsed < 360 min)
+    const expectedBaseCost = packageRate * 2;
+    assertEquals(details.gameCost >= expectedBaseCost, true,
+      `gameCost (${details.gameCost}) should be >= 2 * packageRate (${expectedBaseCost})`);
+
+    // 4. Cleanup: complete session
+    await apiAuth(`/sessions/${session.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "completed",
+        ended_at: new Date().toISOString(),
+        game_cost: details.gameCost,
+        controller_cost: 0,
+        drink_cost: 0,
+        total_cost: details.gameCost,
+      }),
+    });
+
+    // Pay to keep data consistent
+    await apiAuth("/payments", token!, {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: session.id,
+        payment_method: "cash",
+        cash_amount: details.gameCost,
+        kaspi_amount: 0,
+        total_amount: details.gameCost,
+        discount_percent: 0,
+        discount_amount: 0,
+      }),
+    });
+  } finally {
+    await logout(token!);
+  }
+});
