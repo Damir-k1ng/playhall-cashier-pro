@@ -840,6 +840,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
 
     // POST /drink-sales - Sell drink and update shift totals
     if (path === '/drink-sales' && method === 'POST') {
