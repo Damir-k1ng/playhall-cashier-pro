@@ -431,3 +431,99 @@ Deno.test("Write: add drink to session then delete it", async () => {
     await logout(token!);
   }
 });
+
+// 18. Full cycle: session → controller → return → payment → complete
+Deno.test("Write: full session lifecycle with controller and payment", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Find a free station
+    const { body: stations } = await apiAuth("/stations", token!);
+    const freeStation = stations.find((s: any) => !s.activeSession);
+    if (!freeStation) {
+      console.log("SKIP: no free station for full-cycle test");
+      return;
+    }
+
+    // 1. Create hourly session
+    const { status: sessStatus, body: session } = await apiAuth("/sessions", token!, {
+      method: "POST",
+      body: JSON.stringify({ station_id: freeStation.id, tariff_type: "hourly" }),
+    });
+    assertEquals(sessStatus, 200, `create session failed: ${JSON.stringify(session)}`);
+    assertNotEquals(session.id, undefined);
+    assertEquals(session.status, "active");
+
+    // 2. Add controller
+    const { status: ctrlStatus, body: controller } = await apiAuth("/controller-usage", token!, {
+      method: "POST",
+      body: JSON.stringify({ session_id: session.id }),
+    });
+    assertEquals(ctrlStatus, 200, `add controller failed: ${JSON.stringify(controller)}`);
+    assertNotEquals(controller.id, undefined);
+    assertEquals(controller.returned_at, null);
+
+    // 3. Return controller
+    const returnedAt = new Date().toISOString();
+    const { status: retStatus, body: returned } = await apiAuth(`/controller-usage/${controller.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({ returned_at: returnedAt, cost: 200 }),
+    });
+    assertEquals(retStatus, 200, `return controller failed: ${JSON.stringify(returned)}`);
+    assertNotEquals(returned.returned_at, null);
+    assertEquals(returned.cost, 200);
+
+    // 4. Get session details to calculate costs
+    const { status: detailStatus, body: details } = await apiAuth(`/sessions/${session.id}`, token!);
+    assertEquals(detailStatus, 200);
+    assertNotEquals(details.totalCost, undefined, "should have totalCost");
+    assertEquals(details.controllers.length, 1, "should have 1 controller");
+
+    // 5. Update session costs before payment
+    const gameCost = details.gameCost;
+    const controllerCost = details.controllerCost;
+    const totalCost = details.totalCost;
+
+    await apiAuth(`/sessions/${session.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({
+        game_cost: gameCost,
+        controller_cost: controllerCost,
+        drink_cost: 0,
+        total_cost: totalCost,
+      }),
+    });
+
+    // 6. Create payment
+    const { status: payStatus, body: payment } = await apiAuth("/payments", token!, {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: session.id,
+        payment_method: "cash",
+        cash_amount: totalCost,
+        kaspi_amount: 0,
+        total_amount: totalCost,
+        discount_percent: 0,
+        discount_amount: 0,
+      }),
+    });
+    assertEquals(payStatus, 200, `payment failed: ${JSON.stringify(payment)}`);
+    assertNotEquals(payment.id, undefined);
+    assertEquals(payment.payment_method, "cash");
+
+    // 7. Complete session
+    const { status: closeStatus, body: closed } = await apiAuth(`/sessions/${session.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "completed",
+        ended_at: new Date().toISOString(),
+      }),
+    });
+    assertEquals(closeStatus, 200, `close session failed: ${JSON.stringify(closed)}`);
+    assertEquals(closed.status, "completed");
+    assertNotEquals(closed.ended_at, null);
+  } finally {
+    await logout(token!);
+  }
+});
