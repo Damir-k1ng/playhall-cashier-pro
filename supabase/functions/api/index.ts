@@ -2698,6 +2698,208 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ========================
+    // INVENTORY ENDPOINTS (Admin only)
+    // ========================
+
+    // GET /admin/inventory - Get all inventory with drink names
+    if (path === '/admin/inventory' && method === 'GET') {
+      const role = await getUserRole(supabase, shift.cashier_id)
+      if (role !== 'admin') {
+        return new Response(
+          JSON.stringify({ error: 'Только для администраторов' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*, drink:drinks(id, name, price)')
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        return new Response(
+          JSON.stringify({ error: 'Ошибка загрузки склада' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      return new Response(
+        JSON.stringify(data),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // PATCH /admin/inventory/:id - Update threshold or unit
+    if (path.match(/^\/admin\/inventory\/[^/]+$/) && method === 'PATCH') {
+      const id = path.split('/')[3]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const role = await getUserRole(supabase, shift.cashier_id)
+      if (role !== 'admin') {
+        return new Response(
+          JSON.stringify({ error: 'Только для администраторов' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const body = await req.json()
+      const updateData: any = {}
+      if (typeof body.min_threshold === 'number') updateData.min_threshold = body.min_threshold
+      if (body.unit && ['piece', 'liter'].includes(body.unit)) updateData.unit = body.unit
+
+      const { data, error } = await supabase
+        .from('inventory')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) {
+        return new Response(
+          JSON.stringify({ error: 'Ошибка обновления' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      return new Response(
+        JSON.stringify(data),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // POST /admin/inventory/movement - Create intake/write_off/correction
+    if (path === '/admin/inventory/movement' && method === 'POST') {
+      const role = await getUserRole(supabase, shift.cashier_id)
+      if (role !== 'admin') {
+        return new Response(
+          JSON.stringify({ error: 'Только для администраторов' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const body = await req.json()
+
+      if (!body.drink_id || !isValidUUID(body.drink_id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid drink_id' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      if (typeof body.quantity !== 'number' || body.quantity <= 0) {
+        return new Response(
+          JSON.stringify({ error: 'quantity must be positive' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      if (!['intake', 'write_off', 'correction'].includes(body.type)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid type' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      if ((body.type === 'write_off' || body.type === 'correction') && !body.reason) {
+        return new Response(
+          JSON.stringify({ error: 'reason required for write_off/correction' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const quantityChange = body.type === 'write_off' ? -body.quantity : body.quantity
+
+      // Read current quantity then update
+      const { data: currentInv } = await supabase
+        .from('inventory')
+        .select('quantity')
+        .eq('drink_id', body.drink_id)
+        .single()
+
+      if (!currentInv) {
+        return new Response(
+          JSON.stringify({ error: 'Inventory record not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const newQuantity = Number(currentInv.quantity) + quantityChange
+
+      const { error: upErr } = await supabase
+        .from('inventory')
+        .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+        .eq('drink_id', body.drink_id)
+
+      if (upErr) {
+        return new Response(
+          JSON.stringify({ error: 'Ошибка обновления остатков' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Log movement
+      const { error: movErr } = await supabase
+        .from('inventory_movements')
+        .insert({
+          drink_id: body.drink_id,
+          quantity_change: quantityChange,
+          type: body.type,
+          reason: body.reason || null,
+          performed_by: shift.cashier_id,
+          shift_id: shift.id,
+        })
+
+      if (movErr) {
+        console.error('Movement log error:', movErr)
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, new_quantity: newQuantity }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // GET /admin/inventory/movements - Get movement log
+    if (path === '/admin/inventory/movements' && method === 'GET') {
+      const role = await getUserRole(supabase, shift.cashier_id)
+      if (role !== 'admin') {
+        return new Response(
+          JSON.stringify({ error: 'Только для администраторов' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const limit = parseInt(url.searchParams.get('limit') || '100')
+      const drinkId = url.searchParams.get('drink_id')
+
+      let query = supabase
+        .from('inventory_movements')
+        .select('*, drink:drinks(name), performer:cashiers(name)')
+        .order('created_at', { ascending: false })
+        .limit(Math.min(limit, 500))
+
+      if (drinkId && isValidUUID(drinkId)) {
+        query = query.eq('drink_id', drinkId)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        return new Response(
+          JSON.stringify({ error: 'Ошибка загрузки журнала' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      return new Response(
+        JSON.stringify(data),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     return new Response(
       JSON.stringify({ error: 'Not found' }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

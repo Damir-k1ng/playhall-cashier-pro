@@ -261,6 +261,99 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          drink_id: string
+          id: string
+          min_threshold: number
+          quantity: number
+          unit: Database["public"]["Enums"]["inventory_unit"]
+          updated_at: string
+        }
+        Insert: {
+          drink_id: string
+          id?: string
+          min_threshold?: number
+          quantity?: number
+          unit?: Database["public"]["Enums"]["inventory_unit"]
+          updated_at?: string
+        }
+        Update: {
+          drink_id?: string
+          id?: string
+          min_threshold?: number
+          quantity?: number
+          unit?: Database["public"]["Enums"]["inventory_unit"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_drink_id_fkey"
+            columns: ["drink_id"]
+            isOneToOne: true
+            referencedRelation: "drinks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          drink_id: string
+          id: string
+          performed_by: string | null
+          quantity_change: number
+          reason: string | null
+          reference_id: string | null
+          shift_id: string | null
+          type: Database["public"]["Enums"]["inventory_movement_type"]
+        }
+        Insert: {
+          created_at?: string
+          drink_id: string
+          id?: string
+          performed_by?: string | null
+          quantity_change: number
+          reason?: string | null
+          reference_id?: string | null
+          shift_id?: string | null
+          type: Database["public"]["Enums"]["inventory_movement_type"]
+        }
+        Update: {
+          created_at?: string
+          drink_id?: string
+          id?: string
+          performed_by?: string | null
+          quantity_change?: number
+          reason?: string | null
+          reference_id?: string | null
+          shift_id?: string | null
+          type?: Database["public"]["Enums"]["inventory_movement_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_drink_id_fkey"
+            columns: ["drink_id"]
+            isOneToOne: false
+            referencedRelation: "drinks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "cashiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           cash_amount: number | null
@@ -604,6 +697,8 @@ export type Database = {
         | "delete_drink_sale"
         | "edit_controller"
       booking_status: "booked" | "cancelled" | "completed"
+      inventory_movement_type: "intake" | "sale" | "write_off" | "correction"
+      inventory_unit: "piece" | "liter"
       payment_method: "cash" | "kaspi" | "split"
       session_status: "active" | "completed"
       tariff_type: "hourly" | "package"
@@ -742,6 +837,8 @@ export const Constants = {
         "edit_controller",
       ],
       booking_status: ["booked", "cancelled", "completed"],
+      inventory_movement_type: ["intake", "sale", "write_off", "correction"],
+      inventory_unit: ["piece", "liter"],
       payment_method: ["cash", "kaspi", "split"],
       session_status: ["active", "completed"],
       tariff_type: ["hourly", "package"],
