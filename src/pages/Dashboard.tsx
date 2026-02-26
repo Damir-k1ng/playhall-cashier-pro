@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useStations } from '@/hooks/useStations';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { Header } from '@/components/layout/Header';
 import { StationGrid } from '@/components/stations/StationGrid';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -17,7 +17,7 @@ import logoImage from '@/assets/logo.jpg';
 
 export function Dashboard() {
   const { stations, isLoading, isRefreshing, refetch: refetchStations } = useStations();
-  const { isOnline, wasOffline, clearWasOffline } = useNetworkStatus();
+  const { isOnline, wasOffline, clearWasOffline } = useNetworkStatusContext();
   const [isSyncing, setIsSyncing] = useState(false);
   const [queueLength, setQueueLength] = useState(0);
   
