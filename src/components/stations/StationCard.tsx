@@ -112,11 +112,10 @@ function StationCardComponent({
   // Memoized status calculation
   const status = useMemo((): StationStatus => {
     if (!isActive) return 'FREE';
-    if (!isOwnSession) return 'LOCKED';
     if (isPackage && remaining <= 0) return 'OVERTIME';
     if (isPackage && remaining <= 5) return 'WARNING';
     return 'ACTIVE';
-  }, [isActive, isOwnSession, isPackage, remaining]);
+  }, [isActive, isPackage, remaining]);
 
   const config = STATUS_CONFIGS[status];
 
@@ -141,7 +140,6 @@ function StationCardComponent({
   const hoverTimerRef = useRef<number | null>(null);
 
   const handleMouseEnter = useCallback(() => {
-    if (isActive && !isOwnSession) return; // locked stations — no prefetch
     hoverTimerRef.current = window.setTimeout(() => {
       queryClient.prefetchQuery({
         queryKey: stationQueryKey(id),
@@ -149,7 +147,7 @@ function StationCardComponent({
         staleTime: 5_000, // Don't refetch if fresh
       });
     }, 150);
-  }, [id, isActive, isOwnSession, queryClient]);
+  }, [id, queryClient]);
 
   const handleMouseLeave = useCallback(() => {
     if (hoverTimerRef.current) {
@@ -159,7 +157,6 @@ function StationCardComponent({
   }, []);
 
   const handleClick = () => {
-    if (isActive && !isOwnSession) return;
     navigate(`/station/${id}`);
   };
 
@@ -185,7 +182,7 @@ function StationCardComponent({
         config.borderColor,
         config.bgGlow,
         'min-h-[180px] sm:min-h-[220px] md:min-h-[240px] flex flex-col',
-        isActive && !isOwnSession ? 'cursor-not-allowed opacity-70' : 'cursor-pointer card-lift'
+        'min-h-[180px] sm:min-h-[220px] md:min-h-[240px] flex flex-col cursor-pointer card-lift'
       )}
     >
       {/* Zone indicator line at top */}
