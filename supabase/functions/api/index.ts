@@ -1271,7 +1271,6 @@ Deno.serve(async (req) => {
           )
         }
 
-        // Validate dates
         const from = new Date(fromDate)
         const to = new Date(toDate)
         if (isNaN(from.getTime()) || isNaN(to.getTime())) {
@@ -1287,159 +1286,306 @@ Deno.serve(async (req) => {
           .select('id, name')
           .order('name')
 
-        // Build query for shifts
-        // FIXED: Include shifts that OVERLAP the selected period:
-        // 1. Shift started within the period, OR
-        // 2. Shift ended within the period (for multi-day shifts that started earlier)
-        // This uses: started_at <= to AND (ended_at >= from OR ended_at IS NULL for active shifts)
-        let shiftsQuery = supabase
-          .from('shifts')
-          .select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)')
-          .lte('started_at', to.toISOString())
-          .or(`ended_at.gte.${from.toISOString()},ended_at.is.null`)
-          .order('started_at', { ascending: false })
+        // Helper to fetch shifts for a period (handles >1000 rows with pagination)
+        async function fetchShiftsForPeriod(periodFrom: Date, periodTo: Date, filterCashierId?: string | null, excludeActive = true) {
+          let allShifts: any[] = []
+          let offset = 0
+          const PAGE_SIZE = 1000
+          
+          while (true) {
+            let query = supabase
+              .from('shifts')
+              .select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)')
+              .lte('started_at', periodTo.toISOString())
+              .or(`ended_at.gte.${periodFrom.toISOString()},ended_at.is.null`)
+              .order('started_at', { ascending: false })
+              .range(offset, offset + PAGE_SIZE - 1)
 
-        if (cashierId && isValidUUID(cashierId)) {
-          shiftsQuery = shiftsQuery.eq('cashier_id', cashierId)
+            if (excludeActive) {
+              query = query.eq('is_active', false)
+            }
+
+            if (filterCashierId && isValidUUID(filterCashierId)) {
+              query = query.eq('cashier_id', filterCashierId)
+            }
+
+            const { data, error } = await query
+            if (error) throw error
+            
+            allShifts = allShifts.concat(data || [])
+            if (!data || data.length < PAGE_SIZE) break
+            offset += PAGE_SIZE
+          }
+          
+          return allShifts
         }
 
-        const { data: shifts, error: shiftsError } = await shiftsQuery
+        // Helper to fetch session counts (handles >1000 rows)
+        async function fetchSessionCounts(shiftIds: string[]) {
+          const counts: Record<string, number> = {}
+          if (shiftIds.length === 0) return counts
+          
+          // Process in batches of 100 IDs for the IN filter
+          for (let i = 0; i < shiftIds.length; i += 100) {
+            const batch = shiftIds.slice(i, i + 100)
+            let offset = 0
+            const PAGE_SIZE = 1000
+            
+            while (true) {
+              const { data } = await supabase
+                .from('sessions')
+                .select('shift_id')
+                .in('shift_id', batch)
+                .eq('status', 'completed')
+                .range(offset, offset + PAGE_SIZE - 1)
+              
+              ;(data || []).forEach((s: any) => {
+                counts[s.shift_id] = (counts[s.shift_id] || 0) + 1
+              })
+              
+              if (!data || data.length < PAGE_SIZE) break
+              offset += PAGE_SIZE
+            }
+          }
+          return counts
+        }
 
-        if (shiftsError) {
-          console.error('Shifts analytics error:', shiftsError)
+        // Helper to compute working day key from a date (operational day 16:00-04:00 UTC+5)
+        function getWorkingDayKey(dateStr: string): string {
+          const d = new Date(dateStr)
+          const utcHour = d.getUTCHours()
+          const astanaHour = (utcHour + 5) % 24
+          
+          const workingDay = new Date(d)
+          if (astanaHour >= 0 && astanaHour < 4) {
+            workingDay.setUTCDate(workingDay.getUTCDate() - 1)
+          }
+          return workingDay.toISOString().split('T')[0]
+        }
+
+        // Helper to format shifts with duration and session counts
+        function formatShifts(shifts: any[], sessionCounts: Record<string, number>) {
+          return shifts.map((s: any) => {
+            const startedAt = new Date(s.started_at)
+            const endedAt = s.ended_at ? new Date(s.ended_at) : new Date()
+            const durationHours = (endedAt.getTime() - startedAt.getTime()) / (1000 * 60 * 60)
+            
+            return {
+              id: s.id,
+              cashier_id: s.cashier_id,
+              cashier_name: s.cashiers?.name || 'Unknown',
+              started_at: s.started_at,
+              ended_at: s.ended_at,
+              is_active: s.is_active,
+              total_cash: s.total_cash || 0,
+              total_kaspi: s.total_kaspi || 0,
+              total_games: s.total_games || 0,
+              total_controllers: s.total_controllers || 0,
+              total_drinks: s.total_drinks || 0,
+              sessions_count: sessionCounts[s.id] || 0,
+              duration_hours: Math.round(durationHours * 10) / 10
+            }
+          })
+        }
+
+        // Helper to calculate totals from formatted shifts
+        function calculatePeriodTotals(formattedShifts: any[]) {
+          const workingDays = new Set<string>()
+          formattedShifts.forEach((s: any) => {
+            workingDays.add(getWorkingDayKey(s.started_at))
+          })
+
+          const raw = formattedShifts.reduce((acc: any, s: any) => ({
+            revenue: acc.revenue + s.total_cash + s.total_kaspi,
+            cash: acc.cash + s.total_cash,
+            kaspi: acc.kaspi + s.total_kaspi,
+            games: acc.games + s.total_games,
+            controllers: acc.controllers + s.total_controllers,
+            drinks: acc.drinks + s.total_drinks,
+            sessions: acc.sessions + s.sessions_count,
+            totalHours: acc.totalHours + s.duration_hours
+          }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, totalHours: 0 })
+
+          return {
+            ...raw,
+            shiftsCount: workingDays.size,
+            avgCheck: raw.sessions > 0 ? Math.round(raw.revenue / raw.sessions) : 0,
+            revenuePerHour: raw.totalHours > 0 ? Math.round(raw.revenue / raw.totalHours) : 0
+          }
+        }
+
+        try {
+          // === CURRENT PERIOD ===
+          const shifts = await fetchShiftsForPeriod(from, to, cashierId, true)
+          const shiftIds = shifts.map((s: any) => s.id)
+          const sessionCounts = await fetchSessionCounts(shiftIds)
+          const formattedShifts = formatShifts(shifts, sessionCounts)
+          const totals = calculatePeriodTotals(formattedShifts)
+
+          // === PREVIOUS PERIOD (same length, right before current) ===
+          const periodLength = to.getTime() - from.getTime()
+          const prevFrom = new Date(from.getTime() - periodLength)
+          const prevTo = new Date(from.getTime() - 1)
+
+          const prevShifts = await fetchShiftsForPeriod(prevFrom, prevTo, cashierId, true)
+          const prevShiftIds = prevShifts.map((s: any) => s.id)
+          const prevSessionCounts = await fetchSessionCounts(prevShiftIds)
+          const prevFormattedShifts = formatShifts(prevShifts, prevSessionCounts)
+          const previousPeriodTotals = calculatePeriodTotals(prevFormattedShifts)
+
+          // === DRINK ANALYTICS ===
+          // Get all drink sales for shifts in current period
+          let drinkAnalytics: any = { topDrinks: [], drinksByDay: [] }
+          
+          if (shiftIds.length > 0) {
+            // Fetch drink sales with drink names (paginated)
+            let allDrinkSales: any[] = []
+            for (let i = 0; i < shiftIds.length; i += 100) {
+              const batch = shiftIds.slice(i, i + 100)
+              let offset = 0
+              while (true) {
+                const { data } = await supabase
+                  .from('drink_sales')
+                  .select('id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at, drinks(name, price)')
+                  .in('shift_id', batch)
+                  .range(offset, offset + 999)
+                
+                allDrinkSales = allDrinkSales.concat(data || [])
+                if (!data || data.length < 1000) break
+                offset += 1000
+              }
+            }
+
+            // Also fetch session drinks
+            let allSessionDrinks: any[] = []
+            for (let i = 0; i < shiftIds.length; i += 100) {
+              const batch = shiftIds.slice(i, i + 100)
+              // Get sessions for these shifts first
+              const { data: sessionsForDrinks } = await supabase
+                .from('sessions')
+                .select('id, shift_id')
+                .in('shift_id', batch)
+                .eq('status', 'completed')
+              
+              const sessionIds = (sessionsForDrinks || []).map((s: any) => s.id)
+              if (sessionIds.length > 0) {
+                for (let j = 0; j < sessionIds.length; j += 100) {
+                  const sessionBatch = sessionIds.slice(j, j + 100)
+                  const { data } = await supabase
+                    .from('session_drinks')
+                    .select('id, session_id, drink_id, quantity, total_price, created_at, drinks(name, price)')
+                    .in('session_id', sessionBatch)
+                  
+                  // Map session_id back to shift_id
+                  const sessionToShift: Record<string, string> = {}
+                  ;(sessionsForDrinks || []).forEach((s: any) => { sessionToShift[s.id] = s.shift_id })
+                  
+                  ;(data || []).forEach((d: any) => {
+                    allSessionDrinks.push({
+                      ...d,
+                      shift_id: sessionToShift[d.session_id]
+                    })
+                  })
+                }
+              }
+            }
+
+            // Top drinks - aggregate by drink name
+            const drinkMap = new Map<string, { name: string; totalQuantity: number; totalRevenue: number }>()
+            
+            const processDrinkItem = (item: any) => {
+              const name = item.drinks?.name || 'Unknown'
+              const existing = drinkMap.get(name) || { name, totalQuantity: 0, totalRevenue: 0 }
+              existing.totalQuantity += item.quantity || 1
+              existing.totalRevenue += item.total_price || 0
+              drinkMap.set(name, existing)
+            }
+
+            allDrinkSales.forEach(processDrinkItem)
+            allSessionDrinks.forEach(processDrinkItem)
+
+            const topDrinks = Array.from(drinkMap.values())
+              .sort((a, b) => b.totalRevenue - a.totalRevenue)
+
+            // Drinks by day (operational day grouping)
+            const dayMap = new Map<string, { date: string; revenue: number; quantity: number }>()
+            
+            const processDayItem = (item: any) => {
+              const dayKey = getWorkingDayKey(item.created_at)
+              const existing = dayMap.get(dayKey) || { date: dayKey, revenue: 0, quantity: 0 }
+              existing.revenue += item.total_price || 0
+              existing.quantity += item.quantity || 1
+              dayMap.set(dayKey, existing)
+            }
+
+            allDrinkSales.forEach(processDayItem)
+            allSessionDrinks.forEach(processDayItem)
+
+            const drinksByDay = Array.from(dayMap.values())
+              .sort((a, b) => a.date.localeCompare(b.date))
+
+            // Drinks by cashier
+            const cashierDrinkMap = new Map<string, { cashier_id: string; cashier_name: string; totalRevenue: number; totalQuantity: number }>()
+            
+            allDrinkSales.forEach((sale: any) => {
+              const shift = formattedShifts.find((s: any) => s.id === sale.shift_id)
+              if (!shift) return
+              const existing = cashierDrinkMap.get(shift.cashier_id) || { cashier_id: shift.cashier_id, cashier_name: shift.cashier_name, totalRevenue: 0, totalQuantity: 0 }
+              existing.totalRevenue += sale.total_price || 0
+              existing.totalQuantity += sale.quantity || 1
+              cashierDrinkMap.set(shift.cashier_id, existing)
+            })
+
+            allSessionDrinks.forEach((item: any) => {
+              const shift = formattedShifts.find((s: any) => s.id === item.shift_id)
+              if (!shift) return
+              const existing = cashierDrinkMap.get(shift.cashier_id) || { cashier_id: shift.cashier_id, cashier_name: shift.cashier_name, totalRevenue: 0, totalQuantity: 0 }
+              existing.totalRevenue += item.total_price || 0
+              existing.totalQuantity += item.quantity || 1
+              cashierDrinkMap.set(shift.cashier_id, existing)
+            })
+
+            const drinksByCashier = Array.from(cashierDrinkMap.values())
+              .sort((a, b) => b.totalRevenue - a.totalRevenue)
+
+            drinkAnalytics = { topDrinks, drinksByDay, drinksByCashier }
+          }
+
+          // === PREVIOUS PERIOD CHART DATA (for overlay) ===
+          const prevChartData = prevFormattedShifts.length > 0 ? (() => {
+            const dayMap = new Map<string, { revenue: number; cash: number; kaspi: number; sessions: number }>()
+            prevFormattedShifts.forEach((s: any) => {
+              const dayKey = getWorkingDayKey(s.started_at)
+              const existing = dayMap.get(dayKey) || { revenue: 0, cash: 0, kaspi: 0, sessions: 0 }
+              existing.revenue += s.total_cash + s.total_kaspi
+              existing.cash += s.total_cash
+              existing.kaspi += s.total_kaspi
+              existing.sessions += s.sessions_count
+              dayMap.set(dayKey, existing)
+            })
+            return Array.from(dayMap.entries())
+              .sort((a, b) => a[0].localeCompare(b[0]))
+              .map(([date, data]) => ({ date, ...data }))
+          })() : []
+
           return new Response(
-            JSON.stringify({ error: 'Failed to fetch shifts' }),
+            JSON.stringify({
+              shifts: formattedShifts,
+              cashiers: cashiers || [],
+              totals,
+              previousPeriodTotals,
+              drinkAnalytics,
+              prevChartData
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        } catch (err) {
+          console.error('Analytics error:', err)
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch analytics' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
-
-        // Get session counts per shift
-        const shiftIds = (shifts || []).map(s => s.id)
-        let sessionCounts: Record<string, number> = {}
-        
-        if (shiftIds.length > 0) {
-          const { data: sessions } = await supabase
-            .from('sessions')
-            .select('shift_id')
-            .in('shift_id', shiftIds)
-            .eq('status', 'completed')
-
-          sessionCounts = (sessions || []).reduce((acc: Record<string, number>, s: any) => {
-            acc[s.shift_id] = (acc[s.shift_id] || 0) + 1
-            return acc
-          }, {})
-        }
-
-        // Format shifts data with duration calculation
-        const formattedShifts = (shifts || []).map((s: any) => {
-          const startedAt = new Date(s.started_at)
-          const endedAt = s.ended_at ? new Date(s.ended_at) : new Date()
-          const durationHours = (endedAt.getTime() - startedAt.getTime()) / (1000 * 60 * 60)
-          
-          return {
-            id: s.id,
-            cashier_id: s.cashier_id,
-            cashier_name: s.cashiers?.name || 'Unknown',
-            started_at: s.started_at,
-            ended_at: s.ended_at,
-            is_active: s.is_active,
-            total_cash: s.total_cash || 0,
-            total_kaspi: s.total_kaspi || 0,
-            total_games: s.total_games || 0,
-            total_controllers: s.total_controllers || 0,
-            total_drinks: s.total_drinks || 0,
-            sessions_count: sessionCounts[s.id] || 0,
-            duration_hours: Math.round(durationHours * 10) / 10
-          }
-        })
-
-        // Calculate totals including hours
-        // Count unique "working days" - a working day is 16:00 to 04:00 next day
-        // We normalize each shift's start time to its "working day" (if before 04:00, it belongs to previous day)
-        const workingDays = new Set<string>()
-        formattedShifts.forEach((s: any) => {
-          const startDate = new Date(s.started_at)
-          // If shift starts between 00:00-04:00, it belongs to previous calendar day's "working day"
-          // Otherwise, it belongs to the current calendar day's "working day"
-          let workingDayDate = new Date(startDate)
-          const hour = startDate.getUTCHours() + 5 // Convert to Astana timezone (UTC+5)
-          const adjustedHour = hour >= 24 ? hour - 24 : hour
-          
-          if (adjustedHour >= 0 && adjustedHour < 4) {
-            // This shift started in the early morning, belongs to previous day's working period
-            workingDayDate.setDate(workingDayDate.getDate() - 1)
-          }
-          
-          // Create unique key for this working day (YYYY-MM-DD format)
-          const dateKey = workingDayDate.toISOString().split('T')[0]
-          workingDays.add(dateKey)
-        })
-
-        const rawTotals = formattedShifts.reduce((acc: any, s: any) => ({
-          revenue: acc.revenue + s.total_cash + s.total_kaspi,
-          cash: acc.cash + s.total_cash,
-          kaspi: acc.kaspi + s.total_kaspi,
-          games: acc.games + s.total_games,
-          controllers: acc.controllers + s.total_controllers,
-          drinks: acc.drinks + s.total_drinks,
-          sessions: acc.sessions + s.sessions_count,
-          totalHours: acc.totalHours + s.duration_hours
-        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, totalHours: 0 })
-
-        const totals = {
-          ...rawTotals,
-          shiftsCount: workingDays.size, // Now counts unique working days, not individual shift records
-          avgCheck: rawTotals.sessions > 0 ? Math.round(rawTotals.revenue / rawTotals.sessions) : 0,
-          revenuePerHour: rawTotals.totalHours > 0 ? Math.round(rawTotals.revenue / rawTotals.totalHours) : 0
-        }
-
-        // Calculate previous period totals for comparison
-        const periodLength = to.getTime() - from.getTime()
-        const prevFrom = new Date(from.getTime() - periodLength)
-        const prevTo = new Date(from.getTime() - 1)
-
-        let prevShiftsQuery = supabase
-          .from('shifts')
-          .select('total_cash, total_kaspi, total_games, total_controllers, total_drinks')
-          .lte('started_at', prevTo.toISOString())
-          .or(`ended_at.gte.${prevFrom.toISOString()},ended_at.is.null`)
-
-        if (cashierId && isValidUUID(cashierId)) {
-          prevShiftsQuery = prevShiftsQuery.eq('cashier_id', cashierId)
-        }
-
-        const { data: prevShifts } = await prevShiftsQuery
-
-        // Count working days for previous period as well
-        const prevWorkingDays = new Set<string>()
-        ;(prevShifts || []).forEach((s: any) => {
-          // We don't have started_at in this query, so just count records for now
-          // This is a simplified count - for accurate comparison we'd need the full data
-        })
-
-        const previousPeriodTotals = (prevShifts || []).reduce((acc: any, s: any) => ({
-          revenue: acc.revenue + (s.total_cash || 0) + (s.total_kaspi || 0),
-          cash: acc.cash + (s.total_cash || 0),
-          kaspi: acc.kaspi + (s.total_kaspi || 0),
-          games: acc.games + (s.total_games || 0),
-          controllers: acc.controllers + (s.total_controllers || 0),
-          drinks: acc.drinks + (s.total_drinks || 0),
-          sessions: 0,
-          avgCheck: 0,
-          shiftsCount: (prevShifts || []).length, // Keep as record count for comparison
-          totalHours: 0,
-          revenuePerHour: 0
-        }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, avgCheck: 0, shiftsCount: 0, totalHours: 0, revenuePerHour: 0 })
-
-        return new Response(
-          JSON.stringify({
-            shifts: formattedShifts,
-            cashiers: cashiers || [],
-            totals,
-            previousPeriodTotals
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
       }
 
       // GET /admin/active-sessions - Get all active sessions across all shifts
