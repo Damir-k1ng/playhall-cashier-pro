@@ -302,7 +302,7 @@ function StationCardComponent({
           }}
         >
           <Button 
-            className="h-9 sm:h-11 bg-gradient-to-r from-success to-emerald-600 hover:opacity-90 font-bold text-sm sm:text-base btn-press glow-emerald min-w-0 flex-1 rounded-lg"
+            className="h-9 sm:h-11 bg-gradient-to-r from-success to-secondary hover:opacity-90 font-bold text-sm sm:text-base btn-press glow-emerald min-w-0 flex-1 rounded-lg"
             onClick={handleStartClick}
           >
             <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 shrink-0" />
