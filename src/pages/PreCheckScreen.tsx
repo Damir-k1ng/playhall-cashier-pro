@@ -4,7 +4,7 @@ import { useStations } from '@/hooks/useStations';
 import { useGlobalTimer } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
 import { PreCheckSkeleton } from '@/components/skeletons/PreCheckSkeleton';
-import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCost, formatTimeFromISO, formatTime } from '@/lib/utils';
+import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCostBreakdown, formatTimeFromISO, formatTime } from '@/lib/utils';
 import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard, Percent } from 'lucide-react';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -49,13 +49,17 @@ export function PreCheckScreen() {
   const elapsedSeconds = session ? getElapsedSeconds(session.started_at) : 0;
   const elapsedMins = Math.floor(elapsedSeconds / 60);
 
-  const gameCost = station && session ? calculateGameCost(
+  const gameCostBreakdown = station && session ? calculateGameCostBreakdown(
     station.hourly_rate,
     station.package_rate,
     session.tariff_type,
     elapsedMins,
     packageCount
-  ) : 0;
+  ) : { packageCost: 0, overtimeCost: 0, totalGameCost: 0 };
+
+  const gameCost = gameCostBreakdown.totalGameCost;
+  const _packageCost = gameCostBreakdown.packageCost;
+  const overtimeCost = gameCostBreakdown.overtimeCost;
 
   const controllerDetails: ControllerDetail[] = (station?.controllers || []).map(c => {
     let minutes: number;
@@ -71,8 +75,8 @@ export function PreCheckScreen() {
   const totalControllerCost = controllerDetails.reduce((sum, c) => sum + c.cost, 0);
   const drinkCost = (station?.drinks || []).reduce((sum, d) => sum + d.total_price, 0);
 
-  // Discount applies to game + controllers only (not drinks)
-  const discountableAmount = gameCost + totalControllerCost;
+  // Discount applies to overtime + controllers only (NOT packages, NOT drinks)
+  const discountableAmount = overtimeCost + totalControllerCost;
   const discountAmount = Math.round(discountableAmount * selectedDiscount / 100);
   const totalBeforeDiscount = gameCost + totalControllerCost + drinkCost;
   const totalCost = totalBeforeDiscount - discountAmount;
@@ -185,6 +189,19 @@ export function PreCheckScreen() {
               </div>
               <div className="text-2xl font-bold text-primary">{formatCurrency(gameCost)}</div>
             </div>
+            {/* Show package/overtime breakdown for package tariff with overtime */}
+            {session.tariff_type === 'package' && overtimeCost > 0 && (
+              <div className="mt-3 pt-3 border-t border-border/50 space-y-1 pl-16 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Пакет 2+1 × {packageCount}</span>
+                  <span>{formatCurrency(gameCostBreakdown.packageCost)}</span>
+                </div>
+                <div className="flex justify-between text-amber-500 font-medium">
+                  <span>Переработка ({formatDuration(elapsedMins - 180 * packageCount)})</span>
+                  <span>{formatCurrency(overtimeCost)}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Controllers */}
@@ -230,8 +247,8 @@ export function PreCheckScreen() {
             </div>
           )}
 
-          {/* Discount Section */}
-          {discountPresets.length > 0 && (
+          {/* Discount Section - only show when there's discountable amount */}
+          {discountPresets.length > 0 && discountableAmount > 0 && (
             <div className="glass-card rounded-xl border border-amber-500/20 p-5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
@@ -240,7 +257,7 @@ export function PreCheckScreen() {
                 <div>
                   <div className="font-semibold text-lg">Скидка</div>
                   <div className="text-xs text-muted-foreground">
-                    На игру и джойстики (макс. {maxDiscountPercent}%)
+                    На открытое время и джойстики (макс. {maxDiscountPercent}%)
                   </div>
                 </div>
               </div>
