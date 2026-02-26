@@ -294,3 +294,140 @@ Deno.test("Admin: GET /admin/shifts-analytics returns data", async () => {
     await logout(token!);
   }
 });
+
+// ==================== WRITE TESTS ====================
+
+// 15. Create booking → cancel booking
+Deno.test("Write: create booking then cancel it", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Get first station
+    const { status: stStatus, body: stations } = await apiAuth("/stations", token!);
+    assertEquals(stStatus, 200);
+    assertEquals(stations.length > 0, true, "need at least one station");
+    const stationId = stations[0].id;
+
+    // Create booking
+    const { status: createStatus, body: booking } = await apiAuth("/bookings", token!, {
+      method: "POST",
+      body: JSON.stringify({
+        station_id: stationId,
+        start_time: "23:55",
+        comment: "smoke-test booking",
+      }),
+    });
+    assertEquals(createStatus, 200, `create booking failed: ${JSON.stringify(booking)}`);
+    assertNotEquals(booking.id, undefined, "booking should have id");
+    assertEquals(booking.status, "booked");
+
+    // Cancel booking
+    const { status: cancelStatus, body: cancelled } = await apiAuth(`/bookings/${booking.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    assertEquals(cancelStatus, 200, `cancel booking failed: ${JSON.stringify(cancelled)}`);
+    assertEquals(cancelled.status, "cancelled");
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 16. Create reservation → cancel reservation
+Deno.test("Write: create reservation then cancel it", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Get first station
+    const { body: stations } = await apiAuth("/stations", token!);
+    const stationId = stations[0].id;
+
+    // Create reservation (1 hour from now)
+    const reservedFor = new Date(Date.now() + 3600_000).toISOString();
+    const { status: createStatus, body: reservation } = await apiAuth("/reservations", token!, {
+      method: "POST",
+      body: JSON.stringify({
+        station_id: stationId,
+        reserved_for: reservedFor,
+        customer_name: "Smoke Test",
+        phone: "+77001234567",
+      }),
+    });
+    assertEquals(createStatus, 200, `create reservation failed: ${JSON.stringify(reservation)}`);
+    assertNotEquals(reservation.id, undefined);
+    assertEquals(reservation.is_active, true);
+
+    // Cancel reservation
+    const { status: cancelStatus, body: cancelled } = await apiAuth(`/reservations/${reservation.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: false }),
+    });
+    assertEquals(cancelStatus, 200, `cancel reservation failed: ${JSON.stringify(cancelled)}`);
+    assertEquals(cancelled.is_active, false);
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 17. Add drink to session → delete drink from session
+Deno.test("Write: add drink to session then delete it", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Get a station without active session
+    const { body: stations } = await apiAuth("/stations", token!);
+    const freeStation = stations.find((s: any) => !s.activeSession);
+    if (!freeStation) {
+      console.log("SKIP: no free station available for session-drink write test");
+      return;
+    }
+
+    // Create session
+    const { status: sessStatus, body: session } = await apiAuth("/sessions", token!, {
+      method: "POST",
+      body: JSON.stringify({ station_id: freeStation.id, tariff_type: "hourly" }),
+    });
+    assertEquals(sessStatus, 200, `create session failed: ${JSON.stringify(session)}`);
+
+    try {
+      // Get drinks
+      const { body: drinks } = await apiAuth("/drinks", token!);
+      if (!drinks || drinks.length === 0) {
+        console.log("SKIP: no drinks in DB");
+        return;
+      }
+      const drink = drinks[0];
+
+      // Add drink to session
+      const { status: addStatus, body: sessionDrink } = await apiAuth("/session-drinks", token!, {
+        method: "POST",
+        body: JSON.stringify({
+          session_id: session.id,
+          drink_id: drink.id,
+          quantity: 1,
+          total_price: drink.price,
+        }),
+      });
+      assertEquals(addStatus, 200, `add drink failed: ${JSON.stringify(sessionDrink)}`);
+      assertNotEquals(sessionDrink.id, undefined);
+
+      // Delete drink from session
+      const { status: delStatus, body: delResult } = await apiAuth(`/session-drinks/${sessionDrink.id}`, token!, {
+        method: "DELETE",
+      });
+      assertEquals(delStatus, 200, `delete drink failed: ${JSON.stringify(delResult)}`);
+      assertEquals(delResult.success, true);
+    } finally {
+      // Cleanup: close the session
+      await apiAuth(`/sessions/${session.id}`, token!, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "completed", ended_at: new Date().toISOString(), game_cost: 0, controller_cost: 0, drink_cost: 0, total_cost: 0 }),
+      });
+    }
+  } finally {
+    await logout(token!);
+  }
+});
