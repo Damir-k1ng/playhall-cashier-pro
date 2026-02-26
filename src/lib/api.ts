@@ -70,6 +70,14 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        // If server says unauthorized, clear stored token to force re-login
+        if (response.status === 401) {
+          localStorage.removeItem('svoy_session_token');
+          this.sessionToken = null;
+          // Force reload to show login screen
+          window.location.reload();
+          throw new Error('Session expired');
+        }
         throw new Error(data.error || 'API Error');
       }
 
