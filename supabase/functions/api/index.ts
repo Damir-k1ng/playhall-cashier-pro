@@ -157,6 +157,33 @@ async function handleGetStations(ctx: Ctx): Promise<Response> {
   return jsonResponse(stationsWithData, cors, 200, { 'Cache-Control': 'private, max-age=2' })
 }
 
+// GET /stations/:id — single station with full details (controllers, drinks)
+async function handleGetSingleStation(ctx: Ctx): Promise<Response> {
+  const { supabase, shift, cors, path } = ctx
+  const id = path.split('/')[2]
+  if (!isValidUUID(id)) return errorResponse('Invalid station ID', cors)
+
+  const [stationResult, sessionResult, reservationResult, bookingResult] = await Promise.all([
+    supabase.from('stations').select('*').eq('id', id).single(),
+    supabase.from('sessions').select('*, controller_usage(*), session_drinks(*, drinks(*))').eq('station_id', id).eq('status', 'active').maybeSingle(),
+    supabase.from('reservations').select('*').eq('station_id', id).eq('is_active', true).maybeSingle(),
+    supabase.from('bookings').select('*').eq('station_id', id).eq('status', 'booked').eq('booking_date', new Date().toISOString().split('T')[0]).maybeSingle(),
+  ])
+
+  if (stationResult.error || !stationResult.data) return errorResponse('Station not found', cors, 404)
+
+  const station = stationResult.data
+  const activeSession = sessionResult.data || null
+
+  return jsonResponse({
+    ...station,
+    activeSession,
+    activeReservation: reservationResult.data || null,
+    activeBooking: bookingResult.data || null,
+    isOwnSession: activeSession ? activeSession.shift_id === shift.id : null,
+  }, cors, 200, { 'Cache-Control': 'private, max-age=1' })
+}
+
 async function handleGetDrinks(ctx: Ctx): Promise<Response> {
   const { data } = await ctx.supabase.from('drinks').select('*').order('name')
   return jsonResponse(data, ctx.cors)
@@ -1381,6 +1408,7 @@ Deno.serve(async (req) => {
 
     // ---- Cashier routes (flat, no nesting) ----
     if (path === '/stations' && method === 'GET') return await handleGetStations(ctx)
+    if (path.match(/^\/stations\/[0-9a-f-]+$/) && method === 'GET') return await handleGetSingleStation(ctx)
     if (path === '/drinks' && method === 'GET') return await handleGetDrinks(ctx)
     if (path === '/reservations' && method === 'GET') return await handleGetReservations(ctx)
     if (path === '/bookings' && method === 'GET') return await handleGetBookings(ctx)
