@@ -280,7 +280,7 @@ async function handleExtendPackage(ctx: Ctx): Promise<Response> {
   const { data: session, error: sessionError } = await supabase
     .from('sessions').select('*, station:stations(*)').eq('id', id).single()
   if (sessionError || !session) return errorResponse('Session not found', cors, 404)
-  if (session.shift_id !== shift.id) return errorResponse('Вы не можете управлять сессией другого кассира', cors, 403)
+  // No ownership restriction — any cashier can manage any session
   if (session.tariff_type !== 'package') return errorResponse('Только пакетные сессии могут быть продлены', cors)
   if (session.status !== 'active') return errorResponse('Сессия уже завершена', cors)
 
@@ -299,7 +299,6 @@ async function handleUpdateSession(ctx: Ctx): Promise<Response> {
 
   const { data: existingSession } = await supabase.from('sessions').select('shift_id').eq('id', id).single()
   if (!existingSession) return errorResponse('Session not found', cors, 404)
-  if (existingSession.shift_id !== shift.id) return errorResponse('Вы не можете управлять сессией другого кассира', cors, 403)
 
   const body = await req.json()
   const allowedFields = ['status', 'ended_at', 'game_cost', 'controller_cost', 'drink_cost', 'total_cost']
@@ -329,7 +328,6 @@ async function handleCreatePayment(ctx: Ctx): Promise<Response> {
 
   const { data: sessionData } = await supabase.from('sessions').select('shift_id, game_cost, controller_cost, drink_cost').eq('id', body.session_id).single()
   if (!sessionData) return errorResponse('Session not found', cors, 404)
-  if (sessionData.shift_id !== shift.id) return errorResponse('Вы не можете принять оплату за сессию другого кассира', cors, 403)
 
   const { data, error } = await supabase.from('payments').insert({
     session_id: body.session_id, payment_method: body.payment_method,
@@ -358,11 +356,6 @@ async function handleCreateControllerUsage(ctx: Ctx): Promise<Response> {
   const body = await req.json()
   const v = validateControllerUsage(body)
   if (!v.valid) return errorResponse(v.error!, cors)
-
-  // Ownership check: only the session owner can add controllers
-  const { data: sessionData } = await supabase.from('sessions').select('shift_id').eq('id', body.session_id).single()
-  if (!sessionData) return errorResponse('Session not found', cors, 404)
-  if (sessionData.shift_id !== shift.id) return errorResponse('Вы не можете управлять сессией другого кассира', cors, 403)
 
   const { data: recentController } = await supabase
     .from('controller_usage').select('id, taken_at').eq('session_id', body.session_id)
@@ -398,11 +391,6 @@ async function handleAddSessionDrink(ctx: Ctx): Promise<Response> {
   const v = validateSessionDrink(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  // Ownership check: only the session owner can add drinks
-  const { data: sessionData } = await supabase.from('sessions').select('shift_id').eq('id', body.session_id).single()
-  if (!sessionData) return errorResponse('Session not found', cors, 404)
-  if (sessionData.shift_id !== shift.id) return errorResponse('Вы не можете управлять сессией другого кассира', cors, 403)
-
   const { data, error } = await supabase.from('session_drinks').insert({
     session_id: body.session_id, drink_id: body.drink_id, quantity: body.quantity, total_price: body.total_price,
   }).select().single()
@@ -419,7 +407,6 @@ async function handleDeleteSessionDrink(ctx: Ctx): Promise<Response> {
     .from('session_drinks').select('*, session:sessions(id, status, shift_id)').eq('id', id).single()
   if (!sessionDrink) return errorResponse('Напиток не найден', cors, 404)
   if (sessionDrink.session?.status !== 'active') return errorResponse('Сессия уже завершена', cors)
-  if (sessionDrink.session?.shift_id !== shift.id) return errorResponse('Вы не можете удалять напитки из чужой сессии', cors, 403)
 
   const { error } = await supabase.from('session_drinks').delete().eq('id', id)
   if (error) { console.error('Session drink delete error:', error); return errorResponse('Не удалось удалить напиток', cors) }

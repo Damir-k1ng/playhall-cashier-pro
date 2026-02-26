@@ -799,19 +799,19 @@ Deno.test("Authenticated: GET /stations/:id returns station with controllers and
   }
 });
 
-// 23. Session ownership: cashier B gets 403 on cashier A's session; admin can manage any session
-Deno.test("Security: non-owner cashier gets 403, admin can manage other's session", async () => {
+// 23. Any cashier can manage any session (no ownership restriction)
+Deno.test("Security: any cashier can manage another cashier's session", async () => {
   // Cashier A (ALI, PIN 5288) creates a session
   const tokenA = await loginWithPin("5288");
   assertNotEquals(tokenA, null, "Cashier A (ALI) login failed");
 
-  // Admin (PIN 1625)
-  const adminToken = await loginWithPin("1625");
-  assertNotEquals(adminToken, null, "Admin login failed");
-
   // Cashier B (Damir, PIN 2525)
   const tokenB = await loginWithPin("2525");
   assertNotEquals(tokenB, null, "Cashier B (Damir) login failed");
+
+  // Admin for cleanup
+  const adminToken = await loginWithPin("1625");
+  assertNotEquals(adminToken, null, "Admin login failed");
 
   let sessionId: string | null = null;
 
@@ -820,7 +820,7 @@ Deno.test("Security: non-owner cashier gets 403, admin can manage other's sessio
     const { body: stations } = await apiAuth("/stations", tokenA!);
     const freeStation = stations.find((s: any) => !s.activeSession);
     if (!freeStation) {
-      console.log("SKIP: no free station for ownership test");
+      console.log("SKIP: no free station for cross-cashier test");
       return;
     }
 
@@ -832,81 +832,54 @@ Deno.test("Security: non-owner cashier gets 403, admin can manage other's sessio
     assertEquals(createStatus, 200, `Cashier A create session failed: ${JSON.stringify(session)}`);
     sessionId = session.id;
 
-    // === Cashier B tries to manage Cashier A's session → 403 ===
+    // === Cashier B can manage Cashier A's session ===
 
-    // 1. PATCH session (update costs)
+    // 1. PATCH session (update costs) → 200
     const { status: patchStatus } = await apiAuth(`/sessions/${sessionId}`, tokenB!, {
       method: "PATCH",
       body: JSON.stringify({ game_cost: 100, controller_cost: 0, drink_cost: 0, total_cost: 100 }),
     });
-    assertEquals(patchStatus, 403, "Cashier B should get 403 when PATCHing another's session");
+    assertEquals(patchStatus, 200, "Cashier B should be able to PATCH another's session");
 
-    // 2. GET session details — should still work (read access is open)
+    // 2. GET session details → 200
     const { status: getStatus } = await apiAuth(`/sessions/${sessionId}`, tokenB!);
     assertEquals(getStatus, 200, "Any cashier should be able to GET session details");
 
-    // 3. Add controller to another's session
-    const { status: ctrlStatus } = await apiAuth("/controller-usage", tokenB!, {
+    // 3. Add controller → 200
+    const { status: ctrlStatus, body: controller } = await apiAuth("/controller-usage", tokenB!, {
       method: "POST",
       body: JSON.stringify({ session_id: sessionId }),
     });
-    assertEquals(ctrlStatus, 403, "Cashier B should get 403 when adding controller to another's session");
+    assertEquals(ctrlStatus, 200, "Cashier B should be able to add controller to another's session");
 
-    // 4. Add drink to another's session
+    // 4. Return controller
+    if (controller?.id) {
+      const { status: retStatus } = await apiAuth(`/controller-usage/${controller.id}`, tokenB!, {
+        method: "PATCH",
+        body: JSON.stringify({ returned_at: new Date().toISOString(), cost: 200 }),
+      });
+      assertEquals(retStatus, 200, "Cashier B should be able to return controller");
+    }
+
+    // 5. Add drink → 200
     const { body: drinks } = await apiAuth("/drinks", tokenB!);
     if (drinks.length > 0) {
       const { status: drinkStatus } = await apiAuth("/session-drinks", tokenB!, {
         method: "POST",
         body: JSON.stringify({ session_id: sessionId, drink_id: drinks[0].id, quantity: 1, total_price: drinks[0].price }),
       });
-      assertEquals(drinkStatus, 403, "Cashier B should get 403 when adding drink to another's session");
+      assertEquals(drinkStatus, 200, "Cashier B should be able to add drink to another's session");
     }
 
-    // 5. Payment for another's session
-    const { status: payStatus } = await apiAuth("/payments", tokenB!, {
+    // Clean up via admin force-close
+    const { status: forceCloseStatus } = await apiAuth("/admin/force-close-session", adminToken!, {
       method: "POST",
-      body: JSON.stringify({
-        session_id: sessionId,
-        payment_method: "cash",
-        cash_amount: 100,
-        kaspi_amount: 0,
-        total_amount: 100,
-        discount_percent: 0,
-        discount_amount: 0,
-      }),
+      body: JSON.stringify({ session_id: sessionId, payment_method: "cash", cash_amount: 0, kaspi_amount: 0 }),
     });
-    assertEquals(payStatus, 403, "Cashier B should get 403 when paying for another's session");
-
-    // 6. Extend package on another's session (even if hourly, should still 403 before tariff check)
-    const { status: extendStatus } = await apiAuth(`/sessions/${sessionId}/extend-package`, tokenB!, {
-      method: "POST",
-      body: JSON.stringify({ additional_packages: 1 }),
-    });
-    assertEquals(extendStatus, 403, "Cashier B should get 403 when extending another's session");
-
-    // === Admin CAN manage via admin endpoints ===
-
-    // Admin force-close (this is the proper admin way to manage other's sessions)
-    const { status: forceCloseStatus, body: forceCloseBody } = await apiAuth("/admin/force-close-session", adminToken!, {
-      method: "POST",
-      body: JSON.stringify({
-        session_id: sessionId,
-        payment_method: "cash",
-        cash_amount: 0,
-        kaspi_amount: 0,
-      }),
-    });
-    assertEquals(forceCloseStatus, 200, `Admin force-close failed: ${JSON.stringify(forceCloseBody)}`);
-
-    // Verify session is now completed
-    const { status: verifyStatus, body: verifyBody } = await apiAuth(`/sessions/${sessionId}`, tokenA!);
-    assertEquals(verifyStatus, 200);
-    assertEquals(verifyBody.session.status, "completed", "Session should be completed after admin force-close");
-
-    sessionId = null; // already cleaned up
+    assertEquals(forceCloseStatus, 200, "Admin force-close should work");
+    sessionId = null;
 
   } finally {
-    // Clean up: if session still active, admin force-closes it
     if (sessionId) {
       await apiAuth("/admin/force-close-session", adminToken!, {
         method: "POST",
@@ -914,7 +887,7 @@ Deno.test("Security: non-owner cashier gets 403, admin can manage other's sessio
       });
     }
     await logout(tokenA!);
-    await logout(adminToken!);
     await logout(tokenB!);
+    await logout(adminToken!);
   }
 });
