@@ -31,7 +31,8 @@ import {
   FileSpreadsheet,
   FileText,
   Wine,
-  MapPin
+  MapPin,
+  Percent
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { exportToExcel, exportToPDF } from '@/lib/export-utils';
@@ -60,6 +61,22 @@ interface ZoneAnalytics {
   zonesByDay: { date: string; vip: number; hall: number }[];
 }
 
+interface DiscountCashierData {
+  cashier_id: string;
+  cashier_name: string;
+  count: number;
+  totalAmount: number;
+  avgPercent: number;
+}
+
+interface DiscountAnalytics {
+  totalDiscounts: number;
+  totalDiscountAmount: number;
+  avgDiscountPercent: number;
+  discountsByCashier: DiscountCashierData[];
+  discountsByDay: { date: string; count: number; amount: number }[];
+}
+
 interface PrevChartDataPoint {
   date: string;
   revenue: number;
@@ -76,6 +93,7 @@ interface AnalyticsData {
   drinkAnalytics: DrinkAnalytics;
   prevChartData: PrevChartDataPoint[];
   zoneAnalytics: ZoneAnalytics;
+  discountAnalytics: DiscountAnalytics;
 }
 
 interface ShiftData {
@@ -408,6 +426,7 @@ export function ShiftAnalyticsDashboard() {
           <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" /> Обзор</TabsTrigger>
           <TabsTrigger value="zones" className="gap-1.5"><MapPin className="h-4 w-4" /> Зоны</TabsTrigger>
           <TabsTrigger value="drinks" className="gap-1.5"><Wine className="h-4 w-4" /> Напитки</TabsTrigger>
+          <TabsTrigger value="discounts" className="gap-1.5"><Percent className="h-4 w-4" /> Скидки</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -525,6 +544,10 @@ export function ShiftAnalyticsDashboard() {
 
         <TabsContent value="drinks" className="space-y-6">
           <DrinkAnalyticsTab analytics={data?.drinkAnalytics} />
+        </TabsContent>
+
+        <TabsContent value="discounts" className="space-y-6">
+          <DiscountAnalyticsTab analytics={data?.discountAnalytics} />
         </TabsContent>
       </Tabs>
     </div>
@@ -870,6 +893,139 @@ function DrinkAnalyticsTab({ analytics }: { analytics?: DrinkAnalytics }) {
                       <td className="text-right p-3">{c.totalQuantity} шт.</td>
                       <td className="text-right p-3 font-semibold text-amber-400">{formatCurrency(c.totalRevenue)}</td>
                       <td className="text-right p-3 text-muted-foreground">{totalDrinkRevenue > 0 ? Math.round((c.totalRevenue / totalDrinkRevenue) * 100) : 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </>
+  );
+}
+
+// === Discount Analytics Tab ===
+
+function DiscountAnalyticsTab({ analytics }: { analytics?: DiscountAnalytics }) {
+  if (!analytics || analytics.totalDiscounts === 0) {
+    return (
+      <Card className="glass-card border-primary/20">
+        <CardContent className="p-8 text-center text-muted-foreground">
+          Нет данных о скидках за выбранный период
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="glass-card border-amber-500/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <Percent className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-amber-500">{analytics.totalDiscounts}</p>
+                <p className="text-xs text-muted-foreground">Скидок применено</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-red-500/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                <TrendingDown className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-red-500">{formatCurrency(analytics.totalDiscountAmount)}</p>
+                <p className="text-xs text-muted-foreground">Общая сумма скидок</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-primary/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-primary">{analytics.avgDiscountPercent}%</p>
+                <p className="text-xs text-muted-foreground">Средний % скидки</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Discounts by day chart */}
+      {analytics.discountsByDay.length > 0 && (
+        <Card className="glass-card border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> Скидки по дням
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={analytics.discountsByDay.map(d => ({
+                name: format(parseISO(d.date), 'd MMM', { locale: ru }),
+                amount: d.amount,
+                count: d.count,
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <YAxis yAxisId="left" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickFormatter={(v) => `${v / 1000}k`} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                  formatter={(value: number, name: string) => [name === 'amount' ? formatCurrency(value) : value, name === 'amount' ? 'Сумма скидок' : 'Кол-во']} />
+                <Legend formatter={(value) => value === 'amount' ? 'Сумма скидок' : 'Кол-во'} />
+                <Bar yAxisId="left" dataKey="amount" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.8} />
+                <Line yAxisId="right" type="monotone" dataKey="count" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Discounts by cashier */}
+      {analytics.discountsByCashier.length > 0 && (
+        <Card className="glass-card border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" /> Скидки по кассирам
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left p-3 text-muted-foreground font-medium">Кассир</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Кол-во</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Сумма</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Сред. %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.discountsByCashier.map((c) => (
+                    <tr key={c.cashier_id} className="border-b border-border/50 hover:bg-muted/20">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-xs font-bold text-primary">{c.cashier_name.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <span className="font-medium">{c.cashier_name}</span>
+                        </div>
+                      </td>
+                      <td className="text-right p-3 font-semibold">{c.count}</td>
+                      <td className="text-right p-3 font-semibold text-red-500">{formatCurrency(c.totalAmount)}</td>
+                      <td className="text-right p-3 font-semibold text-amber-500">{c.avgPercent}%</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1676,6 +1676,64 @@ Deno.serve(async (req) => {
             zoneAnalytics = { zones, zonesByDay }
           }
 
+          // === DISCOUNT ANALYTICS ===
+          let discountAnalytics: any = { totalDiscounts: 0, totalDiscountAmount: 0, avgDiscountPercent: 0, discountsByCashier: [], discountsByDay: [] }
+          
+          if (shiftIds.length > 0) {
+            let allPayments: any[] = []
+            for (let i = 0; i < shiftIds.length; i += 100) {
+              const batch = shiftIds.slice(i, i + 100)
+              let offset = 0
+              while (true) {
+                const { data } = await supabase
+                  .from('payments')
+                  .select('id, shift_id, session_id, discount_percent, discount_amount, total_amount, created_at')
+                  .in('shift_id', batch)
+                  .gt('discount_percent', 0)
+                  .range(offset, offset + 999)
+                
+                allPayments = allPayments.concat(data || [])
+                if (!data || data.length < 1000) break
+                offset += 1000
+              }
+            }
+
+            const totalDiscounts = allPayments.length
+            const totalDiscountAmount = allPayments.reduce((sum: number, p: any) => sum + (p.discount_amount || 0), 0)
+            const avgDiscountPercent = totalDiscounts > 0 
+              ? Math.round(allPayments.reduce((sum: number, p: any) => sum + (p.discount_percent || 0), 0) / totalDiscounts)
+              : 0
+
+            // Discounts by cashier
+            const cashierDiscountMap = new Map<string, { cashier_id: string; cashier_name: string; count: number; totalAmount: number; avgPercent: number; percentSum: number }>()
+            allPayments.forEach((p: any) => {
+              const shift = formattedShifts.find((s: any) => s.id === p.shift_id)
+              if (!shift) return
+              const existing = cashierDiscountMap.get(shift.cashier_id) || { cashier_id: shift.cashier_id, cashier_name: shift.cashier_name, count: 0, totalAmount: 0, avgPercent: 0, percentSum: 0 }
+              existing.count += 1
+              existing.totalAmount += p.discount_amount || 0
+              existing.percentSum += p.discount_percent || 0
+              cashierDiscountMap.set(shift.cashier_id, existing)
+            })
+            cashierDiscountMap.forEach(c => {
+              c.avgPercent = c.count > 0 ? Math.round(c.percentSum / c.count) : 0
+            })
+            const discountsByCashier = Array.from(cashierDiscountMap.values()).sort((a, b) => b.totalAmount - a.totalAmount)
+
+            // Discounts by day
+            const discountDayMap = new Map<string, { date: string; count: number; amount: number }>()
+            allPayments.forEach((p: any) => {
+              const dayKey = getWorkingDayKey(p.created_at)
+              const existing = discountDayMap.get(dayKey) || { date: dayKey, count: 0, amount: 0 }
+              existing.count += 1
+              existing.amount += p.discount_amount || 0
+              discountDayMap.set(dayKey, existing)
+            })
+            const discountsByDay = Array.from(discountDayMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+
+            discountAnalytics = { totalDiscounts, totalDiscountAmount, avgDiscountPercent, discountsByCashier, discountsByDay }
+          }
+
           return new Response(
             JSON.stringify({
               shifts: formattedShifts,
@@ -1684,7 +1742,8 @@ Deno.serve(async (req) => {
               previousPeriodTotals,
               drinkAnalytics,
               prevChartData,
-              zoneAnalytics
+              zoneAnalytics,
+              discountAnalytics
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
