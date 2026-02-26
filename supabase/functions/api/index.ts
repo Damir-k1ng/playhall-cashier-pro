@@ -354,10 +354,15 @@ async function handleCreatePayment(ctx: Ctx): Promise<Response> {
 }
 
 async function handleCreateControllerUsage(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, req } = ctx
+  const { supabase, shift, cors, req } = ctx
   const body = await req.json()
   const v = validateControllerUsage(body)
   if (!v.valid) return errorResponse(v.error!, cors)
+
+  // Ownership check: only the session owner can add controllers
+  const { data: sessionData } = await supabase.from('sessions').select('shift_id').eq('id', body.session_id).single()
+  if (!sessionData) return errorResponse('Session not found', cors, 404)
+  if (sessionData.shift_id !== shift.id) return errorResponse('Вы не можете управлять сессией другого кассира', cors, 403)
 
   const { data: recentController } = await supabase
     .from('controller_usage').select('id, taken_at').eq('session_id', body.session_id)
@@ -388,10 +393,15 @@ async function handleUpdateControllerUsage(ctx: Ctx): Promise<Response> {
 }
 
 async function handleAddSessionDrink(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, req } = ctx
+  const { supabase, shift, cors, req } = ctx
   const body = await req.json()
   const v = validateSessionDrink(body)
   if (!v.valid) return errorResponse(v.error!, cors)
+
+  // Ownership check: only the session owner can add drinks
+  const { data: sessionData } = await supabase.from('sessions').select('shift_id').eq('id', body.session_id).single()
+  if (!sessionData) return errorResponse('Session not found', cors, 404)
+  if (sessionData.shift_id !== shift.id) return errorResponse('Вы не можете управлять сессией другого кассира', cors, 403)
 
   const { data, error } = await supabase.from('session_drinks').insert({
     session_id: body.session_id, drink_id: body.drink_id, quantity: body.quantity, total_price: body.total_price,
