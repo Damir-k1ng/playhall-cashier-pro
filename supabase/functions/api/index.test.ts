@@ -746,3 +746,55 @@ Deno.test("Write: discount applied correctly on payment", async () => {
     await logout(token!);
   }
 });
+
+// 22. GET /stations/:id returns single station with session details
+Deno.test("Authenticated: GET /stations/:id returns station with controllers and drinks", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Get all stations to find one with active session
+    const { body: stations } = await apiAuth("/stations", token!);
+    const activeStation = stations.find((s: any) => s.activeSession);
+    const freeStation = stations.find((s: any) => !s.activeSession);
+
+    // Test 1: Free station — should return station data without activeSession
+    if (freeStation) {
+      const { status, body } = await apiAuth(`/stations/${freeStation.id}`, token!);
+      assertEquals(status, 200, `GET /stations/:id failed: ${JSON.stringify(body)}`);
+      assertEquals(body.id, freeStation.id);
+      assertEquals(body.name, freeStation.name);
+      assertEquals(body.activeSession, null, "free station should have null activeSession");
+      assertEquals(typeof body.station_number, "number");
+      assertEquals(typeof body.hourly_rate, "number");
+      assertEquals(typeof body.package_rate, "number");
+    }
+
+    // Test 2: Active station — should include controller_usage and session_drinks
+    if (activeStation) {
+      const { status, body } = await apiAuth(`/stations/${activeStation.id}`, token!);
+      assertEquals(status, 200);
+      assertEquals(body.id, activeStation.id);
+      assertNotEquals(body.activeSession, null, "active station should have activeSession");
+      assertEquals(body.activeSession.status, "active");
+      assertEquals(typeof body.activeSession.tariff_type, "string");
+      // controller_usage and session_drinks should be arrays (possibly empty)
+      assertEquals(Array.isArray(body.activeSession.controller_usage), true,
+        "activeSession should include controller_usage array");
+      assertEquals(Array.isArray(body.activeSession.session_drinks), true,
+        "activeSession should include session_drinks array");
+      // isOwnSession should be boolean or null
+      assertEquals(typeof body.isOwnSession === "boolean", true);
+    }
+
+    // Test 3: Invalid UUID should return 404 (route won't match)
+    const { status: errStatus } = await apiAuth("/stations/invalid-uuid", token!);
+    assertEquals(errStatus, 404, "invalid UUID should return 404");
+
+    // Test 4: Non-existent valid UUID should return 404
+    const { status: notFound } = await apiAuth("/stations/00000000-0000-0000-0000-000000000000", token!);
+    assertEquals(notFound, 404, "non-existent station should return 404");
+  } finally {
+    await logout(token!);
+  }
+});
