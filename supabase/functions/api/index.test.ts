@@ -118,6 +118,179 @@ Deno.test("auth-pin endpoint responds", async () => {
     body: JSON.stringify({ action: "validate", session_token: "invalid" }),
   });
   const body = await res.json();
-  // Should respond (not 404), even if validation fails
   assertNotEquals(res.status, 404);
+});
+
+// ==================== AUTHENTICATED TESTS ====================
+// Login with admin PIN, then test real endpoints
+
+async function loginWithPin(pin: string): Promise<string | null> {
+  const res = await fetch(AUTH_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "login", pin }),
+  });
+  const data = await res.json();
+  return data.session_token || null;
+}
+
+async function logout(token: string): Promise<void> {
+  const res = await fetch(AUTH_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "logout", session_token: token }),
+  });
+  await res.text();
+}
+
+// 5. Authenticated: GET /stations returns array
+Deno.test("Authenticated: GET /stations returns station array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null, "Admin login failed");
+
+  try {
+    const { status, body } = await apiAuth("/stations", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true, "stations should be an array");
+    if (body.length > 0) {
+      assertNotEquals(body[0].id, undefined, "station should have id");
+      assertNotEquals(body[0].name, undefined, "station should have name");
+      assertNotEquals(body[0].zone, undefined, "station should have zone");
+    }
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 6. Authenticated: GET /drinks returns array
+Deno.test("Authenticated: GET /drinks returns drink array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/drinks", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true, "drinks should be an array");
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 7. Authenticated: GET /shift returns shift data
+Deno.test("Authenticated: GET /shift returns shift object", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/shift", token!);
+    assertEquals(status, 200);
+    assertNotEquals(body, null, "shift should not be null");
+    assertNotEquals(body.id, undefined, "shift should have id");
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 8. Authenticated: GET /bookings returns array
+Deno.test("Authenticated: GET /bookings returns array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/bookings", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true);
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 9. Authenticated: GET /discount-presets returns presets
+Deno.test("Authenticated: GET /discount-presets returns presets object", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/discount-presets", token!);
+    assertEquals(status, 200);
+    assertNotEquals(body.presets, undefined, "should have presets array");
+    assertNotEquals(body.max_discount_percent, undefined, "should have max_discount_percent");
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 10. Admin: GET /admin/cashiers returns cashier list
+Deno.test("Admin: GET /admin/cashiers returns array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/admin/cashiers", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true, "cashiers should be an array");
+    if (body.length > 0) {
+      assertNotEquals(body[0].name, undefined, "cashier should have name");
+    }
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 11. Admin: GET /admin/completed-sessions returns array
+Deno.test("Admin: GET /admin/completed-sessions returns array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/admin/completed-sessions", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true);
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 12. Admin: GET /admin/audit-log returns array
+Deno.test("Admin: GET /admin/audit-log returns array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/admin/audit-log", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true);
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 13. Admin: GET /admin/inventory returns array
+Deno.test("Admin: GET /admin/inventory returns array", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/admin/inventory", token!);
+    assertEquals(status, 200);
+    assertEquals(Array.isArray(body), true);
+  } finally {
+    await logout(token!);
+  }
+});
+
+// 14. Admin: GET /admin/shifts-analytics returns analytics
+Deno.test("Admin: GET /admin/shifts-analytics returns data", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    const { status, body } = await apiAuth("/admin/shifts-analytics?from=2025-01-01&to=2025-12-31", token!);
+    assertEquals(status, 200);
+    assertNotEquals(body.shifts, undefined, "should have shifts");
+    assertNotEquals(body.totals, undefined, "should have totals");
+    assertNotEquals(body.cashiers, undefined, "should have cashiers");
+  } finally {
+    await logout(token!);
+  }
 });
