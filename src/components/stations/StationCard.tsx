@@ -1,10 +1,13 @@
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, memo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDurationHMS, formatCurrency, formatPackageTimeRange } from '@/lib/utils';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { cn } from '@/lib/utils';
 import { Gamepad2, Coffee, Play, Calendar, Lock, Package, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { apiClient } from '@/lib/api';
+import { stationQueryKey } from '@/hooks/useStations';
 
 // Primitive props only - no objects!
 interface StationCardProps {
@@ -133,6 +136,28 @@ function StationCardComponent({
     return formatPackageTimeRange(startedAt, packageCount);
   }, [isPackage, startedAt, packageCount]);
 
+  // Prefetch on hover with 150ms debounce to avoid flooding
+  const queryClient = useQueryClient();
+  const hoverTimerRef = useRef<number | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (isActive && !isOwnSession) return; // locked stations — no prefetch
+    hoverTimerRef.current = window.setTimeout(() => {
+      queryClient.prefetchQuery({
+        queryKey: stationQueryKey(id),
+        queryFn: () => apiClient.getStation(id),
+        staleTime: 5_000, // Don't refetch if fresh
+      });
+    }, 150);
+  }, [id, isActive, isOwnSession, queryClient]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  }, []);
+
   const handleClick = () => {
     if (isActive && !isOwnSession) return;
     navigate(`/station/${id}`);
@@ -151,6 +176,8 @@ function StationCardComponent({
   return (
     <div
       onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={cn(
         'relative rounded-xl sm:rounded-2xl p-3 sm:p-5 md:p-6 transition-all duration-300',
         'glass-card glass-card-hover',
