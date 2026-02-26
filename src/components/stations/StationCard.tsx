@@ -294,19 +294,14 @@ function StationCardComponent({
       {/* Primary Actions for FREE stations */}
       {!isActive && (
         <div 
-          className="relative z-10 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border/30 flex gap-2"
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            overflow: 'hidden'
-          }}
+          className="relative z-10 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-border/30 flex gap-1.5 sm:gap-2"
         >
           <Button 
-            className="h-9 sm:h-11 bg-gradient-to-r from-success to-secondary hover:opacity-90 font-bold text-sm sm:text-base btn-press min-w-0 flex-1 rounded-lg"
+            className="h-9 sm:h-11 bg-gradient-to-r from-success to-secondary hover:opacity-90 font-bold text-xs sm:text-base btn-press min-w-0 flex-1 rounded-lg"
             onClick={handleStartClick}
           >
-            <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 shrink-0" />
-            <span className="truncate">Начать</span>
+            <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+            Начать
           </Button>
           {onBook && !hasBooking && (
             <Button 

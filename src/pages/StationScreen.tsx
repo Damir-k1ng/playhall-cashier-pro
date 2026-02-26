@@ -362,21 +362,21 @@ export function StationScreen() {
             </div>
 
             {/* Controllers Section */}
-            <section className="glass-card rounded-2xl border border-primary/20 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <Gamepad2 size={20} className="text-primary" />
+            <section className="glass-card rounded-2xl border border-primary/20 p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+                <h2 className="text-xs sm:text-sm font-bold flex items-center gap-2 sm:gap-3 text-muted-foreground uppercase tracking-widest min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Gamepad2 size={16} className="text-primary sm:w-5 sm:h-5" />
                   </div>
-                  Дополнительные джойстики
+                  <span className="truncate">Джойстики</span>
                 </h2>
                 <Button 
-                  size="lg" 
+                  size="default" 
                   onClick={handleAddController}
                   disabled={isAddingController}
-                  className="gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="gap-1.5 sm:gap-2 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 hover:border-primary hover:shadow-glow-sm transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm shrink-0 h-9 sm:h-11 px-3 sm:px-4"
                 >
-                  {isAddingController ? '⏳ Добавляю...' : '🎮 ВЗЯЛИ'}
+                  {isAddingController ? '⏳...' : '🎮 ВЗЯЛИ'}
                 </Button>
               </div>
               
@@ -390,24 +390,26 @@ export function StationScreen() {
                     return (
                       <div 
                         key={controller.id}
-                        className="flex items-center justify-between p-5 bg-muted/30 rounded-xl border border-border/50"
+                        className="flex items-center justify-between p-3 sm:p-5 bg-muted/30 rounded-xl border border-border/50 gap-2"
                       >
-                        <div className="flex items-center gap-6">
-                          <span className="font-semibold text-lg">Джойстик #{index + 1}</span>
-                          <span className="font-mono text-2xl text-primary text-glow-cyan">
-                            {formatDurationHMS(seconds)}
-                          </span>
-                          <span className="text-muted-foreground text-lg">
-                            {formatCurrency(cost)}
-                          </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 min-w-0">
+                          <span className="font-semibold text-sm sm:text-lg whitespace-nowrap">Джойстик #{index + 1}</span>
+                          <div className="flex items-center gap-2 sm:gap-6">
+                            <span className="font-mono text-lg sm:text-2xl text-primary text-glow-cyan">
+                              {formatDurationHMS(seconds)}
+                            </span>
+                            <span className="text-muted-foreground text-sm sm:text-lg">
+                              {formatCurrency(cost)}
+                            </span>
+                          </div>
                         </div>
                         <Button 
-                          size="lg"
+                          size="default"
                           onClick={() => handleReturnController(controller.id)}
                           disabled={returningControllerId === controller.id}
-                          className="rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success font-bold disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm shrink-0 h-9 sm:h-11 px-3 sm:px-4"
                         >
-                          {returningControllerId === controller.id ? '⏳ Возврат...' : '🎮 ВЕРНУЛИ'}
+                          {returningControllerId === controller.id ? '⏳...' : '🎮 ВЕРНУЛИ'}
                         </Button>
                       </div>
                     );
@@ -417,29 +419,29 @@ export function StationScreen() {
             </section>
 
             {/* Drinks Section */}
-            <section className="glass-card rounded-2xl border border-success/20 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-sm font-bold flex items-center gap-3 text-muted-foreground uppercase tracking-widest">
-                  <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-xl">
+            <section className="glass-card rounded-2xl border border-success/20 p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+                <h2 className="text-xs sm:text-sm font-bold flex items-center gap-2 sm:gap-3 text-muted-foreground uppercase tracking-widest">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-success/10 border border-success/20 flex items-center justify-center text-base sm:text-xl shrink-0">
                     🥤
                   </div>
                   Напитки
                 </h2>
                 <Button 
-                  size="lg" 
+                  size="default" 
                   onClick={() => setShowDrinks(!showDrinks)} 
-                  className="gap-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all font-bold"
+                  className="gap-1.5 sm:gap-2 rounded-xl bg-success/10 border border-success/30 text-success hover:bg-success/20 hover:border-success hover:shadow-glow-emerald transition-all font-bold text-xs sm:text-sm shrink-0 h-9 sm:h-11 px-3 sm:px-4"
                 >
                   🥤 Напитки
                 </Button>
               </div>
               
               {showDrinks && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 pb-6 border-b border-border/50">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-border/50">
                   {drinks.map(drink => (
                     <div
                       key={drink.id}
-                      className="flex items-center justify-between h-16 rounded-xl border border-border/50 hover:border-success/50 hover:bg-success/5 px-4 transition-colors"
+                      className="flex items-center justify-between h-14 sm:h-16 rounded-xl border border-border/50 hover:border-success/50 hover:bg-success/5 px-3 sm:px-4 transition-colors"
                     >
                       <div className="min-w-0 flex-1 mr-2">
                         <span className="font-medium text-sm truncate block">{drink.name}</span>
@@ -470,9 +472,9 @@ export function StationScreen() {
                   {sessionDrinks.map((drink) => (
                     <div 
                       key={drink.id}
-                      className="flex items-center justify-between p-4 bg-muted/30 rounded-xl group"
+                      className="flex items-center justify-between p-3 sm:p-4 bg-muted/30 rounded-xl group"
                     >
-                      <span className="font-medium">{drink.quantity}x {drink.drink?.name || 'напиток'}</span>
+                      <span className="font-medium text-sm sm:text-base">{drink.quantity}x {drink.drink?.name || 'напиток'}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-success font-semibold">{formatCurrency(drink.total_price)}</span>
                         <Button
@@ -516,7 +518,7 @@ export function StationScreen() {
             <Button 
               size="lg"
               className={cn(
-                'w-full h-20 text-xl font-bold rounded-2xl',
+                'w-full h-14 sm:h-20 text-base sm:text-xl font-bold rounded-2xl',
                 'bg-gradient-to-r from-destructive/80 to-destructive border-2 border-destructive',
                 'hover:shadow-lg hover:scale-[1.01] transition-all duration-200 btn-press'
               )}
