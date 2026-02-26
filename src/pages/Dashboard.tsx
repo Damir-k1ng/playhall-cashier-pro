@@ -10,6 +10,7 @@ import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
 import { ShiftHistoryModal } from '@/components/modals/ShiftHistoryModal';
 import { Loader2 } from 'lucide-react';
 import { CLUB_NAME, APP_VERSION } from '@/lib/constants';
+import { toast } from '@/hooks/use-toast';
 import { getQueue, dequeue } from '@/lib/offline-queue';
 import { apiClient } from '@/lib/api';
 import logoImage from '@/assets/logo.jpg';
@@ -49,7 +50,14 @@ export function Dashboard() {
     }
 
     setIsSyncing(false);
-    setQueueLength(getQueue().length);
+    const remaining = getQueue().length;
+    setQueueLength(remaining);
+    if (remaining === 0 && queue.length > 0) {
+      toast({
+        title: '✅ Очередь синхронизирована',
+        description: `Успешно отправлено: ${queue.length}`,
+      });
+    }
     refetchStations();
   }, [refetchStations]);
 
