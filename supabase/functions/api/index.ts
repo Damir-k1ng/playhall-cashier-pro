@@ -1568,6 +1568,65 @@ Deno.serve(async (req) => {
               .map(([date, data]) => ({ date, ...data }))
           })() : []
 
+          // === ZONE ANALYTICS ===
+          let zoneAnalytics: any = { zones: [], zonesByDay: [] }
+          
+          if (shiftIds.length > 0) {
+            // Fetch completed sessions with station zone for current period shifts
+            let allSessions: any[] = []
+            for (let i = 0; i < shiftIds.length; i += 100) {
+              const batch = shiftIds.slice(i, i + 100)
+              let offset = 0
+              while (true) {
+                const { data } = await supabase
+                  .from('sessions')
+                  .select('id, shift_id, game_cost, controller_cost, drink_cost, total_cost, started_at, stations(zone, name)')
+                  .in('shift_id', batch)
+                  .eq('status', 'completed')
+                  .range(offset, offset + 999)
+                
+                allSessions = allSessions.concat(data || [])
+                if (!data || data.length < 1000) break
+                offset += 1000
+              }
+            }
+
+            // Aggregate by zone
+            const zoneMap = new Map<string, { zone: string; sessions: number; revenue: number; gameCost: number; controllerCost: number; drinkCost: number; avgCheck: number }>()
+            
+            allSessions.forEach((s: any) => {
+              const zone = s.stations?.zone || 'unknown'
+              const existing = zoneMap.get(zone) || { zone, sessions: 0, revenue: 0, gameCost: 0, controllerCost: 0, drinkCost: 0, avgCheck: 0 }
+              existing.sessions += 1
+              existing.revenue += s.total_cost || 0
+              existing.gameCost += s.game_cost || 0
+              existing.controllerCost += s.controller_cost || 0
+              existing.drinkCost += s.drink_cost || 0
+              zoneMap.set(zone, existing)
+            })
+
+            zoneMap.forEach(z => {
+              z.avgCheck = z.sessions > 0 ? Math.round(z.revenue / z.sessions) : 0
+            })
+
+            const zones = Array.from(zoneMap.values()).sort((a, b) => b.revenue - a.revenue)
+
+            // Zone revenue by day
+            const zoneDayMap = new Map<string, { date: string; vip: number; hall: number }>()
+            allSessions.forEach((s: any) => {
+              const dayKey = getWorkingDayKey(s.started_at)
+              const zone = s.stations?.zone || 'unknown'
+              const existing = zoneDayMap.get(dayKey) || { date: dayKey, vip: 0, hall: 0 }
+              if (zone === 'vip') existing.vip += s.total_cost || 0
+              else existing.hall += s.total_cost || 0
+              zoneDayMap.set(dayKey, existing)
+            })
+
+            const zonesByDay = Array.from(zoneDayMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+
+            zoneAnalytics = { zones, zonesByDay }
+          }
+
           return new Response(
             JSON.stringify({
               shifts: formattedShifts,
@@ -1575,7 +1634,8 @@ Deno.serve(async (req) => {
               totals,
               previousPeriodTotals,
               drinkAnalytics,
-              prevChartData
+              prevChartData,
+              zoneAnalytics
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )

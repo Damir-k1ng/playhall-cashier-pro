@@ -30,7 +30,8 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  Wine
+  Wine,
+  MapPin
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { exportToExcel, exportToPDF } from '@/lib/export-utils';
@@ -42,6 +43,21 @@ interface DrinkAnalytics {
   topDrinks: { name: string; totalQuantity: number; totalRevenue: number }[];
   drinksByDay: { date: string; revenue: number; quantity: number }[];
   drinksByCashier?: { cashier_id: string; cashier_name: string; totalRevenue: number; totalQuantity: number }[];
+}
+
+interface ZoneData {
+  zone: string;
+  sessions: number;
+  revenue: number;
+  gameCost: number;
+  controllerCost: number;
+  drinkCost: number;
+  avgCheck: number;
+}
+
+interface ZoneAnalytics {
+  zones: ZoneData[];
+  zonesByDay: { date: string; vip: number; hall: number }[];
 }
 
 interface PrevChartDataPoint {
@@ -59,6 +75,7 @@ interface AnalyticsData {
   previousPeriodTotals: TotalsSummary;
   drinkAnalytics: DrinkAnalytics;
   prevChartData: PrevChartDataPoint[];
+  zoneAnalytics: ZoneAnalytics;
 }
 
 interface ShiftData {
@@ -389,6 +406,7 @@ export function ShiftAnalyticsDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="glass-card border border-primary/20">
           <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4" /> Обзор</TabsTrigger>
+          <TabsTrigger value="zones" className="gap-1.5"><MapPin className="h-4 w-4" /> Зоны</TabsTrigger>
           <TabsTrigger value="drinks" className="gap-1.5"><Wine className="h-4 w-4" /> Напитки</TabsTrigger>
         </TabsList>
 
@@ -501,11 +519,193 @@ export function ShiftAnalyticsDashboard() {
           <DetailedTable groupedData={groupedData} expandedDays={expandedDays} toggleExpand={toggleExpand} />
         </TabsContent>
 
+        <TabsContent value="zones" className="space-y-6">
+          <ZoneAnalyticsTab analytics={data?.zoneAnalytics} />
+        </TabsContent>
+
         <TabsContent value="drinks" className="space-y-6">
           <DrinkAnalyticsTab analytics={data?.drinkAnalytics} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// === Zone Analytics Tab ===
+
+function ZoneAnalyticsTab({ analytics }: { analytics?: ZoneAnalytics }) {
+  if (!analytics || analytics.zones.length === 0) {
+    return (
+      <Card className="glass-card border-primary/20">
+        <CardContent className="p-8 text-center text-muted-foreground">
+          Нет данных о зонах за выбранный период
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const totalRevenue = analytics.zones.reduce((sum, z) => sum + z.revenue, 0);
+  const totalSessions = analytics.zones.reduce((sum, z) => sum + z.sessions, 0);
+  const vipData = analytics.zones.find(z => z.zone === 'vip');
+  const hallData = analytics.zones.find(z => z.zone === 'hall');
+
+  return (
+    <>
+      {/* Zone comparison cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="glass-card border-amber-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">VIP</Badge>
+              VIP зона
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-2xl font-bold text-amber-400">{formatCurrency(vipData?.revenue || 0)}</p>
+                <p className="text-xs text-muted-foreground">Выручка</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{vipData?.sessions || 0}</p>
+                <p className="text-xs text-muted-foreground">Сессий</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{formatCurrency(vipData?.avgCheck || 0)}</p>
+                <p className="text-xs text-muted-foreground">Средний чек</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{totalRevenue > 0 ? Math.round(((vipData?.revenue || 0) / totalRevenue) * 100) : 0}%</p>
+                <p className="text-xs text-muted-foreground">Доля выручки</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Игры</span><span>{formatCurrency(vipData?.gameCost || 0)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Джойстики</span><span>{formatCurrency(vipData?.controllerCost || 0)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Напитки</span><span>{formatCurrency(vipData?.drinkCost || 0)}</span></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card border-blue-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">ЗАЛ</Badge>
+              Зал
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-2xl font-bold text-blue-400">{formatCurrency(hallData?.revenue || 0)}</p>
+                <p className="text-xs text-muted-foreground">Выручка</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{hallData?.sessions || 0}</p>
+                <p className="text-xs text-muted-foreground">Сессий</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{formatCurrency(hallData?.avgCheck || 0)}</p>
+                <p className="text-xs text-muted-foreground">Средний чек</p>
+              </div>
+              <div>
+                <p className="text-lg font-semibold">{totalRevenue > 0 ? Math.round(((hallData?.revenue || 0) / totalRevenue) * 100) : 0}%</p>
+                <p className="text-xs text-muted-foreground">Доля выручки</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Игры</span><span>{formatCurrency(hallData?.gameCost || 0)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Джойстики</span><span>{formatCurrency(hallData?.controllerCost || 0)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Напитки</span><span>{formatCurrency(hallData?.drinkCost || 0)}</span></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Zone revenue by day chart */}
+      <Card className="glass-card border-primary/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" /> Выручка по зонам
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {analytics.zonesByDay.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={analytics.zonesByDay.map(d => ({
+                name: format(parseISO(d.date), 'd MMM', { locale: ru }),
+                VIP: d.vip,
+                Зал: d.hall,
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickFormatter={(v) => `${v / 1000}k`} />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                  formatter={(value: number) => [formatCurrency(value)]} />
+                <Legend />
+                <Bar dataKey="VIP" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Зал" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <EmptyChart />}
+        </CardContent>
+      </Card>
+
+      {/* Summary table */}
+      <Card className="glass-card border-primary/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" /> Сводное сравнение
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  <th className="text-left p-3 font-medium">Зона</th>
+                  <th className="text-right p-3 font-medium">Сессий</th>
+                  <th className="text-right p-3 font-medium">Выручка</th>
+                  <th className="text-right p-3 font-medium">Ср. чек</th>
+                  <th className="text-right p-3 font-medium">Игры</th>
+                  <th className="text-right p-3 font-medium">Джойстики</th>
+                  <th className="text-right p-3 font-medium">Напитки</th>
+                  <th className="text-right p-3 font-medium">Доля</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {analytics.zones.map(zone => (
+                  <tr key={zone.zone} className="hover:bg-muted/20 transition-colors">
+                    <td className="p-3">
+                      <Badge className={zone.zone === 'vip' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}>
+                        {zone.zone === 'vip' ? 'VIP' : 'ЗАЛ'}
+                      </Badge>
+                    </td>
+                    <td className="text-right p-3 font-mono">{zone.sessions}</td>
+                    <td className="text-right p-3 font-semibold text-primary">{formatCurrency(zone.revenue)}</td>
+                    <td className="text-right p-3">{formatCurrency(zone.avgCheck)}</td>
+                    <td className="text-right p-3">{formatCurrency(zone.gameCost)}</td>
+                    <td className="text-right p-3">{formatCurrency(zone.controllerCost)}</td>
+                    <td className="text-right p-3">{formatCurrency(zone.drinkCost)}</td>
+                    <td className="text-right p-3 text-muted-foreground">{totalRevenue > 0 ? Math.round((zone.revenue / totalRevenue) * 100) : 0}%</td>
+                  </tr>
+                ))}
+                <tr className="bg-muted/30 font-semibold">
+                  <td className="p-3">Итого</td>
+                  <td className="text-right p-3 font-mono">{totalSessions}</td>
+                  <td className="text-right p-3 text-primary">{formatCurrency(totalRevenue)}</td>
+                  <td className="text-right p-3">{totalSessions > 0 ? formatCurrency(Math.round(totalRevenue / totalSessions)) : '0 ₸'}</td>
+                  <td className="text-right p-3">{formatCurrency(analytics.zones.reduce((s, z) => s + z.gameCost, 0))}</td>
+                  <td className="text-right p-3">{formatCurrency(analytics.zones.reduce((s, z) => s + z.controllerCost, 0))}</td>
+                  <td className="text-right p-3">{formatCurrency(analytics.zones.reduce((s, z) => s + z.drinkCost, 0))}</td>
+                  <td className="text-right p-3">100%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
