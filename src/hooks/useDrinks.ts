@@ -42,10 +42,21 @@ export function useDrinks() {
     }
   };
 
+  const removeSessionDrink = async (sessionDrinkId: string) => {
+    try {
+      await apiClient.deleteSessionDrink(sessionDrinkId);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error removing drink from session:', err);
+      return { error: err.message || 'Ошибка удаления напитка' };
+    }
+  };
+
   return {
     drinks,
     isLoading,
     addDrinkToSession,
+    removeSessionDrink,
     refetch: fetchDrinks,
   };
 }

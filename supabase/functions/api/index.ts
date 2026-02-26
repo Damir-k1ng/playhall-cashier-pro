@@ -785,6 +785,62 @@ Deno.serve(async (req) => {
       )
     }
 
+    // DELETE /session-drinks/:id - Remove drink from session
+    if (path.match(/^\/session-drinks\/[^/]+$/) && method === 'DELETE') {
+      const id = path.split('/')[2]
+      if (!isValidUUID(id)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid session drink ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Verify the drink belongs to an active session owned by this cashier
+      const { data: sessionDrink } = await supabase
+        .from('session_drinks')
+        .select('*, session:sessions(id, status, shift_id)')
+        .eq('id', id)
+        .single()
+
+      if (!sessionDrink) {
+        return new Response(
+          JSON.stringify({ error: 'Напиток не найден' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (sessionDrink.session?.status !== 'active') {
+        return new Response(
+          JSON.stringify({ error: 'Сессия уже завершена' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (sessionDrink.session?.shift_id !== shift.id) {
+        return new Response(
+          JSON.stringify({ error: 'Вы не можете удалять напитки из чужой сессии' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const { error } = await supabase
+        .from('session_drinks')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Session drink delete error:', error)
+        return new Response(
+          JSON.stringify({ error: 'Не удалось удалить напиток' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+
     // POST /drink-sales - Sell drink and update shift totals
     if (path === '/drink-sales' && method === 'POST') {
       const body = await req.json()
