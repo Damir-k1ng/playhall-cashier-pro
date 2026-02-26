@@ -72,6 +72,8 @@ export function useStations() {
     gcTime: 60_000,           // Keep in cache 60s after unmount
     refetchInterval: 15_000,  // Poll every 15s
     refetchIntervalInBackground: false,
+    placeholderData: (prev) => prev, // Keep previous data while refetching
+    retry: 2,                 // Retry failed requests
   });
 
   const invalidateAll = useCallback(async () => {
@@ -178,6 +180,7 @@ export function useStation(stationId: string | undefined) {
     staleTime: 3_000,
     gcTime: 30_000,
     refetchInterval: 10_000,  // Faster polling for active station view
+    placeholderData: (prev) => prev, // Keep previous data while refetching to avoid flicker
     // Seed from Dashboard cache for instant display
     initialData: () => {
       const allStations = queryClient.getQueryData<StationWithSession[]>(STATIONS_QUERY_KEY);
