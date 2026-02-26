@@ -391,5 +391,28 @@ class ApiClient {
       body: JSON.stringify({ max_discount_percent: maxDiscountPercent }),
     });
   }
+  // Inventory
+  async getInventory() {
+    return this.request('/admin/inventory');
+  }
+
+  async updateInventoryItem(id: string, data: { min_threshold?: number; unit?: string }) {
+    return this.request(`/admin/inventory/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createInventoryMovement(data: { drink_id: string; quantity: number; type: string; reason?: string }) {
+    return this.request('/admin/inventory/movement', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getInventoryMovements(drinkId?: string) {
+    const params = drinkId ? `?drink_id=${drinkId}` : '';
+    return this.request(`/admin/inventory/movements${params}`);
+  }
 }
 export const apiClient = new ApiClient();
