@@ -1,0 +1,1 @@
+UPDATE public.shifts SET is_admin_session = true WHERE cashier_id IN (SELECT cashier_id FROM public.user_roles WHERE role = 'admin' AND cashier_id IS NOT NULL);
