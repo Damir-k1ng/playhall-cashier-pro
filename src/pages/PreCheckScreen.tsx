@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStations } from '@/hooks/useStations';
 import { useGlobalTimer } from '@/contexts/GlobalTimerContext';
+import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { Button } from '@/components/ui/button';
 import { PreCheckSkeleton } from '@/components/skeletons/PreCheckSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCostBreakdown, formatTimeFromISO, formatTime } from '@/lib/utils';
-import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard, Percent } from 'lucide-react';
+import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard, Percent, WifiOff } from 'lucide-react';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api';
@@ -26,6 +27,7 @@ export function PreCheckScreen() {
   const navigate = useNavigate();
   const { stations, isLoading } = useStations();
   const { getElapsedSeconds, getElapsedMinutes } = useGlobalTimer();
+  const { isOnline } = useNetworkStatusContext();
 
   const [discountPresets, setDiscountPresets] = useState<DiscountPreset[]>([]);
   const [maxDiscountPercent, setMaxDiscountPercent] = useState(0);
@@ -319,11 +321,20 @@ export function PreCheckScreen() {
           className={cn(
             'w-full h-20 text-xl font-bold rounded-2xl',
             'bg-gradient-to-r from-primary to-secondary',
-            'hover:shadow-glow-lg hover:scale-[1.01] transition-all duration-200'
+            'hover:shadow-glow-lg hover:scale-[1.01] transition-all duration-200',
+            'disabled:opacity-50'
           )}
           onClick={handleProceedToPayment}
+          disabled={!isOnline}
         >
-          Перейти к оплате
+          {!isOnline ? (
+            <span className="flex items-center gap-2">
+              <WifiOff className="w-5 h-5" />
+              Оплата недоступна офлайн
+            </span>
+          ) : (
+            'Перейти к оплате'
+          )}
         </Button>
         </div>
       </main>

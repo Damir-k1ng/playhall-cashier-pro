@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GlobalTimerProvider } from "@/contexts/GlobalTimerContext";
+import { NetworkStatusProvider } from "@/contexts/NetworkStatusContext";
 import Index from "./pages/Index";
 import { StationScreen } from "./pages/StationScreen";
 import { PreCheckScreen } from "./pages/PreCheckScreen";
@@ -17,21 +18,23 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <GlobalTimerProvider>
-        <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/station/:stationId" element={<StationScreen />} />
-            <Route path="/precheck/:sessionId" element={<PreCheckScreen />} />
-            <Route path="/payment/:sessionId" element={<PaymentScreen />} />
-            <Route path="/admin/cashiers" element={<AdminCashiers />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        </AuthProvider>
+        <NetworkStatusProvider>
+          <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/station/:stationId" element={<StationScreen />} />
+              <Route path="/precheck/:sessionId" element={<PreCheckScreen />} />
+              <Route path="/payment/:sessionId" element={<PaymentScreen />} />
+              <Route path="/admin/cashiers" element={<AdminCashiers />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+          </AuthProvider>
+        </NetworkStatusProvider>
       </GlobalTimerProvider>
     </TooltipProvider>
   </QueryClientProvider>

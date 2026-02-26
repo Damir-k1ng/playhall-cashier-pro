@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { usePayments } from '@/hooks/usePayments';
 import { useStations } from '@/hooks/useStations';
+import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/lib/utils';
-import { ArrowLeft, Banknote, Smartphone, Split, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Banknote, Smartphone, Split, Check, Loader2, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CLUB_NAME } from '@/lib/constants';
@@ -28,6 +29,7 @@ export function PaymentScreen() {
   const location = useLocation();
   const { processPayment } = usePayments();
   const { refetch } = useStations();
+  const { isOnline } = useNetworkStatusContext();
   
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -107,6 +109,24 @@ export function PaymentScreen() {
   }
 
   const { stationName, gameCost, controllerCost, drinkCost, totalCost, discountPercent, discountAmount } = sessionData;
+
+  if (!isOnline) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-6">
+        <div className="w-16 h-16 rounded-2xl bg-destructive/10 border border-destructive/30 flex items-center justify-center">
+          <WifiOff className="w-8 h-8 text-destructive" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-foreground mb-2">Нет подключения</h2>
+          <p className="text-muted-foreground">Оплата доступна только при наличии интернета</p>
+        </div>
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Назад
+        </Button>
+      </div>
+    );
+  }
 
   const handleSinglePayment = async (method: 'cash' | 'kaspi') => {
     setIsProcessing(true);
