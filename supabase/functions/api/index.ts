@@ -1315,6 +1315,60 @@ async function handleAdminDeleteDiscountPreset(ctx: Ctx): Promise<Response> {
   return jsonResponse({ success: true }, ctx.cors)
 }
 
+// ---- Admin: Drinks management ----
+async function handleAdminCreateDrink(ctx: Ctx): Promise<Response> {
+  const body = await ctx.req.json()
+  if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) return errorResponse('Название обязательно', ctx.cors)
+  if (body.name.length > 100) return errorResponse('Название слишком длинное', ctx.cors)
+  if (typeof body.price !== 'number' || body.price < 0 || body.price > 1000000) return errorResponse('Некорректная цена', ctx.cors)
+
+  const { data, error } = await ctx.supabase.from('drinks').insert({ name: body.name.trim(), price: body.price }).select().single()
+  if (error) {
+    if (error.code === '23505') return errorResponse('Напиток с таким названием уже существует', ctx.cors)
+    return errorResponse('Ошибка создания напитка', ctx.cors, 500)
+  }
+  return jsonResponse(data, ctx.cors)
+}
+
+async function handleAdminUpdateDrink(ctx: Ctx): Promise<Response> {
+  const id = ctx.pathParts[2]
+  if (!isValidUUID(id)) return errorResponse('Invalid drink ID', ctx.cors)
+
+  const body = await ctx.req.json()
+  const updateData: Record<string, any> = {}
+  if (body.name !== undefined) {
+    if (typeof body.name !== 'string' || body.name.trim().length === 0) return errorResponse('Название обязательно', ctx.cors)
+    if (body.name.length > 100) return errorResponse('Название слишком длинное', ctx.cors)
+    updateData.name = body.name.trim()
+  }
+  if (body.price !== undefined) {
+    if (typeof body.price !== 'number' || body.price < 0 || body.price > 1000000) return errorResponse('Некорректная цена', ctx.cors)
+    updateData.price = body.price
+  }
+
+  const { data, error } = await ctx.supabase.from('drinks').update(updateData).eq('id', id).select().single()
+  if (error) return errorResponse('Ошибка обновления напитка', ctx.cors, 500)
+  return jsonResponse(data, ctx.cors)
+}
+
+async function handleAdminDeleteDrink(ctx: Ctx): Promise<Response> {
+  const id = ctx.pathParts[2]
+  if (!isValidUUID(id)) return errorResponse('Invalid drink ID', ctx.cors)
+
+  // Check if drink has active sessions
+  const { data: activeDrinks } = await ctx.supabase
+    .from('session_drinks').select('id, session:sessions!inner(status)').eq('drink_id', id).eq('session.status', 'active').limit(1)
+  if (activeDrinks && activeDrinks.length > 0) return errorResponse('Нельзя удалить напиток, который используется в активной сессии', ctx.cors)
+
+  // Delete inventory first
+  await ctx.supabase.from('inventory_movements').delete().eq('drink_id', id)
+  await ctx.supabase.from('inventory').delete().eq('drink_id', id)
+
+  const { error } = await ctx.supabase.from('drinks').delete().eq('id', id)
+  if (error) return errorResponse('Ошибка удаления напитка. Возможно, он используется в истории продаж.', ctx.cors, 500)
+  return jsonResponse({ success: true }, ctx.cors)
+}
+
 async function handleAdminGetInventory(ctx: Ctx): Promise<Response> {
   const { data, error } = await ctx.supabase
     .from('inventory').select('*, drink:drinks(id, name, price)').order('updated_at', { ascending: false })
@@ -1449,6 +1503,9 @@ Deno.serve(async (req) => {
       if (path === '/admin/discount-presets' && method === 'GET') return await handleAdminGetDiscountPresets(ctx)
       if (path === '/admin/discount-presets' && method === 'POST') return await handleAdminCreateDiscountPreset(ctx)
       if (path.startsWith('/admin/discount-presets/') && method === 'DELETE') return await handleAdminDeleteDiscountPreset(ctx)
+      if (path === '/admin/drinks' && method === 'POST') return await handleAdminCreateDrink(ctx)
+      if (pathParts.length === 3 && pathParts[1] === 'drinks' && method === 'PATCH') return await handleAdminUpdateDrink(ctx)
+      if (pathParts.length === 3 && pathParts[1] === 'drinks' && method === 'DELETE') return await handleAdminDeleteDrink(ctx)
       if (path === '/admin/inventory' && method === 'GET') return await handleAdminGetInventory(ctx)
       if (path.startsWith('/admin/inventory/') && pathParts[2] !== 'movement' && pathParts[2] !== 'movements' && method === 'PATCH') return await handleAdminUpdateInventoryItem(ctx)
       if (path === '/admin/inventory/movement' && method === 'POST') return await handleAdminCreateInventoryMovement(ctx)
