@@ -1280,11 +1280,20 @@ Deno.serve(async (req) => {
           )
         }
 
-        // Get all cashiers for filter
+        // Get all cashiers for filter (exclude admins)
+        const { data: adminRoles } = await supabase
+          .from('user_roles')
+          .select('cashier_id')
+          .eq('role', 'admin')
+        
+        const adminCashierIds = (adminRoles || []).map((r: any) => r.cashier_id).filter(Boolean)
+        
         const { data: cashiers } = await supabase
           .from('cashiers')
           .select('id, name')
           .order('name')
+        
+        const filteredCashiers = (cashiers || []).filter((c: any) => !adminCashierIds.includes(c.id))
 
         // Helper to fetch shifts for a period (handles >1000 rows with pagination)
         async function fetchShiftsForPeriod(periodFrom: Date, periodTo: Date, filterCashierId?: string | null, excludeActive = true) {
@@ -1633,7 +1642,7 @@ Deno.serve(async (req) => {
           return new Response(
             JSON.stringify({
               shifts: formattedShifts,
-              cashiers: cashiers || [],
+              cashiers: filteredCashiers,
               totals,
               previousPeriodTotals,
               drinkAnalytics,
