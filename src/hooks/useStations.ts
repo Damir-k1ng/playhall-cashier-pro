@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
 import { isNetworkError } from '@/lib/offline-cache';
 import { enqueue } from '@/lib/offline-queue';
+import { toast } from '@/hooks/use-toast';
 import { CONTROLLER_RATE } from '@/lib/constants';
 import type { StationWithSession } from '@/types/database';
 
@@ -119,6 +120,10 @@ export function useStations() {
         enqueue('create_session', { station_id: stationId, tariff_type: tariffType });
         playSound('start');
         if (navigator.vibrate) navigator.vibrate(50);
+        toast({
+          title: '⚡ Сессия поставлена в очередь',
+          description: 'Будет запущена автоматически при восстановлении связи',
+        });
         return { data: null, queued: true };
       }
       console.error('Error starting session:', err);
