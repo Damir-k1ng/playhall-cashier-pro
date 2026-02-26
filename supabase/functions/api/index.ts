@@ -1305,6 +1305,9 @@ Deno.serve(async (req) => {
               query = query.eq('is_active', false)
             }
 
+            // Always exclude admin sessions from analytics
+            query = query.eq('is_admin_session', false)
+
             if (filterCashierId && isValidUUID(filterCashierId)) {
               query = query.eq('cashier_id', filterCashierId)
             }

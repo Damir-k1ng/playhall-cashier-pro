@@ -1,0 +1,1 @@
+ALTER TABLE public.shifts ADD COLUMN is_admin_session boolean NOT NULL DEFAULT false;

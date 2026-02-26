@@ -97,6 +97,16 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Get cashier role FIRST (needed to set is_admin_session)
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('cashier_id', cashier.id)
+        .single()
+
+      const userRole = roleData?.role || 'cashier'
+      const isAdmin = userRole === 'admin'
+
       // Check for existing active shift
       const { data: existingShift } = await supabase
         .from('shifts')
@@ -116,19 +126,12 @@ Deno.serve(async (req) => {
             .eq('id', existingShift.id)
         }
 
-        // Get cashier role
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('cashier_id', cashier.id)
-          .single()
-
         return new Response(
           JSON.stringify({
             cashier,
             shift: { ...existingShift, session_token: sessionToken },
             session_token: sessionToken,
-            role: roleData?.role || 'cashier'
+            role: userRole
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
@@ -141,7 +144,8 @@ Deno.serve(async (req) => {
         .insert({
           cashier_id: cashier.id,
           is_active: true,
-          session_token: newSessionToken
+          session_token: newSessionToken,
+          is_admin_session: isAdmin
         })
         .select()
         .single()
@@ -154,19 +158,12 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get cashier role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('cashier_id', cashier.id)
-        .single()
-
       return new Response(
         JSON.stringify({
           cashier,
           shift: newShift,
           session_token: newSessionToken,
-          role: roleData?.role || 'cashier'
+          role: userRole
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
