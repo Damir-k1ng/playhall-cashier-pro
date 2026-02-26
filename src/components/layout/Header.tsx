@@ -1,9 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw, Shield, BarChart3 } from 'lucide-react';
+import { LogOut, User, Wallet, Coffee, Receipt, RefreshCw, Shield, BarChart3, Wifi, WifiOff } from 'lucide-react';
 import { CLUB_NAME } from '@/lib/constants';
 import logoImage from '@/assets/logo.jpg';
 import {
@@ -25,6 +26,15 @@ interface HeaderProps {
 export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
   const navigate = useNavigate();
   const { cashier, shift, role, logout } = useAuth();
+  const { quality } = useNetworkStatusContext();
+
+  const networkConfig = {
+    good: { icon: Wifi, color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'Стабильное соединение', pulse: false },
+    slow: { icon: Wifi, color: 'text-amber-400', bg: 'bg-amber-500/15', label: 'Медленное соединение', pulse: true },
+    offline: { icon: WifiOff, color: 'text-red-400', bg: 'bg-red-500/15', label: 'Нет соединения', pulse: true },
+  };
+  const net = networkConfig[quality];
+  const NetIcon = net.icon;
 
   const handleLogout = async () => {
     if (confirm('Вы уверены, что хотите завершить смену?')) {
@@ -60,11 +70,26 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
             {isRefreshing && (
               <RefreshCw className="w-4 h-4 text-primary animate-spin" />
             )}
+            {/* Network quality indicator */}
+            <div className={`relative flex items-center gap-1.5 px-2 py-1 rounded-lg ${net.bg} transition-all duration-500`} title={net.label}>
+              <NetIcon className={`w-3.5 h-3.5 ${net.color} transition-colors duration-500`} />
+              {net.pulse && (
+                <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${quality === 'offline' ? 'bg-red-400' : 'bg-amber-400'} animate-pulse`} />
+              )}
+            </div>
           </div>
-          {/* Mobile refresh indicator */}
-          {isRefreshing && (
-            <RefreshCw className="sm:hidden w-4 h-4 text-primary animate-spin ml-2" />
-          )}
+          {/* Mobile indicators */}
+          <div className="sm:hidden flex items-center gap-1 ml-2">
+            {isRefreshing && (
+              <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+            )}
+            <div className={`relative p-1 rounded-md ${net.bg}`} title={net.label}>
+              <NetIcon className={`w-3.5 h-3.5 ${net.color}`} />
+              {net.pulse && (
+                <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${quality === 'offline' ? 'bg-red-400' : 'bg-amber-400'} animate-pulse`} />
+              )}
+            </div>
+          </div>
         </button>
 
         {/* Center: Action Buttons */}
