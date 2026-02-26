@@ -512,15 +512,44 @@ async function handleGetShiftReport(ctx: Ctx): Promise<Response> {
 async function handleGetShiftHistory(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors } = ctx
 
-  const { data: sessionsData } = await supabase
-    .from('sessions').select('*, station:stations(*)').eq('shift_id', shift.id)
-    .eq('status', 'completed').order('ended_at', { ascending: false })
+  // Get payments for this shift to find sessions paid during this shift
+  const { data: paymentsData } = await supabase
+    .from('payments').select('session_id, payment_method, cash_amount, kaspi_amount')
+    .eq('shift_id', shift.id)
+  
+  const paymentMap = new Map((paymentsData || []).map((p: any) => [p.session_id, p]))
+  const paidSessionIds = Array.from(paymentMap.keys())
+
+  // Get sessions that were either started in this shift OR paid in this shift
+  let sessionsData: any[] = []
+  if (paidSessionIds.length > 0) {
+    const { data: byPayment } = await supabase
+      .from('sessions').select('*, station:stations(*)')
+      .in('id', paidSessionIds).eq('status', 'completed')
+      .order('ended_at', { ascending: false })
+    sessionsData = byPayment || []
+  }
+
+  // Also get sessions started in this shift that may not have payments yet
+  const { data: byShift } = await supabase
+    .from('sessions').select('*, station:stations(*)')
+    .eq('shift_id', shift.id).eq('status', 'completed')
+    .order('ended_at', { ascending: false })
+  
+  // Merge without duplicates
+  const sessionIds = new Set(sessionsData.map((s: any) => s.id))
+  for (const s of (byShift || [])) {
+    if (!sessionIds.has(s.id)) {
+      sessionsData.push(s)
+      sessionIds.add(s.id)
+    }
+  }
 
   const sessionsWithDetails = await Promise.all(
-    (sessionsData || []).map(async (session: any) => {
+    sessionsData.map(async (session: any) => {
       const { data: controllers } = await supabase.from('controller_usage').select('*').eq('session_id', session.id)
       const { count: drinksCount } = await supabase.from('session_drinks').select('*', { count: 'exact', head: true }).eq('session_id', session.id)
-      const { data: payment } = await supabase.from('payments').select('payment_method, cash_amount, kaspi_amount').eq('session_id', session.id).maybeSingle()
+      const payment = paymentMap.get(session.id)
 
       return {
         ...session, controllers: controllers || [], drinks_count: drinksCount || 0,
