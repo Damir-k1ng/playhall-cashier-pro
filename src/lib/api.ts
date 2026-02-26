@@ -403,6 +403,27 @@ class ApiClient {
       body: JSON.stringify({ max_discount_percent: maxDiscountPercent }),
     });
   }
+  // Admin: Drinks management
+  async createDrink(data: { name: string; price: number }) {
+    return this.request('/admin/drinks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDrink(id: string, data: { name?: string; price?: number }) {
+    return this.request(`/admin/drinks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDrink(id: string) {
+    return this.request(`/admin/drinks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Inventory
   async getInventory() {
     return this.request('/admin/inventory');
