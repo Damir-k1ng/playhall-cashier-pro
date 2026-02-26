@@ -183,6 +183,12 @@ class ApiClient {
     });
   }
 
+  async deleteSessionDrink(id: string) {
+    return this.request(`/session-drinks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Drink sales
   async createDrinkSale(data: {
     drink_id: string;

@@ -6,7 +6,7 @@ import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerConte
 import { Button } from '@/components/ui/button';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, formatTimeFromISO } from '@/lib/utils';
-import { ArrowLeft, Play, Square, Gamepad2, Plus, Package } from 'lucide-react';
+import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CONTROLLER_RATE, CLUB_NAME, PACKAGE_WARNING_MINUTES } from '@/lib/constants';
@@ -15,7 +15,7 @@ export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
   const navigate = useNavigate();
   const { stations, isLoading, startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
-  const { drinks, addDrinkToSession } = useDrinks();
+  const { drinks, addDrinkToSession, removeSessionDrink } = useDrinks();
   const { getElapsedSeconds } = useGlobalTimer();
   
   const [showDrinks, setShowDrinks] = useState(false);
@@ -23,6 +23,7 @@ export function StationScreen() {
   const [isExtendingPackage, setIsExtendingPackage] = useState(false);
   const [returningControllerId, setReturningControllerId] = useState<string | null>(null);
   const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
+  const [removingDrinkId, setRemovingDrinkId] = useState<string | null>(null);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
   const prevRemainingRef = useRef<number | null>(null);
@@ -172,6 +173,23 @@ export function StationScreen() {
       }
     } finally {
       setIsExtendingPackage(false);
+    }
+  };
+
+  const handleRemoveDrink = async (sessionDrinkId: string) => {
+    if (removingDrinkId) return;
+    
+    setRemovingDrinkId(sessionDrinkId);
+    try {
+      const result = await removeSessionDrink(sessionDrinkId);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('🗑 Напиток удалён');
+        await refetchStations();
+      }
+    } finally {
+      setRemovingDrinkId(null);
     }
   };
 
@@ -448,13 +466,24 @@ export function StationScreen() {
                 <p className="text-muted-foreground/60 py-4">Напитки не заказаны</p>
               ) : (
                 <div className="space-y-2">
-                  {sessionDrinks.map((drink, index) => (
+                  {sessionDrinks.map((drink) => (
                     <div 
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"
+                      key={drink.id}
+                      className="flex items-center justify-between p-4 bg-muted/30 rounded-xl group"
                     >
                       <span className="font-medium">{drink.quantity}x {drink.drink?.name || 'напиток'}</span>
-                      <span className="text-success font-semibold">{formatCurrency(drink.total_price)}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-success font-semibold">{formatCurrency(drink.total_price)}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemoveDrink(drink.id)}
+                          disabled={removingDrinkId === drink.id}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
