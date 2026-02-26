@@ -1,18 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStations } from '@/hooks/useStations';
 import { useGlobalTimer } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
 import { PreCheckSkeleton } from '@/components/skeletons/PreCheckSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, calculateGameCost, formatTimeFromISO, formatTime } from '@/lib/utils';
-import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard } from 'lucide-react';
+import { ArrowLeft, Clock, Gamepad2, Coffee, CreditCard, Percent } from 'lucide-react';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { apiClient } from '@/lib/api';
 
 interface ControllerDetail {
   id: string;
   minutes: number;
   cost: number;
+}
+
+interface DiscountPreset {
+  id: string;
+  percent: number;
 }
 
 export function PreCheckScreen() {
@@ -21,11 +27,25 @@ export function PreCheckScreen() {
   const { stations, isLoading } = useStations();
   const { getElapsedSeconds, getElapsedMinutes } = useGlobalTimer();
 
+  const [discountPresets, setDiscountPresets] = useState<DiscountPreset[]>([]);
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(0);
+  const [selectedDiscount, setSelectedDiscount] = useState(0);
+
   const station = stations.find(s => s.activeSession?.id === sessionId);
   const session = station?.activeSession;
   const packageCount = session?.package_count || 1;
 
-  // Calculate all values using global timer (no local state needed for timer)
+  // Fetch discount presets
+  useEffect(() => {
+    apiClient.getDiscountPresets()
+      .then((data) => {
+        setDiscountPresets(data.presets || []);
+        setMaxDiscountPercent(data.max_discount_percent || 0);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Calculate all values using global timer
   const elapsedSeconds = session ? getElapsedSeconds(session.started_at) : 0;
   const elapsedMins = Math.floor(elapsedSeconds / 60);
 
@@ -51,7 +71,12 @@ export function PreCheckScreen() {
   const totalControllerCost = controllerDetails.reduce((sum, c) => sum + c.cost, 0);
   const drinkCost = (station?.drinks || []).reduce((sum, d) => sum + d.total_price, 0);
 
-  // Show skeleton loading while stations are being fetched
+  // Discount applies to game + controllers only (not drinks)
+  const discountableAmount = gameCost + totalControllerCost;
+  const discountAmount = Math.round(discountableAmount * selectedDiscount / 100);
+  const totalBeforeDiscount = gameCost + totalControllerCost + drinkCost;
+  const totalCost = totalBeforeDiscount - discountAmount;
+
   if (isLoading) {
     return <PreCheckSkeleton />;
   }
@@ -64,7 +89,6 @@ export function PreCheckScreen() {
     );
   }
 
-  const totalCost = gameCost + totalControllerCost + drinkCost;
   const startTime = formatTimeFromISO(session.started_at);
   const endTime = formatTime(new Date());
 
@@ -77,6 +101,8 @@ export function PreCheckScreen() {
         controllerCost: totalControllerCost,
         drinkCost,
         totalCost,
+        discountPercent: selectedDiscount,
+        discountAmount,
       }
     });
   };
@@ -203,6 +229,56 @@ export function PreCheckScreen() {
               </div>
             </div>
           )}
+
+          {/* Discount Section */}
+          {discountPresets.length > 0 && (
+            <div className="glass-card rounded-xl border border-amber-500/20 p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Percent className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-lg">Скидка</div>
+                  <div className="text-xs text-muted-foreground">
+                    На игру и джойстики (макс. {maxDiscountPercent}%)
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={selectedDiscount === 0 ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(
+                    'rounded-lg',
+                    selectedDiscount === 0 && 'bg-primary'
+                  )}
+                  onClick={() => setSelectedDiscount(0)}
+                >
+                  Без скидки
+                </Button>
+                {discountPresets.map(preset => (
+                  <Button
+                    key={preset.id}
+                    variant={selectedDiscount === preset.percent ? 'default' : 'outline'}
+                    size="sm"
+                    className={cn(
+                      'rounded-lg',
+                      selectedDiscount === preset.percent && 'bg-amber-500 hover:bg-amber-600 text-white'
+                    )}
+                    onClick={() => setSelectedDiscount(preset.percent)}
+                  >
+                    {preset.percent}%
+                  </Button>
+                ))}
+              </div>
+              {selectedDiscount > 0 && (
+                <div className="mt-3 flex items-center justify-between text-amber-500 font-semibold">
+                  <span>Скидка {selectedDiscount}%</span>
+                  <span>−{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Grand Total */}
@@ -210,6 +286,11 @@ export function PreCheckScreen() {
           <div className="text-sm text-muted-foreground uppercase tracking-widest mb-3">
             Итого к оплате
           </div>
+          {selectedDiscount > 0 && (
+            <div className="text-2xl font-mono text-muted-foreground line-through mb-1">
+              {formatCurrency(totalBeforeDiscount)}
+            </div>
+          )}
           <div className="text-6xl font-bold text-primary text-glow-cyan">
             {formatCurrency(totalCost)}
           </div>

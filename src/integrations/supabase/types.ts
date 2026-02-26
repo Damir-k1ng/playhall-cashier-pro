@@ -116,18 +116,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          max_discount_percent: number
           name: string
           pin: string
         }
         Insert: {
           created_at?: string
           id?: string
+          max_discount_percent?: number
           name: string
           pin: string
         }
         Update: {
           created_at?: string
           id?: string
+          max_discount_percent?: number
           name?: string
           pin?: string
         }
@@ -164,6 +167,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      discount_presets: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          percent: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          percent: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          percent?: number
+        }
+        Relationships: []
       }
       drink_sales: {
         Row: {
@@ -241,6 +265,8 @@ export type Database = {
         Row: {
           cash_amount: number | null
           created_at: string
+          discount_amount: number
+          discount_percent: number
           id: string
           kaspi_amount: number | null
           payment_method: Database["public"]["Enums"]["payment_method"]
@@ -251,6 +277,8 @@ export type Database = {
         Insert: {
           cash_amount?: number | null
           created_at?: string
+          discount_amount?: number
+          discount_percent?: number
           id?: string
           kaspi_amount?: number | null
           payment_method: Database["public"]["Enums"]["payment_method"]
@@ -261,6 +289,8 @@ export type Database = {
         Update: {
           cash_amount?: number | null
           created_at?: string
+          discount_amount?: number
+          discount_percent?: number
           id?: string
           kaspi_amount?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"]

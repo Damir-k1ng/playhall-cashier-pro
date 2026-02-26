@@ -121,11 +121,18 @@ class ApiClient {
     cash_amount?: number;
     kaspi_amount?: number;
     total_amount: number;
+    discount_percent?: number;
+    discount_amount?: number;
   }) {
     return this.request('/payments', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // Discount presets (for cashiers)
+  async getDiscountPresets() {
+    return this.request('/discount-presets');
   }
 
   // Controller usage
@@ -332,7 +339,31 @@ class ApiClient {
       body: JSON.stringify({ reason }),
     });
   }
+
+  // Admin: Discount presets management
+  async getAdminDiscountPresets() {
+    return this.request('/admin/discount-presets');
+  }
+
+  async createDiscountPreset(percent: number) {
+    return this.request('/admin/discount-presets', {
+      method: 'POST',
+      body: JSON.stringify({ percent }),
+    });
+  }
+
+  async deleteDiscountPreset(id: string) {
+    return this.request(`/admin/discount-presets/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Admin: Update cashier max discount
+  async updateCashierDiscount(id: string, maxDiscountPercent: number) {
+    return this.request(`/admin/cashiers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ max_discount_percent: maxDiscountPercent }),
+    });
+  }
 }
-
-
 export const apiClient = new ApiClient();
