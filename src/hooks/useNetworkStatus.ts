@@ -61,9 +61,9 @@ export function useNetworkStatus() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Periodic latency check every 30 seconds
+    // Periodic latency check every 15 seconds
     checkLatency();
-    pingIntervalRef.current = setInterval(checkLatency, 30000);
+    pingIntervalRef.current = setInterval(checkLatency, 15000);
     
     return () => {
       window.removeEventListener('online', handleOnline);
