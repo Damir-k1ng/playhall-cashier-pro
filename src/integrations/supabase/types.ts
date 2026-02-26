@@ -688,6 +688,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_shift_totals: {
+        Args: {
+          p_cash?: number
+          p_controllers?: number
+          p_drinks?: number
+          p_games?: number
+          p_kaspi?: number
+          p_shift_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "cashier"

@@ -340,13 +340,14 @@ async function handleCreatePayment(ctx: Ctx): Promise<Response> {
   const gameCost = sessionData?.game_cost || 0
   const controllerCost = sessionData?.controller_cost || 0
   const drinkCost = sessionData?.drink_cost || 0
-  await supabase.from('shifts').update({
-    total_cash: shift.total_cash + (body.cash_amount || 0),
-    total_kaspi: shift.total_kaspi + (body.kaspi_amount || 0),
-    total_games: shift.total_games + gameCost,
-    total_controllers: shift.total_controllers + controllerCost,
-    total_drinks: shift.total_drinks + drinkCost,
-  }).eq('id', shift.id)
+  await supabase.rpc('increment_shift_totals', {
+    p_shift_id: shift.id,
+    p_cash: body.cash_amount || 0,
+    p_kaspi: body.kaspi_amount || 0,
+    p_games: gameCost,
+    p_controllers: controllerCost,
+    p_drinks: drinkCost,
+  })
 
   return jsonResponse(data, cors)
 }
@@ -426,11 +427,12 @@ async function handleCreateDrinkSale(ctx: Ctx): Promise<Response> {
   }).select().single()
   if (error) { console.error('Drink sale create error:', error); return errorResponse('Unable to create drink sale', cors) }
 
-  await supabase.from('shifts').update({
-    total_cash: shift.total_cash + (body.cash_amount || 0),
-    total_kaspi: shift.total_kaspi + (body.kaspi_amount || 0),
-    total_drinks: shift.total_drinks + body.total_price,
-  }).eq('id', shift.id)
+  await supabase.rpc('increment_shift_totals', {
+    p_shift_id: shift.id,
+    p_cash: body.cash_amount || 0,
+    p_kaspi: body.kaspi_amount || 0,
+    p_drinks: body.total_price,
+  })
 
   return jsonResponse(data, cors)
 }
@@ -1019,16 +1021,14 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
     cash_amount: cashAmount, kaspi_amount: kaspiAmount, total_amount: totalCost,
   })
 
-  const { data: originalShift } = await supabase.from('shifts').select('*').eq('id', session.shift_id).single()
-  if (originalShift) {
-    await supabase.from('shifts').update({
-      total_cash: (originalShift.total_cash || 0) + cashAmount,
-      total_kaspi: (originalShift.total_kaspi || 0) + kaspiAmount,
-      total_games: (originalShift.total_games || 0) + gameCost,
-      total_controllers: (originalShift.total_controllers || 0) + controllerCost,
-      total_drinks: (originalShift.total_drinks || 0) + drinkCost,
-    }).eq('id', session.shift_id)
-  }
+  await supabase.rpc('increment_shift_totals', {
+    p_shift_id: session.shift_id,
+    p_cash: cashAmount,
+    p_kaspi: kaspiAmount,
+    p_games: gameCost,
+    p_controllers: controllerCost,
+    p_drinks: drinkCost,
+  })
 
   return jsonResponse({
     success: true, session_id: session.id, total_cost: totalCost,
