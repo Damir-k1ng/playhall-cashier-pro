@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import type { Cashier, Shift, AppRole } from '@/types/database';
 import { authPinLogin, authPinValidate, authPinLogout, apiClient } from '@/lib/api';
+import { toast } from 'sonner';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -127,6 +128,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     checkActiveSession();
   }, [checkActiveSession]);
+
+  // Auto-reconnect: re-validate session when network comes back online
+  const wasOffline = useRef(false);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      wasOffline.current = true;
+    };
+
+    const handleOnline = async () => {
+      if (!wasOffline.current) return;
+      wasOffline.current = false;
+
+      const storedToken = localStorage.getItem(SESSION_TOKEN_KEY);
+      if (!storedToken) return;
+
+      try {
+        const result = await authPinValidate(storedToken);
+
+        if (result.valid && result.cashier && result.shift) {
+          apiClient.setSessionToken(storedToken);
+          const role = result.role || 'cashier';
+          cacheSessionData(result.cashier, result.shift, role);
+
+          setState({
+            isAuthenticated: true,
+            isLoading: false,
+            cashier: result.cashier,
+            shift: result.shift,
+            role,
+          });
+          toast.success('Соединение восстановлено', {
+            description: 'Данные смены обновлены',
+            duration: 3000,
+          });
+        } else if (result.valid === false) {
+          // Shift was closed while offline
+          localStorage.removeItem(SESSION_TOKEN_KEY);
+          localStorage.removeItem(CACHED_SESSION_KEY);
+          apiClient.setSessionToken(null);
+          setState({
+            isAuthenticated: false,
+            isLoading: false,
+            cashier: null,
+            shift: null,
+            role: 'cashier',
+          });
+          toast.warning('Смена была закрыта', {
+            description: 'Необходимо войти заново',
+            duration: 5000,
+          });
+        }
+      } catch {
+        // Still no connection — will retry on next online event
+        toast.error('Не удалось восстановить соединение', {
+          description: 'Попробуйте обновить страницу',
+          duration: 4000,
+        });
+      }
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   const refreshShift = async () => {
     try {
