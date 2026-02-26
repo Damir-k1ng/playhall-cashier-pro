@@ -678,3 +678,71 @@ Deno.test("Write: package tariff with extension and overtime cost", async () => 
     await logout(token!);
   }
 });
+
+// 21. Discount: apply discount and verify discount_amount is recorded
+Deno.test("Write: discount applied correctly on payment", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Find free station
+    const { body: stations } = await apiAuth("/stations", token!);
+    const freeStation = stations.find((s: any) => !s.activeSession);
+    if (!freeStation) {
+      console.log("SKIP: no free station for discount test");
+      return;
+    }
+
+    // 1. Create hourly session
+    const { status: sessStatus, body: session } = await apiAuth("/sessions", token!, {
+      method: "POST",
+      body: JSON.stringify({ station_id: freeStation.id, tariff_type: "hourly" }),
+    });
+    assertEquals(sessStatus, 200, `create session failed: ${JSON.stringify(session)}`);
+
+    // 2. Get pre-check to know the cost
+    const { body: details } = await apiAuth(`/sessions/${session.id}`, token!);
+    const gameCost = details.gameCost;
+    const discountPercent = 10;
+    const discountAmount = Math.round(gameCost * discountPercent / 100);
+    const totalAfterDiscount = gameCost - discountAmount;
+
+    // 3. Complete session
+    await apiAuth(`/sessions/${session.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "completed",
+        ended_at: new Date().toISOString(),
+        game_cost: gameCost,
+        controller_cost: 0,
+        drink_cost: 0,
+        total_cost: totalAfterDiscount,
+      }),
+    });
+
+    // 4. Create payment with discount
+    const { status: payStatus, body: payment } = await apiAuth("/payments", token!, {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: session.id,
+        payment_method: "cash",
+        cash_amount: totalAfterDiscount,
+        kaspi_amount: 0,
+        total_amount: totalAfterDiscount,
+        discount_percent: discountPercent,
+        discount_amount: discountAmount,
+      }),
+    });
+    assertEquals(payStatus, 200, `payment failed: ${JSON.stringify(payment)}`);
+
+    // 5. Verify discount fields are recorded
+    assertEquals(payment.discount_percent, discountPercent, 
+      `discount_percent should be ${discountPercent}, got ${payment.discount_percent}`);
+    assertEquals(payment.discount_amount, discountAmount,
+      `discount_amount should be ${discountAmount}, got ${payment.discount_amount}`);
+    assertEquals(payment.total_amount, totalAfterDiscount,
+      `total_amount should be ${totalAfterDiscount}, got ${payment.total_amount}`);
+  } finally {
+    await logout(token!);
+  }
+});
