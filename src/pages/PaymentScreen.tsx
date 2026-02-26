@@ -18,6 +18,8 @@ interface SessionData {
   controllerCost: number;
   drinkCost: number;
   totalCost: number;
+  discountPercent: number;
+  discountAmount: number;
 }
 
 export function PaymentScreen() {
@@ -46,6 +48,8 @@ export function PaymentScreen() {
         controllerCost: location.state.controllerCost,
         drinkCost: location.state.drinkCost,
         totalCost: location.state.totalCost,
+        discountPercent: location.state.discountPercent || 0,
+        discountAmount: location.state.discountAmount || 0,
       });
     } else if (sessionId) {
       // Fetch session data from API
@@ -61,6 +65,8 @@ export function PaymentScreen() {
             controllerCost: data.controllerCost,
             drinkCost: data.drinkCost,
             totalCost: data.totalCost,
+            discountPercent: 0,
+            discountAmount: 0,
           });
         })
         .catch((err) => {
@@ -100,7 +106,7 @@ export function PaymentScreen() {
     );
   }
 
-  const { stationName, gameCost, controllerCost, drinkCost, totalCost } = sessionData;
+  const { stationName, gameCost, controllerCost, drinkCost, totalCost, discountPercent, discountAmount } = sessionData;
 
   const handleSinglePayment = async (method: 'cash' | 'kaspi') => {
     setIsProcessing(true);
@@ -113,7 +119,9 @@ export function PaymentScreen() {
         drinkCost,
         method,
         method === 'cash' ? totalCost : 0,
-        method === 'kaspi' ? totalCost : 0
+        method === 'kaspi' ? totalCost : 0,
+        discountPercent,
+        discountAmount
       );
 
       if (result.error) {
@@ -122,9 +130,7 @@ export function PaymentScreen() {
       }
       
       toast.success('Оплата принята');
-      // Навигация сразу — Dashboard обновится автоматически (polling 15 сек)
       navigate('/');
-      // Фоновое обновление без блокировки
       refetch().catch(console.error);
     } finally {
       setIsProcessing(false);
@@ -150,7 +156,9 @@ export function PaymentScreen() {
         drinkCost,
         'split',
         cash,
-        kaspi
+        kaspi,
+        discountPercent,
+        discountAmount
       );
 
       if (result.error) {
@@ -159,9 +167,7 @@ export function PaymentScreen() {
       }
       
       toast.success('Оплата принята');
-      // Навигация сразу — Dashboard обновится автоматически (polling 15 сек)
       navigate('/');
-      // Фоновое обновление без блокировки
       refetch().catch(console.error);
     } finally {
       setIsProcessing(false);
@@ -205,6 +211,11 @@ export function PaymentScreen() {
           <div className="text-sm text-muted-foreground uppercase tracking-widest mb-4">
             К оплате
           </div>
+          {discountPercent > 0 && (
+            <div className="text-sm text-amber-500 font-semibold mb-2">
+              Скидка {discountPercent}% (−{formatCurrency(discountAmount)})
+            </div>
+          )}
           <div className="text-7xl font-bold text-primary text-glow-cyan animate-pulse-glow">
             {formatCurrency(totalCost)}
           </div>

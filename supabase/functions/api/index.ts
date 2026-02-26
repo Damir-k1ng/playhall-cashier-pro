@@ -559,6 +559,31 @@ Deno.serve(async (req) => {
       )
     }
 
+    // GET /discount-presets - Get available discount presets for current cashier
+    if (path === '/discount-presets' && method === 'GET') {
+      // Get cashier's max discount limit
+      const { data: cashierData } = await supabase
+        .from('cashiers')
+        .select('max_discount_percent')
+        .eq('id', shift.cashier_id)
+        .single()
+
+      const maxDiscount = cashierData?.max_discount_percent || 0
+
+      // Get active presets filtered by cashier's max discount
+      const { data: presets } = await supabase
+        .from('discount_presets')
+        .select('*')
+        .eq('is_active', true)
+        .lte('percent', maxDiscount)
+        .order('percent')
+
+      return new Response(
+        JSON.stringify({ presets: presets || [], max_discount_percent: maxDiscount }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // POST /payments - Create payment and update shift totals
     if (path === '/payments' && method === 'POST') {
       const body = await req.json()
@@ -600,6 +625,8 @@ Deno.serve(async (req) => {
           cash_amount: body.cash_amount || 0,
           kaspi_amount: body.kaspi_amount || 0,
           total_amount: body.total_amount,
+          discount_percent: body.discount_percent || 0,
+          discount_amount: body.discount_amount || 0,
           shift_id: shift.id 
         })
         .select()
@@ -1076,7 +1103,7 @@ Deno.serve(async (req) => {
       if (path === '/admin/cashiers' && method === 'GET') {
         const { data, error } = await supabase
           .from('cashiers')
-          .select('id, name, pin, created_at')
+          .select('id, name, pin, created_at, max_discount_percent')
           .order('created_at')
 
         if (error) {
@@ -1170,6 +1197,16 @@ Deno.serve(async (req) => {
             )
           }
           updateData.pin = body.pin
+        }
+        if (body.max_discount_percent !== undefined) {
+          const maxDiscount = parseInt(body.max_discount_percent)
+          if (isNaN(maxDiscount) || maxDiscount < 0 || maxDiscount > 100) {
+            return new Response(
+              JSON.stringify({ error: 'Процент скидки должен быть от 0 до 100' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          updateData.max_discount_percent = maxDiscount
         }
 
         if (Object.keys(updateData).length === 0) {
@@ -2454,6 +2491,90 @@ Deno.serve(async (req) => {
             new_values: null,
             reason: reason.trim()
           })
+
+        return new Response(
+          JSON.stringify({ success: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // GET /admin/discount-presets - List all discount presets
+      if (path === '/admin/discount-presets' && method === 'GET') {
+        const { data, error } = await supabase
+          .from('discount_presets')
+          .select('*')
+          .order('percent')
+
+        if (error) {
+          return new Response(
+            JSON.stringify({ error: 'Ошибка загрузки пресетов скидок' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        return new Response(
+          JSON.stringify(data),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // POST /admin/discount-presets - Create discount preset
+      if (path === '/admin/discount-presets' && method === 'POST') {
+        const body = await req.json()
+        const percent = parseInt(body.percent)
+        if (isNaN(percent) || percent < 1 || percent > 100) {
+          return new Response(
+            JSON.stringify({ error: 'Процент должен быть от 1 до 100' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { data, error } = await supabase
+          .from('discount_presets')
+          .insert({ percent })
+          .select()
+          .single()
+
+        if (error) {
+          if (error.code === '23505') {
+            return new Response(
+              JSON.stringify({ error: 'Пресет с таким процентом уже существует' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          return new Response(
+            JSON.stringify({ error: 'Ошибка создания пресета' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        return new Response(
+          JSON.stringify(data),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // DELETE /admin/discount-presets/:id - Delete discount preset
+      if (path.startsWith('/admin/discount-presets/') && method === 'DELETE') {
+        const id = path.split('/')[3]
+        if (!isValidUUID(id)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid preset ID' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+
+        const { error } = await supabase
+          .from('discount_presets')
+          .delete()
+          .eq('id', id)
+
+        if (error) {
+          return new Response(
+            JSON.stringify({ error: 'Ошибка удаления пресета' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
 
         return new Response(
           JSON.stringify({ success: true }),

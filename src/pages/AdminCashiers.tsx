@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay, FileEdit } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay, FileEdit, Percent } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { CLUB_NAME } from '@/lib/constants';
@@ -32,6 +32,7 @@ import logoImage from '@/assets/logo.jpg';
 import { ShiftAnalyticsDashboard } from '@/components/admin/ShiftAnalyticsDashboard';
 import { ActiveSessionsManager } from '@/components/admin/ActiveSessionsManager';
 import { AdminCorrectionsTab } from '@/components/admin/AdminCorrectionsTab';
+import { AdminDiscountSettings } from '@/components/admin/AdminDiscountSettings';
 
 interface Cashier {
   id: string;
@@ -51,9 +52,10 @@ export function AdminCashiers() {
     if (tab === 'analytics') return 'analytics';
     if (tab === 'sessions') return 'sessions';
     if (tab === 'corrections') return 'corrections';
+    if (tab === 'discounts') return 'discounts';
     return 'cashiers';
   };
-  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions' | 'corrections'>(getInitialTab());
+  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions' | 'corrections' | 'discounts'>(getInitialTab());
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -234,11 +236,15 @@ export function AdminCashiers() {
           
           {/* Tabs */}
           <div className="max-w-4xl mx-auto px-4 pb-2">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'cashiers' | 'analytics' | 'sessions' | 'corrections')}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
               <TabsList className="glass-card border border-primary/20 w-full">
                 <TabsTrigger value="cashiers" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Кассиры</span>
+                </TabsTrigger>
+                <TabsTrigger value="discounts" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
+                  <Percent className="h-4 w-4" />
+                  <span className="hidden sm:inline">Скидки</span>
                 </TabsTrigger>
                 <TabsTrigger value="sessions" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
                   <MonitorPlay className="h-4 w-4" />
@@ -318,6 +324,9 @@ export function AdminCashiers() {
                   ))}
                 </div>
               )
+            ) : activeTab === 'discounts' ? (
+              // Discount Settings
+              <AdminDiscountSettings />
             ) : activeTab === 'sessions' ? (
               // Sessions Manager
               <ActiveSessionsManager />

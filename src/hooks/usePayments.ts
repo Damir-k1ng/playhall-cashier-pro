@@ -11,11 +11,13 @@ export function usePayments() {
     drinkCost: number,
     paymentMethod: 'cash' | 'kaspi' | 'split',
     cashAmount: number,
-    kaspiAmount: number
+    kaspiAmount: number,
+    discountPercent: number = 0,
+    discountAmount: number = 0
   ) => {
     if (!shift?.id) return { error: 'Нет активной смены' };
 
-    const totalAmount = gameCost + controllerCost + drinkCost;
+    const totalAmount = gameCost + controllerCost + drinkCost - discountAmount;
 
     try {
       // 1. Update session with final costs
@@ -35,6 +37,8 @@ export function usePayments() {
         cash_amount: cashAmount,
         kaspi_amount: kaspiAmount,
         total_amount: totalAmount,
+        discount_percent: discountPercent,
+        discount_amount: discountAmount,
       });
 
       // Play success sound
