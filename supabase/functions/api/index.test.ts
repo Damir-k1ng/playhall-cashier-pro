@@ -527,3 +527,78 @@ Deno.test("Write: full session lifecycle with controller and payment", async () 
     await logout(token!);
   }
 });
+
+// 19. Split payment + shift totals verification
+Deno.test("Write: split payment updates shift totals correctly", async () => {
+  const token = await loginWithPin("1625");
+  assertNotEquals(token, null);
+
+  try {
+    // Snapshot shift totals BEFORE
+    const { body: shiftBefore } = await apiAuth("/shift", token!);
+    const cashBefore = shiftBefore.total_cash;
+    const kaspiBefore = shiftBefore.total_kaspi;
+    const gamesBefore = shiftBefore.total_games;
+
+    // Find free station
+    const { body: stations } = await apiAuth("/stations", token!);
+    const freeStation = stations.find((s: any) => !s.activeSession);
+    if (!freeStation) {
+      console.log("SKIP: no free station for split-payment test");
+      return;
+    }
+
+    // Create session
+    const { status: sessStatus, body: session } = await apiAuth("/sessions", token!, {
+      method: "POST",
+      body: JSON.stringify({ station_id: freeStation.id, tariff_type: "hourly" }),
+    });
+    assertEquals(sessStatus, 200, `create session failed: ${JSON.stringify(session)}`);
+
+    // Get session details for cost
+    const { body: details } = await apiAuth(`/sessions/${session.id}`, token!);
+    const gameCost = details.gameCost;
+    const totalCost = Math.max(gameCost, 1000); // ensure non-zero for meaningful test
+
+    // Update session costs
+    await apiAuth(`/sessions/${session.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({ game_cost: totalCost, controller_cost: 0, drink_cost: 0, total_cost: totalCost }),
+    });
+
+    // Split payment: 600 cash + 400 kaspi
+    const cashPart = 600;
+    const kaspiPart = totalCost - cashPart;
+
+    const { status: payStatus, body: payment } = await apiAuth("/payments", token!, {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: session.id,
+        payment_method: "split",
+        cash_amount: cashPart,
+        kaspi_amount: kaspiPart,
+        total_amount: totalCost,
+        discount_percent: 0,
+        discount_amount: 0,
+      }),
+    });
+    assertEquals(payStatus, 200, `split payment failed: ${JSON.stringify(payment)}`);
+    assertEquals(payment.payment_method, "split");
+    assertEquals(payment.cash_amount, cashPart);
+    assertEquals(payment.kaspi_amount, kaspiPart);
+
+    // Complete session
+    await apiAuth(`/sessions/${session.id}`, token!, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "completed", ended_at: new Date().toISOString() }),
+    });
+
+    // Verify shift totals AFTER
+    const { body: shiftAfter } = await apiAuth("/shift", token!);
+    assertEquals(shiftAfter.total_cash, cashBefore + cashPart, `cash should increase by ${cashPart}`);
+    assertEquals(shiftAfter.total_kaspi, kaspiBefore + kaspiPart, `kaspi should increase by ${kaspiPart}`);
+    assertEquals(shiftAfter.total_games, gamesBefore + totalCost, `games should increase by ${totalCost}`);
+  } finally {
+    await logout(token!);
+  }
+});
