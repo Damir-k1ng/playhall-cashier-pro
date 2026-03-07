@@ -47,7 +47,12 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
     navigate('/');
   };
 
-  const totalShift = (shift?.total_cash || 0) + (shift?.total_kaspi || 0);
+  // For admin: show daily totals across all cashiers; for cashiers: show own shift
+  const dailyTotals = (shift as any)?.daily_totals;
+  const isAdminView = role === 'admin' && dailyTotals;
+  const displayCash = isAdminView ? dailyTotals.total_cash : (shift?.total_cash || 0);
+  const displayKaspi = isAdminView ? dailyTotals.total_kaspi : (shift?.total_kaspi || 0);
+  const totalShift = displayCash + displayKaspi;
 
   return (
     <header className="shrink-0 z-50 glass-card border-b border-primary/10">
@@ -193,7 +198,7 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
             </div>
             <div className="text-right">
               <div className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider">
-                Касса
+                {isAdminView ? 'За день' : 'Касса'}
               </div>
               <div className="font-gaming text-sm md:text-base font-bold text-success text-glow-emerald">
                 {formatCurrency(totalShift)}
