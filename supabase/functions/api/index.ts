@@ -495,8 +495,52 @@ async function handleUpdateBooking(ctx: Ctx): Promise<Response> {
 }
 
 async function handleGetShift(ctx: Ctx): Promise<Response> {
-  const { data: shiftData } = await ctx.supabase.from('shifts').select('*').eq('id', ctx.shift.id).single()
-  return jsonResponse(shiftData, ctx.cors)
+  const { supabase, shift, cors } = ctx
+  const { data: shiftData } = await supabase.from('shifts').select('*').eq('id', shift.id).single()
+
+  // For admin sessions, also return daily totals across all cashier shifts
+  if (shiftData?.is_admin_session) {
+    // Get today's date range (operational day: 16:00 previous day to 04:00 next day, UTC+5)
+    const now = new Date()
+    // Adjust to UTC+5
+    const utc5Now = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+    const hour = utc5Now.getUTCHours()
+    
+    // If between 00:00-04:00 UTC+5, count as previous day
+    const operationalDate = new Date(utc5Now)
+    if (hour < 4) {
+      operationalDate.setUTCDate(operationalDate.getUTCDate() - 1)
+    }
+    
+    // Operational day starts at 16:00 UTC+5 (11:00 UTC) and ends at 04:00 UTC+5 next day (23:00 UTC)
+    const dayStart = new Date(operationalDate)
+    dayStart.setUTCHours(11, 0, 0, 0) // 16:00 UTC+5 = 11:00 UTC
+    const dayEnd = new Date(operationalDate)
+    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1)
+    dayEnd.setUTCHours(23, 0, 0, 0) // 04:00 UTC+5 next day = 23:00 UTC
+
+    const { data: allShifts } = await supabase
+      .from('shifts')
+      .select('total_cash, total_kaspi, total_games, total_controllers, total_drinks, is_admin_session')
+      .eq('is_admin_session', false)
+      .gte('started_at', dayStart.toISOString())
+      .lte('started_at', dayEnd.toISOString())
+
+    const dailyTotals = {
+      total_cash: 0, total_kaspi: 0, total_games: 0, total_controllers: 0, total_drinks: 0
+    }
+    for (const s of (allShifts || [])) {
+      dailyTotals.total_cash += s.total_cash || 0
+      dailyTotals.total_kaspi += s.total_kaspi || 0
+      dailyTotals.total_games += s.total_games || 0
+      dailyTotals.total_controllers += s.total_controllers || 0
+      dailyTotals.total_drinks += s.total_drinks || 0
+    }
+
+    return jsonResponse({ ...shiftData, daily_totals: dailyTotals }, cors)
+  }
+
+  return jsonResponse(shiftData, cors)
 }
 
 async function handleGetShiftReport(ctx: Ctx): Promise<Response> {
