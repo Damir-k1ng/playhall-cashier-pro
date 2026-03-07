@@ -198,7 +198,7 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
             </div>
             <div className="text-right">
               <div className="hidden md:block text-[10px] text-muted-foreground uppercase tracking-wider">
-                {isAdminView ? 'За день' : 'Касса'}
+                Касса
               </div>
               <div className="font-gaming text-sm md:text-base font-bold text-success text-glow-emerald">
                 {formatCurrency(totalShift)}
