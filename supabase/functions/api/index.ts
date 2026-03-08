@@ -1346,7 +1346,7 @@ async function handleAdminDeleteDrinkSale(ctx: Ctx): Promise<Response> {
 
   await supabase.from('admin_audit_log').insert(withTenant({
     admin_id: shift.cashier_id, action_type: 'delete_drink_sale', target_type: 'drink_sale', target_id: saleId,
-    shift_id: sale.shift_id, cashier_name: (sale as any).shift?.cashiers?.name || 'Unknown', station_name: null,
+    shift_id: sale.shift_id, cashier_name: (sale as any).shift?.cashier?.name || 'Unknown', station_name: null,
     old_values: { drink_name: (sale as any).drink?.name, quantity: sale.quantity, total_price: oldTotalPrice, payment_method: sale.payment_method, cash_amount: oldCashAmount, kaspi_amount: oldKaspiAmount, created_at: sale.created_at },
     new_values: null, reason: reason.trim(),
   }, ctx))
