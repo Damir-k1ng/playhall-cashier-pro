@@ -28,6 +28,7 @@ export type Database = {
           station_name: string | null
           target_id: string
           target_type: string
+          tenant_id: string
         }
         Insert: {
           action_type: Database["public"]["Enums"]["audit_action_type"]
@@ -42,6 +43,7 @@ export type Database = {
           station_name?: string | null
           target_id: string
           target_type: string
+          tenant_id: string
         }
         Update: {
           action_type?: Database["public"]["Enums"]["audit_action_type"]
@@ -56,6 +58,7 @@ export type Database = {
           station_name?: string | null
           target_id?: string
           target_type?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -72,6 +75,13 @@ export type Database = {
             referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admin_audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bookings: {
@@ -83,6 +93,7 @@ export type Database = {
           start_time: string
           station_id: string
           status: Database["public"]["Enums"]["booking_status"]
+          tenant_id: string
         }
         Insert: {
           booking_date?: string
@@ -92,6 +103,7 @@ export type Database = {
           start_time: string
           station_id: string
           status?: Database["public"]["Enums"]["booking_status"]
+          tenant_id: string
         }
         Update: {
           booking_date?: string
@@ -101,6 +113,7 @@ export type Database = {
           start_time?: string
           station_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -108,6 +121,13 @@ export type Database = {
             columns: ["station_id"]
             isOneToOne: false
             referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -143,6 +163,7 @@ export type Database = {
           returned_at: string | null
           session_id: string
           taken_at: string
+          tenant_id: string
         }
         Insert: {
           cost?: number | null
@@ -150,6 +171,7 @@ export type Database = {
           returned_at?: string | null
           session_id: string
           taken_at?: string
+          tenant_id: string
         }
         Update: {
           cost?: number | null
@@ -157,6 +179,7 @@ export type Database = {
           returned_at?: string | null
           session_id?: string
           taken_at?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -164,6 +187,13 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controller_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -174,20 +204,31 @@ export type Database = {
           id: string
           is_active: boolean
           percent: number
+          tenant_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           is_active?: boolean
           percent: number
+          tenant_id: string
         }
         Update: {
           created_at?: string
           id?: string
           is_active?: boolean
           percent?: number
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "discount_presets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       drink_sales: {
         Row: {
@@ -199,6 +240,7 @@ export type Database = {
           payment_method: Database["public"]["Enums"]["payment_method"]
           quantity: number
           shift_id: string
+          tenant_id: string
           total_price: number
         }
         Insert: {
@@ -210,6 +252,7 @@ export type Database = {
           payment_method?: Database["public"]["Enums"]["payment_method"]
           quantity?: number
           shift_id: string
+          tenant_id: string
           total_price: number
         }
         Update: {
@@ -221,6 +264,7 @@ export type Database = {
           payment_method?: Database["public"]["Enums"]["payment_method"]
           quantity?: number
           shift_id?: string
+          tenant_id?: string
           total_price?: number
         }
         Relationships: [
@@ -238,6 +282,13 @@ export type Database = {
             referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "drink_sales_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       drinks: {
@@ -246,20 +297,31 @@ export type Database = {
           id: string
           name: string
           price: number
+          tenant_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           price: number
+          tenant_id: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           price?: number
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "drinks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory: {
         Row: {
@@ -267,6 +329,7 @@ export type Database = {
           id: string
           min_threshold: number
           quantity: number
+          tenant_id: string
           unit: Database["public"]["Enums"]["inventory_unit"]
           updated_at: string
         }
@@ -275,6 +338,7 @@ export type Database = {
           id?: string
           min_threshold?: number
           quantity?: number
+          tenant_id: string
           unit?: Database["public"]["Enums"]["inventory_unit"]
           updated_at?: string
         }
@@ -283,6 +347,7 @@ export type Database = {
           id?: string
           min_threshold?: number
           quantity?: number
+          tenant_id?: string
           unit?: Database["public"]["Enums"]["inventory_unit"]
           updated_at?: string
         }
@@ -292,6 +357,13 @@ export type Database = {
             columns: ["drink_id"]
             isOneToOne: true
             referencedRelation: "drinks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -306,6 +378,7 @@ export type Database = {
           reason: string | null
           reference_id: string | null
           shift_id: string | null
+          tenant_id: string
           type: Database["public"]["Enums"]["inventory_movement_type"]
         }
         Insert: {
@@ -317,6 +390,7 @@ export type Database = {
           reason?: string | null
           reference_id?: string | null
           shift_id?: string | null
+          tenant_id: string
           type: Database["public"]["Enums"]["inventory_movement_type"]
         }
         Update: {
@@ -328,6 +402,7 @@ export type Database = {
           reason?: string | null
           reference_id?: string | null
           shift_id?: string | null
+          tenant_id?: string
           type?: Database["public"]["Enums"]["inventory_movement_type"]
         }
         Relationships: [
@@ -352,6 +427,13 @@ export type Database = {
             referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inventory_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payments: {
@@ -365,6 +447,7 @@ export type Database = {
           payment_method: Database["public"]["Enums"]["payment_method"]
           session_id: string
           shift_id: string
+          tenant_id: string
           total_amount: number
         }
         Insert: {
@@ -377,6 +460,7 @@ export type Database = {
           payment_method: Database["public"]["Enums"]["payment_method"]
           session_id: string
           shift_id: string
+          tenant_id: string
           total_amount: number
         }
         Update: {
@@ -389,6 +473,7 @@ export type Database = {
           payment_method?: Database["public"]["Enums"]["payment_method"]
           session_id?: string
           shift_id?: string
+          tenant_id?: string
           total_amount?: number
         }
         Relationships: [
@@ -406,6 +491,13 @@ export type Database = {
             referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reservations: {
@@ -419,6 +511,7 @@ export type Database = {
           reserved_for: string
           shift_id: string
           station_id: string
+          tenant_id: string
         }
         Insert: {
           created_at?: string
@@ -430,6 +523,7 @@ export type Database = {
           reserved_for: string
           shift_id: string
           station_id: string
+          tenant_id: string
         }
         Update: {
           created_at?: string
@@ -441,6 +535,7 @@ export type Database = {
           reserved_for?: string
           shift_id?: string
           station_id?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -457,6 +552,13 @@ export type Database = {
             referencedRelation: "stations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       session_drinks: {
@@ -466,6 +568,7 @@ export type Database = {
           id: string
           quantity: number
           session_id: string
+          tenant_id: string
           total_price: number
         }
         Insert: {
@@ -474,6 +577,7 @@ export type Database = {
           id?: string
           quantity?: number
           session_id: string
+          tenant_id: string
           total_price: number
         }
         Update: {
@@ -482,6 +586,7 @@ export type Database = {
           id?: string
           quantity?: number
           session_id?: string
+          tenant_id?: string
           total_price?: number
         }
         Relationships: [
@@ -497,6 +602,13 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_drinks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -515,6 +627,7 @@ export type Database = {
           station_id: string
           status: Database["public"]["Enums"]["session_status"]
           tariff_type: Database["public"]["Enums"]["tariff_type"]
+          tenant_id: string
           total_cost: number | null
         }
         Insert: {
@@ -530,6 +643,7 @@ export type Database = {
           station_id: string
           status?: Database["public"]["Enums"]["session_status"]
           tariff_type: Database["public"]["Enums"]["tariff_type"]
+          tenant_id: string
           total_cost?: number | null
         }
         Update: {
@@ -545,6 +659,7 @@ export type Database = {
           station_id?: string
           status?: Database["public"]["Enums"]["session_status"]
           tariff_type?: Database["public"]["Enums"]["tariff_type"]
+          tenant_id?: string
           total_cost?: number | null
         }
         Relationships: [
@@ -562,6 +677,13 @@ export type Database = {
             referencedRelation: "stations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       shifts: {
@@ -573,6 +695,7 @@ export type Database = {
           is_admin_session: boolean
           session_token: string | null
           started_at: string
+          tenant_id: string
           total_cash: number
           total_controllers: number
           total_drinks: number
@@ -587,6 +710,7 @@ export type Database = {
           is_admin_session?: boolean
           session_token?: string | null
           started_at?: string
+          tenant_id: string
           total_cash?: number
           total_controllers?: number
           total_drinks?: number
@@ -601,6 +725,7 @@ export type Database = {
           is_admin_session?: boolean
           session_token?: string | null
           started_at?: string
+          tenant_id?: string
           total_cash?: number
           total_controllers?: number
           total_drinks?: number
@@ -615,6 +740,13 @@ export type Database = {
             referencedRelation: "cashiers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stations: {
@@ -625,6 +757,7 @@ export type Database = {
           name: string
           package_rate: number
           station_number: number
+          tenant_id: string
           zone: string
         }
         Insert: {
@@ -634,6 +767,7 @@ export type Database = {
           name: string
           package_rate: number
           station_number: number
+          tenant_id: string
           zone: string
         }
         Update: {
@@ -643,7 +777,40 @@ export type Database = {
           name?: string
           package_rate?: number
           station_number?: number
+          tenant_id?: string
           zone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          club_name: string
+          created_at: string
+          id: string
+          plan: string
+          trial_until: string | null
+        }
+        Insert: {
+          club_name: string
+          created_at?: string
+          id?: string
+          plan?: string
+          trial_until?: string | null
+        }
+        Update: {
+          club_name?: string
+          created_at?: string
+          id?: string
+          plan?: string
+          trial_until?: string | null
         }
         Relationships: []
       }
@@ -672,6 +839,53 @@ export type Database = {
             columns: ["cashier_id"]
             isOneToOne: false
             referencedRelation: "cashiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          auth_user_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          max_discount_percent: number
+          name: string
+          password_hash: string | null
+          pin_code: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          tenant_id: string | null
+        }
+        Insert: {
+          auth_user_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          max_discount_percent?: number
+          name: string
+          password_hash?: string | null
+          pin_code?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          tenant_id?: string | null
+        }
+        Update: {
+          auth_user_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          max_discount_percent?: number
+          name?: string
+          password_hash?: string | null
+          pin_code?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -713,6 +927,7 @@ export type Database = {
       payment_method: "cash" | "kaspi" | "split"
       session_status: "active" | "completed"
       tariff_type: "hourly" | "package"
+      user_role: "platform_owner" | "club_admin" | "cashier"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -853,6 +1068,7 @@ export const Constants = {
       payment_method: ["cash", "kaspi", "split"],
       session_status: ["active", "completed"],
       tariff_type: ["hourly", "package"],
+      user_role: ["platform_owner", "club_admin", "cashier"],
     },
   },
 } as const
