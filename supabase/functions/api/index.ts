@@ -1122,7 +1122,7 @@ async function handleAdminCompletedSessions(ctx: Ctx): Promise<Response> {
     supabase.from('sessions').select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
       game_cost, controller_cost, drink_cost, total_cost, package_count,
       station:stations(id, name, zone, station_number),
-      shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+      shift:shifts(id, cashier_id, cashier:users!shifts_cashier_id_fkey(id, name))`), ctx
   ).eq('status', 'completed').gte('ended_at', sevenDaysAgo.toISOString())
     .order('ended_at', { ascending: false }).limit(100)
 
