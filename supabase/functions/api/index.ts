@@ -698,7 +698,7 @@ async function fetchShiftsForPeriod(supabase: any, ctx: Ctx, periodFrom: Date, p
 
   while (true) {
     let query = tenantFilter(
-      supabase.from('shifts').select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)'), ctx
+      supabase.from('shifts').select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashier:users!shifts_cashier_id_fkey(name)'), ctx
     ).lte('started_at', periodTo.toISOString())
       .or(`ended_at.gte.${periodFrom.toISOString()},ended_at.is.null`)
       .order('started_at', { ascending: false })
