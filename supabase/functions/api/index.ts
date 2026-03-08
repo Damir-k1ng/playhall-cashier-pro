@@ -114,11 +114,23 @@ type Ctx = {
   req: Request
   supabase: any
   shift: any
+  tenant_id: string
   url: URL
   cors: Record<string, string>
   path: string
   method: string
   pathParts: string[]
+}
+
+// ==================== TENANT HELPERS ====================
+/** Injects tenant_id from ctx into a data object for INSERT operations */
+function withTenant<T extends Record<string, any>>(data: T, ctx: Ctx): T & { tenant_id: string } {
+  return { ...data, tenant_id: ctx.tenant_id }
+}
+
+/** Applies .eq('tenant_id', ctx.tenant_id) to a Supabase query for filtering */
+function tenantFilter(query: any, ctx: Ctx) {
+  return query.eq('tenant_id', ctx.tenant_id)
 }
 
 // ==================== ROUTE HANDLERS ====================
@@ -1528,7 +1540,10 @@ Deno.serve(async (req) => {
     const method = req.method
     const pathParts = path.split('/').filter(Boolean) // e.g. ['admin', 'sessions', ':id']
 
-    const ctx: Ctx = { req, supabase, shift, url, cors: corsHeaders, path, method, pathParts }
+    const tenant_id = shift.tenant_id
+    if (!tenant_id) return errorResponse('Tenant context missing', corsHeaders, 403)
+
+    const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 
     // ---- Cashier routes (flat, no nesting) ----
     if (path === '/stations' && method === 'GET') return await handleGetStations(ctx)

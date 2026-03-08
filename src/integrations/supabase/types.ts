@@ -69,18 +69,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "admin_audit_log_shift_id_fkey"
-            columns: ["shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "admin_audit_log_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_admin_audit_log_shift_tenant"
+            columns: ["shift_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id", "tenant_id"]
           },
         ]
       }
@@ -117,18 +117,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "bookings_station_id_fkey"
-            columns: ["station_id"]
-            isOneToOne: false
-            referencedRelation: "stations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "bookings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bookings_station_tenant"
+            columns: ["station_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id", "tenant_id"]
           },
         ]
       }
@@ -183,18 +183,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "controller_usage_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "controller_usage_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_controller_usage_session_tenant"
+            columns: ["session_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id", "tenant_id"]
           },
         ]
       }
@@ -269,25 +269,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "drink_sales_drink_id_fkey"
-            columns: ["drink_id"]
-            isOneToOne: false
-            referencedRelation: "drinks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "drink_sales_shift_id_fkey"
-            columns: ["shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "drink_sales_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_drink_sales_drink_tenant"
+            columns: ["drink_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "drinks"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "fk_drink_sales_shift_tenant"
+            columns: ["shift_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id", "tenant_id"]
           },
         ]
       }
@@ -353,11 +353,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "inventory_drink_id_fkey"
-            columns: ["drink_id"]
-            isOneToOne: true
+            foreignKeyName: "fk_inventory_drink_tenant"
+            columns: ["drink_id", "tenant_id"]
+            isOneToOne: false
             referencedRelation: "drinks"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "inventory_tenant_id_fkey"
@@ -407,24 +407,24 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "inventory_movements_drink_id_fkey"
-            columns: ["drink_id"]
+            foreignKeyName: "fk_inventory_movements_drink_tenant"
+            columns: ["drink_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "drinks"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_movements_shift_tenant"
+            columns: ["shift_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "inventory_movements_performed_by_fkey"
             columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "cashiers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_movements_shift_id_fkey"
-            columns: ["shift_id"]
-            isOneToOne: false
-            referencedRelation: "shifts"
             referencedColumns: ["id"]
           },
           {
@@ -478,18 +478,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "payments_session_id_fkey"
-            columns: ["session_id"]
+            foreignKeyName: "fk_payments_session_tenant"
+            columns: ["session_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "sessions"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
-            foreignKeyName: "payments_shift_id_fkey"
-            columns: ["shift_id"]
+            foreignKeyName: "fk_payments_shift_tenant"
+            columns: ["shift_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "shifts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "payments_tenant_id_fkey"
@@ -539,18 +539,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "reservations_shift_id_fkey"
-            columns: ["shift_id"]
+            foreignKeyName: "fk_reservations_shift_tenant"
+            columns: ["shift_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "shifts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
-            foreignKeyName: "reservations_station_id_fkey"
-            columns: ["station_id"]
+            foreignKeyName: "fk_reservations_station_tenant"
+            columns: ["station_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "stations"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "reservations_tenant_id_fkey"
@@ -591,18 +591,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "session_drinks_drink_id_fkey"
-            columns: ["drink_id"]
+            foreignKeyName: "fk_session_drinks_drink_tenant"
+            columns: ["drink_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "drinks"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
-            foreignKeyName: "session_drinks_session_id_fkey"
-            columns: ["session_id"]
+            foreignKeyName: "fk_session_drinks_session_tenant"
+            columns: ["session_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "sessions"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "session_drinks_tenant_id_fkey"
@@ -664,18 +664,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "sessions_shift_id_fkey"
-            columns: ["shift_id"]
+            foreignKeyName: "fk_sessions_shift_tenant"
+            columns: ["shift_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "shifts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
-            foreignKeyName: "sessions_station_id_fkey"
-            columns: ["station_id"]
+            foreignKeyName: "fk_sessions_station_tenant"
+            columns: ["station_id", "tenant_id"]
             isOneToOne: false
             referencedRelation: "stations"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "tenant_id"]
           },
           {
             foreignKeyName: "sessions_tenant_id_fkey"
