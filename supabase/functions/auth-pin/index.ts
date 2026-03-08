@@ -85,9 +85,10 @@ Deno.serve(async (req) => {
 
       // Find cashier by PIN
       const { data: cashier, error: cashierError } = await supabase
-        .from('cashiers')
-        .select('id, name, tenant_id')
-        .eq('pin', pin)
+        .from('users')
+        .select('id, name, tenant_id, role')
+        .eq('pin_code', pin)
+        .eq('role', 'cashier')
         .single()
 
       if (cashierError || !cashier) {
@@ -97,14 +98,8 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get cashier role FIRST (needed to set is_admin_session)
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('cashier_id', cashier.id)
-        .single()
-
-      const userRole = roleData?.role || 'cashier'
+      // Set user role
+      const userRole = cashier.role === 'club_admin' || cashier.role === 'platform_owner' ? 'admin' : 'cashier'
       const isAdmin = userRole === 'admin'
 
       // Check for existing active shift for this cashier in this tenant
