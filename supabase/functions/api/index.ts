@@ -1028,7 +1028,7 @@ async function handleAdminActiveSessions(ctx: Ctx): Promise<Response> {
     const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
 
     return {
-      ...session, cashier_name: session.shift?.cashiers?.name || 'Unknown',
+      ...session, cashier_name: session.shift?.cashier?.name || 'Unknown',
       shift_is_active: session.shift?.is_active || false, elapsed_minutes: elapsedMinutes,
       game_cost: gameCost, controller_cost: controllerCost, drink_cost: drinkCost,
       total_cost: gameCost + controllerCost + drinkCost,
