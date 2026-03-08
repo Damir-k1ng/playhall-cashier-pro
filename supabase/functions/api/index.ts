@@ -1540,7 +1540,10 @@ Deno.serve(async (req) => {
     const method = req.method
     const pathParts = path.split('/').filter(Boolean) // e.g. ['admin', 'sessions', ':id']
 
-    const ctx: Ctx = { req, supabase, shift, url, cors: corsHeaders, path, method, pathParts }
+    const tenant_id = shift.tenant_id
+    if (!tenant_id) return errorResponse('Tenant context missing', corsHeaders, 403)
+
+    const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 
     // ---- Cashier routes (flat, no nesting) ----
     if (path === '/stations' && method === 'GET') return await handleGetStations(ctx)
