@@ -114,11 +114,23 @@ type Ctx = {
   req: Request
   supabase: any
   shift: any
+  tenant_id: string
   url: URL
   cors: Record<string, string>
   path: string
   method: string
   pathParts: string[]
+}
+
+// ==================== TENANT HELPERS ====================
+/** Injects tenant_id from ctx into a data object for INSERT operations */
+function withTenant<T extends Record<string, any>>(data: T, ctx: Ctx): T & { tenant_id: string } {
+  return { ...data, tenant_id: ctx.tenant_id }
+}
+
+/** Applies .eq('tenant_id', ctx.tenant_id) to a Supabase query for filtering */
+function tenantFilter(query: any, ctx: Ctx) {
+  return query.eq('tenant_id', ctx.tenant_id)
 }
 
 // ==================== ROUTE HANDLERS ====================
