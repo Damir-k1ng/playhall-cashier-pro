@@ -193,11 +193,12 @@ Deno.serve(async (req) => {
 
       const cashierData = shift.users;
       const userRole = cashierData?.role === 'club_admin' || cashierData?.role === 'platform_owner' ? 'admin' : 'cashier';
+      const mappedCashier = cashierData ? { ...cashierData, pin: cashierData.pin_code, pin_code: undefined } : null;
 
       return new Response(
         JSON.stringify({
           valid: true,
-          cashier: cashierData,
+          cashier: mappedCashier,
           shift: { ...shift, users: undefined },
           role: userRole
         }),
