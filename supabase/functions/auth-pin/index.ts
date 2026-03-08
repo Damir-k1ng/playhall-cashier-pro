@@ -102,6 +102,9 @@ Deno.serve(async (req) => {
       const userRole = cashier.role === 'club_admin' || cashier.role === 'platform_owner' ? 'admin' : 'cashier'
       const isAdmin = userRole === 'admin'
 
+      // Map pin_code to pin for backward compatibility with client type
+      const mappedCashier = { ...cashier, pin: cashier.pin_code, pin_code: undefined }
+
       // Check for existing active shift for this cashier in this tenant
       const { data: existingShift } = await supabase
         .from('shifts')
