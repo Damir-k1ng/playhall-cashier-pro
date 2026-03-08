@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       // Find cashier by PIN
       const { data: cashier, error: cashierError } = await supabase
         .from('cashiers')
-        .select('id, name')
+        .select('id, name, tenant_id')
         .eq('pin', pin)
         .single()
 
