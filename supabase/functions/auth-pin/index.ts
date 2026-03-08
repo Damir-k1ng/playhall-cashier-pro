@@ -144,6 +144,7 @@ Deno.serve(async (req) => {
         .from('shifts')
         .insert({
           cashier_id: cashier.id,
+          tenant_id: cashier.tenant_id,
           is_active: true,
           session_token: newSessionToken,
           is_admin_session: isAdmin
