@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
 
       const { data: shift } = await supabase
         .from('shifts')
-        .select('*, cashiers(*)')
+        .select('*, users!shifts_cashier_id_fkey(*)')
         .eq('session_token', session_token)
         .eq('is_active', true)
         .single()
@@ -188,18 +188,15 @@ Deno.serve(async (req) => {
         )
       }
 
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('cashier_id', shift.cashier_id)
-        .single()
+      const cashierData = shift.users;
+      const userRole = cashierData?.role === 'club_admin' || cashierData?.role === 'platform_owner' ? 'admin' : 'cashier';
 
       return new Response(
         JSON.stringify({
           valid: true,
-          cashier: shift.cashiers,
-          shift: { ...shift, cashiers: undefined },
-          role: roleData?.role || 'cashier'
+          cashier: cashierData,
+          shift: { ...shift, users: undefined },
+          role: userRole
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

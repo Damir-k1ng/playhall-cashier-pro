@@ -1078,7 +1078,7 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
   for (const c of activeControllers) {
     const takenAt = new Date(c.taken_at)
     const mins = Math.floor((now.getTime() - takenAt.getTime()) / 60000)
-    const cost = Math.ceil(mins / 30) * 200
+    const cost = Math.ceil(mins / 60) * 600
     await tenantFilter(supabase.from('controller_usage').update({ returned_at: now.toISOString(), cost }), ctx).eq('id', c.id)
   }
 
