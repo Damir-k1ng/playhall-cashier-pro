@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          cashier,
+          cashier: mappedCashier,
           shift: newShift,
           session_token: newSessionToken,
           role: userRole
