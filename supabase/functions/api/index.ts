@@ -1024,7 +1024,7 @@ async function handleAdminActiveSessions(ctx: Ctx): Promise<Response> {
       const takenAt = new Date(c.taken_at)
       const returnedAt = c.returned_at ? new Date(c.returned_at) : now
       const mins = Math.floor((returnedAt.getTime() - takenAt.getTime()) / 60000)
-      controllerCost += Math.ceil(mins / 30) * 200
+      controllerCost += Math.ceil(mins / 60) * 600
     }
 
     const { data: drinks } = await tenantFilter(supabase.from('session_drinks').select('total_price'), ctx).eq('session_id', session.id)
