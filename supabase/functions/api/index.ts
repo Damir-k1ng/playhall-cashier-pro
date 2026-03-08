@@ -615,10 +615,11 @@ async function handleGetShiftHistory(ctx: Ctx): Promise<Response> {
 // ==================== ADMIN ROUTE HANDLERS ====================
 
 async function handleAdminGetCashiers(ctx: Ctx): Promise<Response> {
-  // cashiers table has no tenant_id yet — will be replaced by users table in Phase 2
-  const { data, error } = await ctx.supabase.from('cashiers').select('id, name, pin, created_at, max_discount_percent').order('created_at')
+  const { data, error } = await tenantFilter(ctx.supabase.from('users').select('id, name, pin_code, created_at, max_discount_percent'), ctx).eq('role', 'cashier').order('created_at')
   if (error) return errorResponse('Ошибка загрузки кассиров', ctx.cors, 500)
-  return jsonResponse(data, ctx.cors)
+  // Map pin_code to pin for backward compatibility with frontend
+  const mapped = (data || []).map((u: any) => ({ ...u, pin: u.pin_code, pin_code: undefined }))
+  return jsonResponse(mapped, ctx.cors)
 }
 
 async function handleAdminCreateCashier(ctx: Ctx): Promise<Response> {
@@ -626,13 +627,12 @@ async function handleAdminCreateCashier(ctx: Ctx): Promise<Response> {
   const v = validateCashier(body)
   if (!v.valid) return errorResponse(v.error!, ctx.cors)
 
-  // cashiers table has no tenant_id yet — will be replaced by users table in Phase 2
-  const { data, error } = await ctx.supabase.from('cashiers').insert({ name: body.name.trim(), pin: body.pin }).select().single()
+  const { data, error } = await ctx.supabase.from('users').insert({ name: body.name.trim(), pin_code: body.pin, tenant_id: ctx.tenant_id, role: 'cashier' }).select().single()
   if (error) {
     if (error.code === '23505') return errorResponse('PIN-код уже существует', ctx.cors)
     return errorResponse('Ошибка создания кассира', ctx.cors, 500)
   }
-  return jsonResponse(data, ctx.cors)
+  return jsonResponse({ ...data, pin: data.pin_code }, ctx.cors)
 }
 
 async function handleAdminUpdateCashier(ctx: Ctx): Promise<Response> {
