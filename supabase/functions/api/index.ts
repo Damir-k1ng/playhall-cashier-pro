@@ -269,7 +269,7 @@ async function handleGetSession(ctx: Ctx): Promise<Response> {
     const takenAt = new Date(controller.taken_at)
     const returnedAt = controller.returned_at ? new Date(controller.returned_at) : now
     const mins = Math.floor((returnedAt.getTime() - takenAt.getTime()) / 60000)
-    controllerCost += Math.ceil(mins / 30) * 200
+    controllerCost += Math.ceil(mins / 60) * 600
   }
 
   const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
