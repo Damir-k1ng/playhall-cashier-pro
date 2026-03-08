@@ -650,7 +650,7 @@ async function handleAdminUpdateCashier(ctx: Ctx): Promise<Response> {
   }
   if (body.pin !== undefined) {
     if (!/^\d{4}$/.test(body.pin)) return errorResponse('PIN должен содержать 4 цифры', cors)
-    updateData.pin = body.pin
+    updateData.pin_code = body.pin
   }
   if (body.max_discount_percent !== undefined) {
     const maxDiscount = parseInt(body.max_discount_percent)
@@ -659,13 +659,12 @@ async function handleAdminUpdateCashier(ctx: Ctx): Promise<Response> {
   }
   if (Object.keys(updateData).length === 0) return errorResponse('Нет данных для обновления', cors)
 
-  // cashiers table has no tenant_id yet
-  const { data, error } = await supabase.from('cashiers').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(supabase.from('users').update(updateData), ctx).eq('id', id).eq('role', 'cashier').select().single()
   if (error) {
     if (error.code === '23505') return errorResponse('PIN-код уже существует', cors)
     return errorResponse('Ошибка обновления кассира', cors, 500)
   }
-  return jsonResponse(data, cors)
+  return jsonResponse({ ...data, pin: data.pin_code }, cors)
 }
 
 async function handleAdminDeleteCashier(ctx: Ctx): Promise<Response> {
@@ -677,8 +676,7 @@ async function handleAdminDeleteCashier(ctx: Ctx): Promise<Response> {
   const { data: activeShift } = await tenantFilter(supabase.from('shifts').select('id'), ctx).eq('cashier_id', id).eq('is_active', true).maybeSingle()
   if (activeShift) return errorResponse('У кассира активная смена', cors)
 
-  // cashiers table has no tenant_id yet
-  const { error } = await supabase.from('cashiers').delete().eq('id', id)
+  const { error } = await tenantFilter(supabase.from('users').delete(), ctx).eq('id', id).eq('role', 'cashier')
   if (error) return errorResponse('Ошибка удаления кассира', cors, 500)
   return jsonResponse({ success: true }, cors)
 }
