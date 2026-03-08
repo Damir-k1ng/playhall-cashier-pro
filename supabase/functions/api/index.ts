@@ -1145,7 +1145,7 @@ async function handleAdminCompletedSessions(ctx: Ctx): Promise<Response> {
     const payment = paymentMap.get(session.id)
     return {
       ...session,
-      cashier_name: session.shift?.cashiers?.name || 'Unknown',
+      cashier_name: session.shift?.cashier?.name || 'Unknown',
       payment_method: payment?.payment_method || null,
       cash_amount: payment?.cash_amount || 0,
       kaspi_amount: payment?.kaspi_amount || 0,
