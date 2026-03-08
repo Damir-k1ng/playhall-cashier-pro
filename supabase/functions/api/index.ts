@@ -323,7 +323,7 @@ async function handleUpdateSession(ctx: Ctx): Promise<Response> {
 
 async function handleGetDiscountPresets(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors } = ctx
-  const { data: cashierData } = await supabase.from('cashiers').select('max_discount_percent').eq('id', shift.cashier_id).single()
+  const { data: cashierData } = await supabase.from('users').select('max_discount_percent').eq('id', shift.cashier_id).single()
   const maxDiscount = cashierData?.max_discount_percent || 0
   const { data: presets } = await tenantFilter(supabase.from('discount_presets').select('*'), ctx).eq('is_active', true).lte('percent', maxDiscount).order('percent')
   return jsonResponse({ presets: presets || [], max_discount_percent: maxDiscount }, cors)
