@@ -107,11 +107,12 @@ Deno.serve(async (req) => {
       const userRole = roleData?.role || 'cashier'
       const isAdmin = userRole === 'admin'
 
-      // Check for existing active shift
+      // Check for existing active shift for this cashier in this tenant
       const { data: existingShift } = await supabase
         .from('shifts')
         .select('*')
         .eq('cashier_id', cashier.id)
+        .eq('tenant_id', cashier.tenant_id)
         .eq('is_active', true)
         .single()
 
