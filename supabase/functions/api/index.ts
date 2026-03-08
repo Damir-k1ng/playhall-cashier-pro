@@ -102,7 +102,7 @@ async function authenticateSession(supabase: any, sessionToken: string | null) {
   if (!sessionToken) return null
   const { data: shift } = await supabase
     .from('shifts')
-    .select('*, cashiers(*)')
+    .select('*, cashier:users!shifts_cashier_id_fkey(*)')
     .eq('session_token', sessionToken)
     .eq('is_active', true)
     .single()
