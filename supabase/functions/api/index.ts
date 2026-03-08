@@ -998,7 +998,7 @@ async function handleAdminActiveSessions(ctx: Ctx): Promise<Response> {
   const { data: sessions, error } = await tenantFilter(
     supabase.from('sessions').select(`id, station_id, shift_id, tariff_type, started_at, status,
       station:stations(id, name, zone, station_number, hourly_rate, package_rate),
-      shift:shifts(id, cashier_id, is_active, cashiers(id, name))`), ctx
+      shift:shifts(id, cashier_id, is_active, cashier:users!shifts_cashier_id_fkey(id, name))`), ctx
   ).eq('status', 'active').order('started_at', { ascending: true })
 
   if (error) return errorResponse('Ошибка загрузки сессий', cors, 500)
