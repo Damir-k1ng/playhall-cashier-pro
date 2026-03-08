@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       // Find cashier by PIN
       const { data: cashier, error: cashierError } = await supabase
         .from('cashiers')
-        .select('id, name')
+        .select('id, name, tenant_id')
         .eq('pin', pin)
         .single()
 
@@ -107,11 +107,12 @@ Deno.serve(async (req) => {
       const userRole = roleData?.role || 'cashier'
       const isAdmin = userRole === 'admin'
 
-      // Check for existing active shift
+      // Check for existing active shift for this cashier in this tenant
       const { data: existingShift } = await supabase
         .from('shifts')
         .select('*')
         .eq('cashier_id', cashier.id)
+        .eq('tenant_id', cashier.tenant_id)
         .eq('is_active', true)
         .single()
 
@@ -143,6 +144,7 @@ Deno.serve(async (req) => {
         .from('shifts')
         .insert({
           cashier_id: cashier.id,
+          tenant_id: cashier.tenant_id,
           is_active: true,
           session_token: newSessionToken,
           is_admin_session: isAdmin

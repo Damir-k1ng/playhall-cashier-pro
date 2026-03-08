@@ -139,6 +139,7 @@ export type Database = {
           max_discount_percent: number
           name: string
           pin: string
+          tenant_id: string
         }
         Insert: {
           created_at?: string
@@ -146,6 +147,7 @@ export type Database = {
           max_discount_percent?: number
           name: string
           pin: string
+          tenant_id: string
         }
         Update: {
           created_at?: string
@@ -153,8 +155,17 @@ export type Database = {
           max_discount_percent?: number
           name?: string
           pin?: string
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cashiers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       controller_usage: {
         Row: {
