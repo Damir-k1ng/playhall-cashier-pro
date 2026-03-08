@@ -1307,7 +1307,7 @@ async function handleAdminDeleteSession(ctx: Ctx): Promise<Response> {
 
   await supabase.from('admin_audit_log').insert(withTenant({
     admin_id: shift.cashier_id, action_type: 'delete_session', target_type: 'session', target_id: sessionId,
-    shift_id: session.shift_id, cashier_name: (session as any).shift?.cashiers?.name || 'Unknown',
+    shift_id: session.shift_id, cashier_name: (session as any).shift?.cashier?.name || 'Unknown',
     station_name: (session as any).station?.name || 'Unknown',
     old_values: { game_cost: oldGameCost, controller_cost: oldControllerCost, drink_cost: oldDrinkCost, total_cost: session.total_cost, cash_amount: oldCashAmount, kaspi_amount: oldKaspiAmount, payment_method: payment?.payment_method },
     new_values: null, reason: reason.trim(),
