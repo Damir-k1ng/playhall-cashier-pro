@@ -85,9 +85,10 @@ Deno.serve(async (req) => {
 
       // Find cashier by PIN
       const { data: cashier, error: cashierError } = await supabase
-        .from('cashiers')
-        .select('id, name, tenant_id')
-        .eq('pin', pin)
+        .from('users')
+        .select('id, name, tenant_id, role')
+        .eq('pin_code', pin)
+        .eq('role', 'cashier')
         .single()
 
       if (cashierError || !cashier) {
@@ -97,15 +98,12 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get cashier role FIRST (needed to set is_admin_session)
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('cashier_id', cashier.id)
-        .single()
-
-      const userRole = roleData?.role || 'cashier'
+      // Set user role
+      const userRole = cashier.role === 'club_admin' || cashier.role === 'platform_owner' ? 'admin' : 'cashier'
       const isAdmin = userRole === 'admin'
+
+      // Map pin_code to pin for backward compatibility with client type
+      const mappedCashier = { ...cashier, pin: cashier.pin_code, pin_code: undefined }
 
       // Check for existing active shift for this cashier in this tenant
       const { data: existingShift } = await supabase
@@ -129,7 +127,7 @@ Deno.serve(async (req) => {
 
         return new Response(
           JSON.stringify({
-            cashier,
+            cashier: mappedCashier,
             shift: { ...existingShift, session_token: sessionToken },
             session_token: sessionToken,
             role: userRole
@@ -162,7 +160,7 @@ Deno.serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          cashier,
+          cashier: mappedCashier,
           shift: newShift,
           session_token: newSessionToken,
           role: userRole
@@ -181,7 +179,7 @@ Deno.serve(async (req) => {
 
       const { data: shift } = await supabase
         .from('shifts')
-        .select('*, cashiers(*)')
+        .select('*, users!shifts_cashier_id_fkey(*)')
         .eq('session_token', session_token)
         .eq('is_active', true)
         .single()
@@ -193,18 +191,16 @@ Deno.serve(async (req) => {
         )
       }
 
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('cashier_id', shift.cashier_id)
-        .single()
+      const cashierData = shift.users;
+      const userRole = cashierData?.role === 'club_admin' || cashierData?.role === 'platform_owner' ? 'admin' : 'cashier';
+      const mappedCashier = cashierData ? { ...cashierData, pin: cashierData.pin_code, pin_code: undefined } : null;
 
       return new Response(
         JSON.stringify({
           valid: true,
-          cashier: shift.cashiers,
-          shift: { ...shift, cashiers: undefined },
-          role: roleData?.role || 'cashier'
+          cashier: mappedCashier,
+          shift: { ...shift, users: undefined },
+          role: userRole
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

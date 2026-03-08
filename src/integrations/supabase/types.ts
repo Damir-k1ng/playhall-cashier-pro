@@ -65,7 +65,7 @@ export type Database = {
             foreignKeyName: "admin_audit_log_admin_id_fkey"
             columns: ["admin_id"]
             isOneToOne: false
-            referencedRelation: "cashiers"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -129,41 +129,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id", "tenant_id"]
-          },
-        ]
-      }
-      cashiers: {
-        Row: {
-          created_at: string
-          id: string
-          max_discount_percent: number
-          name: string
-          pin: string
-          tenant_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          max_discount_percent?: number
-          name: string
-          pin: string
-          tenant_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          max_discount_percent?: number
-          name?: string
-          pin?: string
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cashiers_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -435,7 +400,7 @@ export type Database = {
             foreignKeyName: "inventory_movements_performed_by_fkey"
             columns: ["performed_by"]
             isOneToOne: false
-            referencedRelation: "cashiers"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -748,7 +713,7 @@ export type Database = {
             foreignKeyName: "shifts_cashier_id_fkey"
             columns: ["cashier_id"]
             isOneToOne: false
-            referencedRelation: "cashiers"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -849,7 +814,7 @@ export type Database = {
             foreignKeyName: "user_roles_cashier_id_fkey"
             columns: ["cashier_id"]
             isOneToOne: false
-            referencedRelation: "cashiers"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
