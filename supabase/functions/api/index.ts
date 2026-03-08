@@ -1327,7 +1327,7 @@ async function handleAdminDeleteDrinkSale(ctx: Ctx): Promise<Response> {
 
   const { data: sale, error: saleError } = await tenantFilter(
     supabase.from('drink_sales').select(`id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at,
-      drink:drinks(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+      drink:drinks(id, name), shift:shifts(id, cashier_id, cashier:users!shifts_cashier_id_fkey(id, name))`), ctx
   ).eq('id', saleId).single()
   if (saleError || !sale) return errorResponse('Продажа не найдена', cors, 404)
 
