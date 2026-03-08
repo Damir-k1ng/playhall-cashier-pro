@@ -741,7 +741,7 @@ function formatShifts(shifts: any[], sessionCounts: Record<string, number>) {
     const endedAt = s.ended_at ? new Date(s.ended_at) : new Date()
     const durationHours = (endedAt.getTime() - startedAt.getTime()) / (1000 * 60 * 60)
     return {
-      id: s.id, cashier_id: s.cashier_id, cashier_name: s.cashiers?.name || 'Unknown',
+      id: s.id, cashier_id: s.cashier_id, cashier_name: s.cashier?.name || 'Unknown',
       started_at: s.started_at, ended_at: s.ended_at, is_active: s.is_active,
       total_cash: s.total_cash || 0, total_kaspi: s.total_kaspi || 0,
       total_games: s.total_games || 0, total_controllers: s.total_controllers || 0,
