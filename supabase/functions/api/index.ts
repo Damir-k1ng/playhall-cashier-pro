@@ -1071,7 +1071,7 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
     const takenAt = new Date(c.taken_at)
     const returnedAt = c.returned_at ? new Date(c.returned_at) : now
     const mins = Math.floor((returnedAt.getTime() - takenAt.getTime()) / 60000)
-    controllerCost += Math.ceil(mins / 30) * 200
+    controllerCost += Math.ceil(mins / 60) * 600
   }
 
   const activeControllers = (controllers || []).filter((c: any) => !c.returned_at)
