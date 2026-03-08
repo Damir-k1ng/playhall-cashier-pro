@@ -140,10 +140,10 @@ async function handleGetStations(ctx: Ctx): Promise<Response> {
   const today = new Date().toISOString().split('T')[0]
 
   const [stationsResult, sessionsResult, reservationsResult, bookingsResult] = await Promise.all([
-    supabase.from('stations').select('*').order('station_number'),
-    supabase.from('sessions').select('*, controller_usage(*), session_drinks(*, drinks(*))').eq('status', 'active'),
-    supabase.from('reservations').select('*').eq('is_active', true),
-    supabase.from('bookings').select('*').eq('status', 'booked').eq('booking_date', today),
+    tenantFilter(supabase.from('stations').select('*'), ctx).order('station_number'),
+    tenantFilter(supabase.from('sessions').select('*, controller_usage(*), session_drinks(*, drinks(*))'), ctx).eq('status', 'active'),
+    tenantFilter(supabase.from('reservations').select('*'), ctx).eq('is_active', true),
+    tenantFilter(supabase.from('bookings').select('*'), ctx).eq('status', 'booked').eq('booking_date', today),
   ])
 
   const stations = stationsResult.data || []
@@ -169,17 +169,16 @@ async function handleGetStations(ctx: Ctx): Promise<Response> {
   return jsonResponse(stationsWithData, cors, 200, { 'Cache-Control': 'private, max-age=2' })
 }
 
-// GET /stations/:id — single station with full details (controllers, drinks)
 async function handleGetSingleStation(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors, path } = ctx
   const id = path.split('/')[2]
   if (!isValidUUID(id)) return errorResponse('Invalid station ID', cors)
 
   const [stationResult, sessionResult, reservationResult, bookingResult] = await Promise.all([
-    supabase.from('stations').select('*').eq('id', id).single(),
-    supabase.from('sessions').select('*, controller_usage(*), session_drinks(*, drinks(*))').eq('station_id', id).eq('status', 'active').maybeSingle(),
-    supabase.from('reservations').select('*').eq('station_id', id).eq('is_active', true).maybeSingle(),
-    supabase.from('bookings').select('*').eq('station_id', id).eq('status', 'booked').eq('booking_date', new Date().toISOString().split('T')[0]).maybeSingle(),
+    tenantFilter(supabase.from('stations').select('*'), ctx).eq('id', id).single(),
+    tenantFilter(supabase.from('sessions').select('*, controller_usage(*), session_drinks(*, drinks(*))'), ctx).eq('station_id', id).eq('status', 'active').maybeSingle(),
+    tenantFilter(supabase.from('reservations').select('*'), ctx).eq('station_id', id).eq('is_active', true).maybeSingle(),
+    tenantFilter(supabase.from('bookings').select('*'), ctx).eq('station_id', id).eq('status', 'booked').eq('booking_date', new Date().toISOString().split('T')[0]).maybeSingle(),
   ])
 
   if (stationResult.error || !stationResult.data) return errorResponse('Station not found', cors, 404)
@@ -197,14 +196,12 @@ async function handleGetSingleStation(ctx: Ctx): Promise<Response> {
 }
 
 async function handleGetDrinks(ctx: Ctx): Promise<Response> {
-  const { data } = await ctx.supabase.from('drinks').select('*').order('name')
+  const { data } = await tenantFilter(ctx.supabase.from('drinks').select('*'), ctx).order('name')
   return jsonResponse(data, ctx.cors)
 }
 
 async function handleGetReservations(ctx: Ctx): Promise<Response> {
-  const { data } = await ctx.supabase
-    .from('reservations')
-    .select('*, station:stations(id, name, zone)')
+  const { data } = await tenantFilter(ctx.supabase.from('reservations').select('*, station:stations(id, name, zone)'), ctx)
     .eq('is_active', true)
     .gte('reserved_for', new Date().toISOString())
     .order('reserved_for', { ascending: true })
@@ -213,9 +210,7 @@ async function handleGetReservations(ctx: Ctx): Promise<Response> {
 
 async function handleGetBookings(ctx: Ctx): Promise<Response> {
   const today = new Date().toISOString().split('T')[0]
-  const { data } = await ctx.supabase
-    .from('bookings')
-    .select('*, station:stations(id, name, zone)')
+  const { data } = await tenantFilter(ctx.supabase.from('bookings').select('*, station:stations(id, name, zone)'), ctx)
     .eq('booking_date', today)
     .order('start_time', { ascending: true })
   return jsonResponse(data, ctx.cors)
@@ -227,14 +222,15 @@ async function handleCreateSession(ctx: Ctx): Promise<Response> {
   const v = validateSession(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data: existingSession } = await supabase
-    .from('sessions').select('id').eq('station_id', body.station_id).eq('status', 'active').maybeSingle()
+  const { data: existingSession } = await tenantFilter(
+    supabase.from('sessions').select('id').eq('station_id', body.station_id).eq('status', 'active'), ctx
+  ).maybeSingle()
   if (existingSession) return errorResponse('На этой станции уже есть активная сессия', cors, 409)
 
   const insertData: any = { station_id: body.station_id, tariff_type: body.tariff_type, status: 'active', shift_id: shift.id }
   if (body.tariff_type === 'package') insertData.package_count = 1
 
-  const { data, error } = await supabase.from('sessions').insert(insertData).select().single()
+  const { data, error } = await supabase.from('sessions').insert(withTenant(insertData, ctx)).select().single()
   if (error) { console.error('Session create error:', error); return errorResponse('Unable to create session', cors) }
   return jsonResponse(data, cors)
 }
@@ -244,11 +240,11 @@ async function handleGetSession(ctx: Ctx): Promise<Response> {
   const id = path.split('/')[2]
   if (!isValidUUID(id)) return errorResponse('Invalid session ID', cors)
 
-  const { data: session, error } = await supabase.from('sessions').select('*, station:stations(*)').eq('id', id).single()
+  const { data: session, error } = await tenantFilter(supabase.from('sessions').select('*, station:stations(*)'), ctx).eq('id', id).single()
   if (error || !session) return errorResponse('Session not found', cors, 404)
 
-  const { data: controllers } = await supabase.from('controller_usage').select('*').eq('session_id', id)
-  const { data: drinks } = await supabase.from('session_drinks').select('*, drink:drinks(*)').eq('session_id', id)
+  const { data: controllers } = await tenantFilter(supabase.from('controller_usage').select('*'), ctx).eq('session_id', id)
+  const { data: drinks } = await tenantFilter(supabase.from('session_drinks').select('*, drink:drinks(*)'), ctx).eq('session_id', id)
 
   const now = new Date()
   const startedAt = new Date(session.started_at)
@@ -285,31 +281,32 @@ async function handleGetSession(ctx: Ctx): Promise<Response> {
 }
 
 async function handleExtendPackage(ctx: Ctx): Promise<Response> {
-  const { supabase, shift, cors, path } = ctx
+  const { supabase, cors, path } = ctx
   const id = path.split('/')[2]
   if (!isValidUUID(id)) return errorResponse('Invalid session ID', cors)
 
-  const { data: session, error: sessionError } = await supabase
-    .from('sessions').select('*, station:stations(*)').eq('id', id).single()
+  const { data: session, error: sessionError } = await tenantFilter(
+    supabase.from('sessions').select('*, station:stations(*)'), ctx
+  ).eq('id', id).single()
   if (sessionError || !session) return errorResponse('Session not found', cors, 404)
-  // No ownership restriction — any cashier can manage any session
   if (session.tariff_type !== 'package') return errorResponse('Только пакетные сессии могут быть продлены', cors)
   if (session.status !== 'active') return errorResponse('Сессия уже завершена', cors)
 
   const newPackageCount = (session.package_count || 1) + 1
-  const { data: updatedSession, error: updateError } = await supabase
-    .from('sessions').update({ package_count: newPackageCount }).eq('id', id).select().single()
+  const { data: updatedSession, error: updateError } = await tenantFilter(
+    supabase.from('sessions').update({ package_count: newPackageCount }), ctx
+  ).eq('id', id).select().single()
   if (updateError) { console.error('Extend package error:', updateError); return errorResponse('Не удалось продлить пакет', cors) }
 
   return jsonResponse({ success: true, package_count: newPackageCount, session: updatedSession }, cors)
 }
 
 async function handleUpdateSession(ctx: Ctx): Promise<Response> {
-  const { supabase, shift, cors, req, path } = ctx
+  const { supabase, cors, req, path } = ctx
   const id = path.split('/')[2]
   if (!isValidUUID(id)) return errorResponse('Invalid session ID', cors)
 
-  const { data: existingSession } = await supabase.from('sessions').select('shift_id').eq('id', id).single()
+  const { data: existingSession } = await tenantFilter(supabase.from('sessions').select('shift_id'), ctx).eq('id', id).single()
   if (!existingSession) return errorResponse('Session not found', cors, 404)
 
   const body = await req.json()
@@ -319,7 +316,7 @@ async function handleUpdateSession(ctx: Ctx): Promise<Response> {
     if (body[field] !== undefined) updateData[field] = body[field]
   }
 
-  const { data, error } = await supabase.from('sessions').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(supabase.from('sessions').update(updateData), ctx).eq('id', id).select().single()
   if (error) { console.error('Session update error:', error); return errorResponse('Unable to update session', cors) }
   return jsonResponse(data, cors)
 }
@@ -328,7 +325,7 @@ async function handleGetDiscountPresets(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors } = ctx
   const { data: cashierData } = await supabase.from('cashiers').select('max_discount_percent').eq('id', shift.cashier_id).single()
   const maxDiscount = cashierData?.max_discount_percent || 0
-  const { data: presets } = await supabase.from('discount_presets').select('*').eq('is_active', true).lte('percent', maxDiscount).order('percent')
+  const { data: presets } = await tenantFilter(supabase.from('discount_presets').select('*'), ctx).eq('is_active', true).lte('percent', maxDiscount).order('percent')
   return jsonResponse({ presets: presets || [], max_discount_percent: maxDiscount }, cors)
 }
 
@@ -338,15 +335,17 @@ async function handleCreatePayment(ctx: Ctx): Promise<Response> {
   const v = validatePayment(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data: sessionData } = await supabase.from('sessions').select('shift_id, game_cost, controller_cost, drink_cost').eq('id', body.session_id).single()
+  const { data: sessionData } = await tenantFilter(
+    supabase.from('sessions').select('shift_id, game_cost, controller_cost, drink_cost'), ctx
+  ).eq('id', body.session_id).single()
   if (!sessionData) return errorResponse('Session not found', cors, 404)
 
-  const { data, error } = await supabase.from('payments').insert({
+  const { data, error } = await supabase.from('payments').insert(withTenant({
     session_id: body.session_id, payment_method: body.payment_method,
     cash_amount: body.cash_amount || 0, kaspi_amount: body.kaspi_amount || 0,
     total_amount: body.total_amount, discount_percent: body.discount_percent || 0,
     discount_amount: body.discount_amount || 0, shift_id: shift.id,
-  }).select().single()
+  }, ctx)).select().single()
   if (error) { console.error('Payment create error:', error); return errorResponse('Unable to create payment', cors) }
 
   const gameCost = sessionData?.game_cost || 0
@@ -365,20 +364,20 @@ async function handleCreatePayment(ctx: Ctx): Promise<Response> {
 }
 
 async function handleCreateControllerUsage(ctx: Ctx): Promise<Response> {
-  const { supabase, shift, cors, req } = ctx
+  const { supabase, cors, req } = ctx
   const body = await req.json()
   const v = validateControllerUsage(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data: recentController } = await supabase
-    .from('controller_usage').select('id, taken_at').eq('session_id', body.session_id)
-    .order('taken_at', { ascending: false }).limit(1).maybeSingle()
+  const { data: recentController } = await tenantFilter(
+    supabase.from('controller_usage').select('id, taken_at').eq('session_id', body.session_id), ctx
+  ).order('taken_at', { ascending: false }).limit(1).maybeSingle()
   if (recentController) {
     const timeSinceLastAdd = Date.now() - new Date(recentController.taken_at).getTime()
     if (timeSinceLastAdd < 3000) return errorResponse('Защита от дублей! Добавьте через 3 секунды!', cors, 429)
   }
 
-  const { data, error } = await supabase.from('controller_usage').insert({ session_id: body.session_id }).select().single()
+  const { data, error } = await supabase.from('controller_usage').insert(withTenant({ session_id: body.session_id }, ctx)).select().single()
   if (error) { console.error('Controller usage create error:', error); return errorResponse('Unable to add controller', cors) }
   return jsonResponse(data, cors)
 }
@@ -393,35 +392,36 @@ async function handleUpdateControllerUsage(ctx: Ctx): Promise<Response> {
   if (body.returned_at) updateData.returned_at = body.returned_at
   if (typeof body.cost === 'number' && body.cost >= 0) updateData.cost = body.cost
 
-  const { data, error } = await supabase.from('controller_usage').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(supabase.from('controller_usage').update(updateData), ctx).eq('id', id).select().single()
   if (error) { console.error('Controller usage update error:', error); return errorResponse('Unable to update controller usage', cors) }
   return jsonResponse(data, cors)
 }
 
 async function handleAddSessionDrink(ctx: Ctx): Promise<Response> {
-  const { supabase, shift, cors, req } = ctx
+  const { supabase, cors, req } = ctx
   const body = await req.json()
   const v = validateSessionDrink(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data, error } = await supabase.from('session_drinks').insert({
+  const { data, error } = await supabase.from('session_drinks').insert(withTenant({
     session_id: body.session_id, drink_id: body.drink_id, quantity: body.quantity, total_price: body.total_price,
-  }).select().single()
+  }, ctx)).select().single()
   if (error) { console.error('Session drink create error:', error); return errorResponse('Unable to add drink', cors) }
   return jsonResponse(data, cors)
 }
 
 async function handleDeleteSessionDrink(ctx: Ctx): Promise<Response> {
-  const { supabase, shift, cors, path } = ctx
+  const { supabase, cors, path } = ctx
   const id = path.split('/')[2]
   if (!isValidUUID(id)) return errorResponse('Invalid session drink ID', cors)
 
-  const { data: sessionDrink } = await supabase
-    .from('session_drinks').select('*, session:sessions(id, status, shift_id)').eq('id', id).single()
+  const { data: sessionDrink } = await tenantFilter(
+    supabase.from('session_drinks').select('*, session:sessions(id, status, shift_id)'), ctx
+  ).eq('id', id).single()
   if (!sessionDrink) return errorResponse('Напиток не найден', cors, 404)
   if (sessionDrink.session?.status !== 'active') return errorResponse('Сессия уже завершена', cors)
 
-  const { error } = await supabase.from('session_drinks').delete().eq('id', id)
+  const { error } = await tenantFilter(supabase.from('session_drinks').delete(), ctx).eq('id', id)
   if (error) { console.error('Session drink delete error:', error); return errorResponse('Не удалось удалить напиток', cors) }
   return jsonResponse({ success: true }, cors)
 }
@@ -432,11 +432,11 @@ async function handleCreateDrinkSale(ctx: Ctx): Promise<Response> {
   const v = validateDrinkSale(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data, error } = await supabase.from('drink_sales').insert({
+  const { data, error } = await supabase.from('drink_sales').insert(withTenant({
     drink_id: body.drink_id, quantity: body.quantity, total_price: body.total_price,
     payment_method: body.payment_method, cash_amount: body.cash_amount || 0,
     kaspi_amount: body.kaspi_amount || 0, shift_id: shift.id,
-  }).select().single()
+  }, ctx)).select().single()
   if (error) { console.error('Drink sale create error:', error); return errorResponse('Unable to create drink sale', cors) }
 
   await supabase.rpc('increment_shift_totals', {
@@ -455,11 +455,11 @@ async function handleCreateReservation(ctx: Ctx): Promise<Response> {
   const v = validateReservation(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data, error } = await supabase.from('reservations').insert({
+  const { data, error } = await supabase.from('reservations').insert(withTenant({
     station_id: body.station_id, reserved_for: body.reserved_for,
     customer_name: body.customer_name || null, phone: body.phone || null,
     notes: body.notes || null, is_active: true, shift_id: shift.id,
-  }).select().single()
+  }, ctx)).select().single()
   if (error) { console.error('Reservation create error:', error); return errorResponse('Unable to create reservation', cors) }
   return jsonResponse(data, cors)
 }
@@ -473,7 +473,7 @@ async function handleUpdateReservation(ctx: Ctx): Promise<Response> {
   const updateData: Record<string, any> = {}
   if (typeof body.is_active === 'boolean') updateData.is_active = body.is_active
 
-  const { data, error } = await supabase.from('reservations').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(supabase.from('reservations').update(updateData), ctx).eq('id', id).select().single()
   if (error) { console.error('Reservation update error:', error); return errorResponse('Unable to update reservation', cors) }
   return jsonResponse(data, cors)
 }
@@ -484,10 +484,10 @@ async function handleCreateBooking(ctx: Ctx): Promise<Response> {
   const v = validateBooking(body)
   if (!v.valid) return errorResponse(v.error!, cors)
 
-  const { data, error } = await supabase.from('bookings').insert({
+  const { data, error } = await supabase.from('bookings').insert(withTenant({
     station_id: body.station_id, start_time: body.start_time,
     comment: body.comment || null, status: 'booked',
-  }).select().single()
+  }, ctx)).select().single()
   if (error) { console.error('Booking create error:', error); return errorResponse('Unable to create booking', cors) }
   return jsonResponse(data, cors)
 }
@@ -501,40 +501,34 @@ async function handleUpdateBooking(ctx: Ctx): Promise<Response> {
   const updateData: Record<string, any> = {}
   if (['booked', 'cancelled', 'completed'].includes(body.status)) updateData.status = body.status
 
-  const { data, error } = await supabase.from('bookings').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(supabase.from('bookings').update(updateData), ctx).eq('id', id).select().single()
   if (error) { console.error('Booking update error:', error); return errorResponse('Unable to update booking', cors) }
   return jsonResponse(data, cors)
 }
 
 async function handleGetShift(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors } = ctx
-  const { data: shiftData } = await supabase.from('shifts').select('*').eq('id', shift.id).single()
+  const { data: shiftData } = await tenantFilter(supabase.from('shifts').select('*'), ctx).eq('id', shift.id).single()
 
-  // For admin sessions, also return daily totals across all cashier shifts
   if (shiftData?.is_admin_session) {
-    // Get today's date range (operational day: 16:00 previous day to 04:00 next day, UTC+5)
     const now = new Date()
-    // Adjust to UTC+5
     const utc5Now = new Date(now.getTime() + 5 * 60 * 60 * 1000)
     const hour = utc5Now.getUTCHours()
-    
-    // If between 00:00-04:00 UTC+5, count as previous day
+
     const operationalDate = new Date(utc5Now)
     if (hour < 4) {
       operationalDate.setUTCDate(operationalDate.getUTCDate() - 1)
     }
-    
-    // Operational day starts at 16:00 UTC+5 (11:00 UTC) and ends at 04:00 UTC+5 next day (23:00 UTC)
+
     const dayStart = new Date(operationalDate)
-    dayStart.setUTCHours(11, 0, 0, 0) // 16:00 UTC+5 = 11:00 UTC
+    dayStart.setUTCHours(11, 0, 0, 0)
     const dayEnd = new Date(operationalDate)
     dayEnd.setUTCDate(dayEnd.getUTCDate() + 1)
-    dayEnd.setUTCHours(23, 0, 0, 0) // 04:00 UTC+5 next day = 23:00 UTC
+    dayEnd.setUTCHours(23, 0, 0, 0)
 
-    const { data: allShifts } = await supabase
-      .from('shifts')
-      .select('total_cash, total_kaspi, total_games, total_controllers, total_drinks, is_admin_session')
-      .eq('is_admin_session', false)
+    const { data: allShifts } = await tenantFilter(
+      supabase.from('shifts').select('total_cash, total_kaspi, total_games, total_controllers, total_drinks, is_admin_session'), ctx
+    ).eq('is_admin_session', false)
       .gte('started_at', dayStart.toISOString())
       .lte('started_at', dayEnd.toISOString())
 
@@ -558,9 +552,9 @@ async function handleGetShift(ctx: Ctx): Promise<Response> {
 async function handleGetShiftReport(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors } = ctx
   const [{ data: payments }, { data: drinkSales }, { data: sessions }] = await Promise.all([
-    supabase.from('payments').select('*').eq('shift_id', shift.id),
-    supabase.from('drink_sales').select('*, drinks(*)').eq('shift_id', shift.id),
-    supabase.from('sessions').select('*').eq('shift_id', shift.id),
+    tenantFilter(supabase.from('payments').select('*'), ctx).eq('shift_id', shift.id),
+    tenantFilter(supabase.from('drink_sales').select('*, drinks(*)'), ctx).eq('shift_id', shift.id),
+    tenantFilter(supabase.from('sessions').select('*'), ctx).eq('shift_id', shift.id),
   ])
   return jsonResponse({ shift, payments, drinkSales, sessions }, cors)
 }
@@ -568,31 +562,27 @@ async function handleGetShiftReport(ctx: Ctx): Promise<Response> {
 async function handleGetShiftHistory(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors } = ctx
 
-  // Get payments for this shift to find sessions paid during this shift
-  const { data: paymentsData } = await supabase
-    .from('payments').select('session_id, payment_method, cash_amount, kaspi_amount')
-    .eq('shift_id', shift.id)
-  
+  const { data: paymentsData } = await tenantFilter(
+    supabase.from('payments').select('session_id, payment_method, cash_amount, kaspi_amount'), ctx
+  ).eq('shift_id', shift.id)
+
   const paymentMap = new Map((paymentsData || []).map((p: any) => [p.session_id, p]))
   const paidSessionIds = Array.from(paymentMap.keys())
 
-  // Get sessions that were either started in this shift OR paid in this shift
   let sessionsData: any[] = []
   if (paidSessionIds.length > 0) {
-    const { data: byPayment } = await supabase
-      .from('sessions').select('*, station:stations(*)')
-      .in('id', paidSessionIds).eq('status', 'completed')
+    const { data: byPayment } = await tenantFilter(
+      supabase.from('sessions').select('*, station:stations(*)'), ctx
+    ).in('id', paidSessionIds).eq('status', 'completed')
       .order('ended_at', { ascending: false })
     sessionsData = byPayment || []
   }
 
-  // Also get sessions started in this shift that may not have payments yet
-  const { data: byShift } = await supabase
-    .from('sessions').select('*, station:stations(*)')
-    .eq('shift_id', shift.id).eq('status', 'completed')
+  const { data: byShift } = await tenantFilter(
+    supabase.from('sessions').select('*, station:stations(*)'), ctx
+  ).eq('shift_id', shift.id).eq('status', 'completed')
     .order('ended_at', { ascending: false })
-  
-  // Merge without duplicates
+
   const sessionIds = new Set(sessionsData.map((s: any) => s.id))
   for (const s of (byShift || [])) {
     if (!sessionIds.has(s.id)) {
@@ -603,8 +593,8 @@ async function handleGetShiftHistory(ctx: Ctx): Promise<Response> {
 
   const sessionsWithDetails = await Promise.all(
     sessionsData.map(async (session: any) => {
-      const { data: controllers } = await supabase.from('controller_usage').select('*').eq('session_id', session.id)
-      const { count: drinksCount } = await supabase.from('session_drinks').select('*', { count: 'exact', head: true }).eq('session_id', session.id)
+      const { data: controllers } = await tenantFilter(supabase.from('controller_usage').select('*'), ctx).eq('session_id', session.id)
+      const { count: drinksCount } = await tenantFilter(supabase.from('session_drinks').select('*', { count: 'exact', head: true }), ctx).eq('session_id', session.id)
       const payment = paymentMap.get(session.id)
 
       return {
@@ -615,9 +605,9 @@ async function handleGetShiftHistory(ctx: Ctx): Promise<Response> {
     })
   )
 
-  const { data: drinkSalesData } = await supabase
-    .from('drink_sales').select('*, drink:drinks(*)').eq('shift_id', shift.id)
-    .order('created_at', { ascending: false })
+  const { data: drinkSalesData } = await tenantFilter(
+    supabase.from('drink_sales').select('*, drink:drinks(*)'), ctx
+  ).eq('shift_id', shift.id).order('created_at', { ascending: false })
 
   return jsonResponse({ sessions: sessionsWithDetails || [], drinkSales: drinkSalesData || [] }, cors)
 }
@@ -625,6 +615,7 @@ async function handleGetShiftHistory(ctx: Ctx): Promise<Response> {
 // ==================== ADMIN ROUTE HANDLERS ====================
 
 async function handleAdminGetCashiers(ctx: Ctx): Promise<Response> {
+  // cashiers table has no tenant_id yet — will be replaced by users table in Phase 2
   const { data, error } = await ctx.supabase.from('cashiers').select('id, name, pin, created_at, max_discount_percent').order('created_at')
   if (error) return errorResponse('Ошибка загрузки кассиров', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
@@ -635,6 +626,7 @@ async function handleAdminCreateCashier(ctx: Ctx): Promise<Response> {
   const v = validateCashier(body)
   if (!v.valid) return errorResponse(v.error!, ctx.cors)
 
+  // cashiers table has no tenant_id yet — will be replaced by users table in Phase 2
   const { data, error } = await ctx.supabase.from('cashiers').insert({ name: body.name.trim(), pin: body.pin }).select().single()
   if (error) {
     if (error.code === '23505') return errorResponse('PIN-код уже существует', ctx.cors)
@@ -667,6 +659,7 @@ async function handleAdminUpdateCashier(ctx: Ctx): Promise<Response> {
   }
   if (Object.keys(updateData).length === 0) return errorResponse('Нет данных для обновления', cors)
 
+  // cashiers table has no tenant_id yet
   const { data, error } = await supabase.from('cashiers').update(updateData).eq('id', id).select().single()
   if (error) {
     if (error.code === '23505') return errorResponse('PIN-код уже существует', cors)
@@ -681,15 +674,16 @@ async function handleAdminDeleteCashier(ctx: Ctx): Promise<Response> {
   if (!isValidUUID(id)) return errorResponse('Invalid cashier ID', cors)
   if (id === shift.cashier_id) return errorResponse('Нельзя удалить себя', cors)
 
-  const { data: activeShift } = await supabase.from('shifts').select('id').eq('cashier_id', id).eq('is_active', true).maybeSingle()
+  const { data: activeShift } = await tenantFilter(supabase.from('shifts').select('id'), ctx).eq('cashier_id', id).eq('is_active', true).maybeSingle()
   if (activeShift) return errorResponse('У кассира активная смена', cors)
 
+  // cashiers table has no tenant_id yet
   const { error } = await supabase.from('cashiers').delete().eq('id', id)
   if (error) return errorResponse('Ошибка удаления кассира', cors, 500)
   return jsonResponse({ success: true }, cors)
 }
 
-// ---- Analytics helpers (used by handleAdminShiftsAnalytics) ----
+// ---- Analytics helpers ----
 function getWorkingDayKey(dateStr: string): string {
   const d = new Date(dateStr)
   const utcHour = d.getUTCHours()
@@ -699,16 +693,15 @@ function getWorkingDayKey(dateStr: string): string {
   return workingDay.toISOString().split('T')[0]
 }
 
-async function fetchShiftsForPeriod(supabase: any, periodFrom: Date, periodTo: Date, filterCashierId?: string | null, excludeActive = true) {
+async function fetchShiftsForPeriod(supabase: any, ctx: Ctx, periodFrom: Date, periodTo: Date, filterCashierId?: string | null, excludeActive = true) {
   let allShifts: any[] = []
   let offset = 0
   const PAGE_SIZE = 1000
 
   while (true) {
-    let query = supabase
-      .from('shifts')
-      .select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)')
-      .lte('started_at', periodTo.toISOString())
+    let query = tenantFilter(
+      supabase.from('shifts').select('id, cashier_id, started_at, ended_at, is_active, total_cash, total_kaspi, total_games, total_controllers, total_drinks, cashiers(name)'), ctx
+    ).lte('started_at', periodTo.toISOString())
       .or(`ended_at.gte.${periodFrom.toISOString()},ended_at.is.null`)
       .order('started_at', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1)
@@ -726,7 +719,7 @@ async function fetchShiftsForPeriod(supabase: any, periodFrom: Date, periodTo: D
   return allShifts
 }
 
-async function fetchSessionCounts(supabase: any, shiftIds: string[]) {
+async function fetchSessionCounts(supabase: any, ctx: Ctx, shiftIds: string[]) {
   const counts: Record<string, number> = {}
   if (shiftIds.length === 0) return counts
 
@@ -735,7 +728,7 @@ async function fetchSessionCounts(supabase: any, shiftIds: string[]) {
     let offset = 0
     const PAGE_SIZE = 1000
     while (true) {
-      const { data } = await supabase.from('sessions').select('shift_id').in('shift_id', batch).eq('status', 'completed').range(offset, offset + PAGE_SIZE - 1)
+      const { data } = await tenantFilter(supabase.from('sessions').select('shift_id'), ctx).in('shift_id', batch).eq('status', 'completed').range(offset, offset + PAGE_SIZE - 1)
       ;(data || []).forEach((s: any) => { counts[s.shift_id] = (counts[s.shift_id] || 0) + 1 })
       if (!data || data.length < PAGE_SIZE) break
       offset += PAGE_SIZE
@@ -769,45 +762,47 @@ function calculatePeriodTotals(formattedShifts: any[]) {
     cash: acc.cash + s.total_cash, kaspi: acc.kaspi + s.total_kaspi,
     games: acc.games + s.total_games, controllers: acc.controllers + s.total_controllers,
     drinks: acc.drinks + s.total_drinks, sessions: acc.sessions + s.sessions_count,
-    totalHours: acc.totalHours + s.duration_hours,
+    totalHours: acc.totalHours + (s.duration_hours || 0),
   }), { revenue: 0, cash: 0, kaspi: 0, games: 0, controllers: 0, drinks: 0, sessions: 0, totalHours: 0 })
 
   return {
-    ...raw, shiftsCount: workingDays.size,
-    avgCheck: raw.sessions > 0 ? Math.round(raw.revenue / raw.sessions) : 0,
-    revenuePerHour: raw.totalHours > 0 ? Math.round(raw.revenue / raw.totalHours) : 0,
+    ...raw,
+    shifts: formattedShifts.length,
+    workingDays: workingDays.size,
+    avgRevenuePerDay: workingDays.size > 0 ? Math.round(raw.revenue / workingDays.size) : 0,
+    avgRevenuePerShift: formattedShifts.length > 0 ? Math.round(raw.revenue / formattedShifts.length) : 0,
+    avgSessionsPerDay: workingDays.size > 0 ? Math.round(raw.sessions / workingDays.size * 10) / 10 : 0,
   }
 }
 
 async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
   const { supabase, cors, url } = ctx
-  const fromDate = url.searchParams.get('from')
-  const toDate = url.searchParams.get('to')
-  const cashierId = url.searchParams.get('cashier_id')
-
-  if (!fromDate || !toDate) return errorResponse('from and to dates are required', cors)
-  const from = new Date(fromDate)
-  const to = new Date(toDate)
-  if (isNaN(from.getTime()) || isNaN(to.getTime())) return errorResponse('Invalid date format', cors)
-
-  const { data: adminRoles } = await supabase.from('user_roles').select('cashier_id').eq('role', 'admin')
-  const adminCashierIds = (adminRoles || []).map((r: any) => r.cashier_id).filter(Boolean)
-  const { data: cashiers } = await supabase.from('cashiers').select('id, name').order('name')
-  const filteredCashiers = (cashiers || []).filter((c: any) => !adminCashierIds.includes(c.id))
-
   try {
-    const shifts = await fetchShiftsForPeriod(supabase, from, to, cashierId, true)
+    const fromStr = url.searchParams.get('from')
+    const toStr = url.searchParams.get('to')
+    const cashierId = url.searchParams.get('cashier_id')
+
+    if (!fromStr || !toStr) return errorResponse('from and to are required', cors)
+    const from = new Date(fromStr)
+    const to = new Date(toStr)
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) return errorResponse('Invalid date format', cors)
+
+    // cashiers has no tenant_id yet
+    const { data: allCashiers } = await supabase.from('cashiers').select('id, name').order('name')
+    const filteredCashiers = allCashiers || []
+
+    const shifts = await fetchShiftsForPeriod(supabase, ctx, from, to, cashierId, true)
     const shiftIds = shifts.map((s: any) => s.id)
-    const sessionCounts = await fetchSessionCounts(supabase, shiftIds)
+    const sessionCounts = await fetchSessionCounts(supabase, ctx, shiftIds)
     const fmtShifts = formatShifts(shifts, sessionCounts)
     const totals = calculatePeriodTotals(fmtShifts)
 
     const periodLength = to.getTime() - from.getTime()
     const prevFrom = new Date(from.getTime() - periodLength)
     const prevTo = new Date(from.getTime() - 1)
-    const prevShifts = await fetchShiftsForPeriod(supabase, prevFrom, prevTo, cashierId, true)
+    const prevShifts = await fetchShiftsForPeriod(supabase, ctx, prevFrom, prevTo, cashierId, true)
     const prevShiftIds = prevShifts.map((s: any) => s.id)
-    const prevSessionCounts = await fetchSessionCounts(supabase, prevShiftIds)
+    const prevSessionCounts = await fetchSessionCounts(supabase, ctx, prevShiftIds)
     const prevFmtShifts = formatShifts(prevShifts, prevSessionCounts)
     const previousPeriodTotals = calculatePeriodTotals(prevFmtShifts)
 
@@ -819,8 +814,8 @@ async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
         const batch = shiftIds.slice(i, i + 100)
         let offset = 0
         while (true) {
-          const { data } = await supabase.from('drink_sales')
-            .select('id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at, drinks(name, price)')
+          const { data } = await tenantFilter(supabase.from('drink_sales')
+            .select('id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at, drinks(name, price)'), ctx)
             .in('shift_id', batch).range(offset, offset + 999)
           allDrinkSales = allDrinkSales.concat(data || [])
           if (!data || data.length < 1000) break
@@ -831,13 +826,13 @@ async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
       let allSessionDrinks: any[] = []
       for (let i = 0; i < shiftIds.length; i += 100) {
         const batch = shiftIds.slice(i, i + 100)
-        const { data: sessionsForDrinks } = await supabase.from('sessions').select('id, shift_id').in('shift_id', batch).eq('status', 'completed')
+        const { data: sessionsForDrinks } = await tenantFilter(supabase.from('sessions').select('id, shift_id'), ctx).in('shift_id', batch).eq('status', 'completed')
         const sessionIds = (sessionsForDrinks || []).map((s: any) => s.id)
         if (sessionIds.length > 0) {
           for (let j = 0; j < sessionIds.length; j += 100) {
             const sessionBatch = sessionIds.slice(j, j + 100)
-            const { data } = await supabase.from('session_drinks')
-              .select('id, session_id, drink_id, quantity, total_price, created_at, drinks(name, price)')
+            const { data } = await tenantFilter(supabase.from('session_drinks')
+              .select('id, session_id, drink_id, quantity, total_price, created_at, drinks(name, price)'), ctx)
               .in('session_id', sessionBatch)
             const sessionToShift: Record<string, string> = {}
             ;(sessionsForDrinks || []).forEach((s: any) => { sessionToShift[s.id] = s.shift_id })
@@ -915,8 +910,8 @@ async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
         const batch = shiftIds.slice(i, i + 100)
         let offset = 0
         while (true) {
-          const { data } = await supabase.from('sessions')
-            .select('id, shift_id, game_cost, controller_cost, drink_cost, total_cost, started_at, stations(zone, name)')
+          const { data } = await tenantFilter(supabase.from('sessions')
+            .select('id, shift_id, game_cost, controller_cost, drink_cost, total_cost, started_at, stations(zone, name)'), ctx)
             .in('shift_id', batch).eq('status', 'completed').range(offset, offset + 999)
           allSessions = allSessions.concat(data || [])
           if (!data || data.length < 1000) break
@@ -955,8 +950,8 @@ async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
         const batch = shiftIds.slice(i, i + 100)
         let offset = 0
         while (true) {
-          const { data } = await supabase.from('payments')
-            .select('id, shift_id, session_id, discount_percent, discount_amount, total_amount, created_at')
+          const { data } = await tenantFilter(supabase.from('payments')
+            .select('id, shift_id, session_id, discount_percent, discount_amount, total_amount, created_at'), ctx)
             .in('shift_id', batch).gt('discount_percent', 0).range(offset, offset + 999)
           allPayments = allPayments.concat(data || [])
           if (!data || data.length < 1000) break
@@ -1003,12 +998,11 @@ async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
 
 async function handleAdminActiveSessions(ctx: Ctx): Promise<Response> {
   const { supabase, cors } = ctx
-  const { data: sessions, error } = await supabase
-    .from('sessions')
-    .select(`id, station_id, shift_id, tariff_type, started_at, status,
+  const { data: sessions, error } = await tenantFilter(
+    supabase.from('sessions').select(`id, station_id, shift_id, tariff_type, started_at, status,
       station:stations(id, name, zone, station_number, hourly_rate, package_rate),
-      shift:shifts(id, cashier_id, is_active, cashiers(id, name))`)
-    .eq('status', 'active').order('started_at', { ascending: true })
+      shift:shifts(id, cashier_id, is_active, cashiers(id, name))`), ctx
+  ).eq('status', 'active').order('started_at', { ascending: true })
 
   if (error) return errorResponse('Ошибка загрузки сессий', cors, 500)
 
@@ -1024,7 +1018,7 @@ async function handleAdminActiveSessions(ctx: Ctx): Promise<Response> {
       gameCost = Math.ceil(elapsedMinutes / 60) * (session.station?.hourly_rate || 0)
     }
 
-    const { data: controllers } = await supabase.from('controller_usage').select('*').eq('session_id', session.id)
+    const { data: controllers } = await tenantFilter(supabase.from('controller_usage').select('*'), ctx).eq('session_id', session.id)
     let controllerCost = 0
     for (const c of (controllers || [])) {
       const takenAt = new Date(c.taken_at)
@@ -1033,7 +1027,7 @@ async function handleAdminActiveSessions(ctx: Ctx): Promise<Response> {
       controllerCost += Math.ceil(mins / 30) * 200
     }
 
-    const { data: drinks } = await supabase.from('session_drinks').select('total_price').eq('session_id', session.id)
+    const { data: drinks } = await tenantFilter(supabase.from('session_drinks').select('total_price'), ctx).eq('session_id', session.id)
     const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
 
     return {
@@ -1055,8 +1049,9 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
   if (!body.session_id || !isValidUUID(body.session_id)) return errorResponse('Invalid session_id', cors)
   if (!['cash', 'kaspi', 'split'].includes(body.payment_method)) return errorResponse('Invalid payment_method', cors)
 
-  const { data: session, error: sessionError } = await supabase
-    .from('sessions').select('*, station:stations(*), shift:shifts(*)').eq('id', body.session_id).eq('status', 'active').single()
+  const { data: session, error: sessionError } = await tenantFilter(
+    supabase.from('sessions').select('*, station:stations(*), shift:shifts(*)'), ctx
+  ).eq('id', body.session_id).eq('status', 'active').single()
   if (sessionError || !session) return errorResponse('Сессия не найдена или уже завершена', cors, 404)
 
   const now = new Date()
@@ -1070,7 +1065,7 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
     gameCost = Math.ceil(elapsedMinutes / 60) * (session.station?.hourly_rate || 0)
   }
 
-  const { data: controllers } = await supabase.from('controller_usage').select('*').eq('session_id', session.id)
+  const { data: controllers } = await tenantFilter(supabase.from('controller_usage').select('*'), ctx).eq('session_id', session.id)
   let controllerCost = 0
   for (const c of (controllers || [])) {
     const takenAt = new Date(c.taken_at)
@@ -1084,10 +1079,10 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
     const takenAt = new Date(c.taken_at)
     const mins = Math.floor((now.getTime() - takenAt.getTime()) / 60000)
     const cost = Math.ceil(mins / 30) * 200
-    await supabase.from('controller_usage').update({ returned_at: now.toISOString(), cost }).eq('id', c.id)
+    await tenantFilter(supabase.from('controller_usage').update({ returned_at: now.toISOString(), cost }), ctx).eq('id', c.id)
   }
 
-  const { data: drinks } = await supabase.from('session_drinks').select('total_price').eq('session_id', session.id)
+  const { data: drinks } = await tenantFilter(supabase.from('session_drinks').select('total_price'), ctx).eq('session_id', session.id)
   const drinkCost = (drinks || []).reduce((sum: number, d: any) => sum + (d.total_price || 0), 0)
   const totalCost = gameCost + controllerCost + drinkCost
 
@@ -1096,15 +1091,15 @@ async function handleAdminForceCloseSession(ctx: Ctx): Promise<Response> {
   else if (body.payment_method === 'kaspi') { kaspiAmount = totalCost }
   else { cashAmount = body.cash_amount || 0; kaspiAmount = body.kaspi_amount || 0 }
 
-  await supabase.from('sessions').update({
+  await tenantFilter(supabase.from('sessions').update({
     status: 'completed', ended_at: now.toISOString(),
     game_cost: gameCost, controller_cost: controllerCost, drink_cost: drinkCost, total_cost: totalCost,
-  }).eq('id', session.id)
+  }), ctx).eq('id', session.id)
 
-  await supabase.from('payments').insert({
+  await supabase.from('payments').insert(withTenant({
     session_id: session.id, shift_id: session.shift_id, payment_method: body.payment_method,
     cash_amount: cashAmount, kaspi_amount: kaspiAmount, total_amount: totalCost,
-  })
+  }, ctx))
 
   await supabase.rpc('increment_shift_totals', {
     p_shift_id: session.shift_id,
@@ -1126,42 +1121,43 @@ async function handleAdminCompletedSessions(ctx: Ctx): Promise<Response> {
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-  const { data: sessions, error } = await supabase
-    .from('sessions')
-    .select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
+  const { data: sessions, error } = await tenantFilter(
+    supabase.from('sessions').select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
       game_cost, controller_cost, drink_cost, total_cost, package_count,
       station:stations(id, name, zone, station_number),
-      shift:shifts(id, cashier_id, cashiers(id, name))`)
-    .eq('status', 'completed').gte('ended_at', sevenDaysAgo.toISOString())
+      shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+  ).eq('status', 'completed').gte('ended_at', sevenDaysAgo.toISOString())
     .order('ended_at', { ascending: false }).limit(100)
 
   if (error) return errorResponse('Ошибка загрузки сессий', cors, 500)
 
   const sessionIds = (sessions || []).map((s: any) => s.id)
-  const { data: payments } = await supabase.from('payments')
-    .select('session_id, payment_method, cash_amount, kaspi_amount, total_amount').in('session_id', sessionIds)
+  const { data: payments } = await tenantFilter(supabase.from('payments')
+    .select('session_id, payment_method, cash_amount, kaspi_amount, total_amount'), ctx).in('session_id', sessionIds)
   const paymentMap = new Map((payments || []).map((p: any) => [p.session_id, p]))
 
-  const { data: controllers } = await supabase.from('controller_usage')
-    .select('id, session_id, taken_at, returned_at, cost').in('session_id', sessionIds)
+  const { data: controllers } = await tenantFilter(supabase.from('controller_usage')
+    .select('id, session_id, taken_at, returned_at, cost'), ctx).in('session_id', sessionIds)
   const controllerMap = new Map<string, any[]>()
   for (const c of (controllers || [])) {
     if (!controllerMap.has(c.session_id)) controllerMap.set(c.session_id, [])
     controllerMap.get(c.session_id)!.push(c)
   }
 
-  const formattedSessions = (sessions || []).map((s: any) => ({
-    id: s.id, station_id: s.station_id, station_name: s.station?.name || 'Unknown',
-    station_zone: s.station?.zone || '', shift_id: s.shift_id,
-    cashier_id: s.shift?.cashier_id, cashier_name: s.shift?.cashiers?.name || 'Unknown',
-    tariff_type: s.tariff_type, package_count: s.package_count,
-    started_at: s.started_at, ended_at: s.ended_at,
-    game_cost: s.game_cost || 0, controller_cost: s.controller_cost || 0,
-    drink_cost: s.drink_cost || 0, total_cost: s.total_cost || 0,
-    payment: paymentMap.get(s.id) || null, controllers: controllerMap.get(s.id) || [],
-  }))
+  const result = (sessions || []).map((session: any) => {
+    const payment = paymentMap.get(session.id)
+    return {
+      ...session,
+      cashier_name: session.shift?.cashiers?.name || 'Unknown',
+      payment_method: payment?.payment_method || null,
+      cash_amount: payment?.cash_amount || 0,
+      kaspi_amount: payment?.kaspi_amount || 0,
+      payment_total: payment?.total_amount || 0,
+      controllers: controllerMap.get(session.id) || [],
+    }
+  })
 
-  return jsonResponse(formattedSessions, cors)
+  return jsonResponse(result, cors)
 }
 
 async function handleAdminDrinkSales(ctx: Ctx): Promise<Response> {
@@ -1169,36 +1165,28 @@ async function handleAdminDrinkSales(ctx: Ctx): Promise<Response> {
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-  const { data: sales, error } = await supabase
-    .from('drink_sales')
-    .select(`id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at,
-      drink:drinks(id, name, price), shift:shifts(id, cashier_id, cashiers(id, name))`)
-    .gte('created_at', sevenDaysAgo.toISOString()).order('created_at', { ascending: false }).limit(100)
+  const { data, error } = await tenantFilter(
+    supabase.from('drink_sales').select(`id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at,
+      drink:drinks(id, name, price),
+      shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+  ).gte('created_at', sevenDaysAgo.toISOString())
+    .order('created_at', { ascending: false }).limit(100)
 
   if (error) return errorResponse('Ошибка загрузки продаж', cors, 500)
 
-  const formattedSales = (sales || []).map((s: any) => ({
-    id: s.id, shift_id: s.shift_id, cashier_name: s.shift?.cashiers?.name || 'Unknown',
-    drink_id: s.drink_id, drink_name: s.drink?.name || 'Unknown',
-    quantity: s.quantity, total_price: s.total_price, payment_method: s.payment_method,
-    cash_amount: s.cash_amount || 0, kaspi_amount: s.kaspi_amount || 0, created_at: s.created_at,
+  const result = (data || []).map((sale: any) => ({
+    ...sale, cashier_name: sale.shift?.cashiers?.name || 'Unknown',
   }))
 
-  return jsonResponse(formattedSales, cors)
+  return jsonResponse(result, cors)
 }
 
 async function handleAdminAuditLog(ctx: Ctx): Promise<Response> {
-  const { supabase, cors } = ctx
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const { data: logs, error } = await tenantFilter(
+    ctx.supabase.from('admin_audit_log').select('*, admin:cashiers!admin_audit_log_admin_id_fkey(id, name)'), ctx
+  ).order('created_at', { ascending: false }).limit(200)
 
-  const { data: logs, error } = await supabase
-    .from('admin_audit_log')
-    .select(`id, admin_id, action_type, target_type, target_id, shift_id, cashier_name, station_name,
-      old_values, new_values, reason, created_at, admin:cashiers!admin_audit_log_admin_id_fkey(id, name)`)
-    .gte('created_at', thirtyDaysAgo.toISOString()).order('created_at', { ascending: false }).limit(100)
-
-  if (error) return errorResponse('Ошибка загрузки журнала', cors, 500)
+  if (error) return errorResponse('Ошибка загрузки журнала', ctx.cors, 500)
 
   const formattedLogs = (logs || []).map((l: any) => ({
     id: l.id, admin_id: l.admin_id, admin_name: l.admin?.name || 'Unknown',
@@ -1207,7 +1195,7 @@ async function handleAdminAuditLog(ctx: Ctx): Promise<Response> {
     old_values: l.old_values, new_values: l.new_values, reason: l.reason, created_at: l.created_at,
   }))
 
-  return jsonResponse(formattedLogs, cors)
+  return jsonResponse(formattedLogs, ctx.cors)
 }
 
 async function handleAdminEditSession(ctx: Ctx): Promise<Response> {
@@ -1218,15 +1206,14 @@ async function handleAdminEditSession(ctx: Ctx): Promise<Response> {
   const body = await req.json()
   if (!body.reason || body.reason.trim().length < 5) return errorResponse('Укажите причину корректировки (минимум 5 символов)', cors)
 
-  const { data: session, error: sessionError } = await supabase
-    .from('sessions')
-    .select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
+  const { data: session, error: sessionError } = await tenantFilter(
+    supabase.from('sessions').select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
       game_cost, controller_cost, drink_cost, total_cost, package_count,
-      station:stations(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`)
-    .eq('id', sessionId).eq('status', 'completed').single()
+      station:stations(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+  ).eq('id', sessionId).eq('status', 'completed').single()
   if (sessionError || !session) return errorResponse('Сессия не найдена', cors, 404)
 
-  const { data: payment } = await supabase.from('payments').select('*').eq('session_id', sessionId).single()
+  const { data: payment } = await tenantFilter(supabase.from('payments').select('*'), ctx).eq('session_id', sessionId).single()
   if (!payment) return errorResponse('Платёж не найден', cors, 404)
 
   const oldGameCost = session.game_cost || 0, oldControllerCost = session.controller_cost || 0
@@ -1247,8 +1234,8 @@ async function handleAdminEditSession(ctx: Ctx): Promise<Response> {
   else if (newCashAmount > 0) newPaymentMethod = 'cash'
   else newPaymentMethod = 'kaspi'
 
-  await supabase.from('sessions').update({ game_cost: newGameCost, controller_cost: newControllerCost, drink_cost: newDrinkCost, total_cost: newTotalCost }).eq('id', sessionId)
-  await supabase.from('payments').update({ payment_method: newPaymentMethod, cash_amount: newCashAmount, kaspi_amount: newKaspiAmount, total_amount: newTotalCost }).eq('session_id', sessionId)
+  await tenantFilter(supabase.from('sessions').update({ game_cost: newGameCost, controller_cost: newControllerCost, drink_cost: newDrinkCost, total_cost: newTotalCost }), ctx).eq('id', sessionId)
+  await tenantFilter(supabase.from('payments').update({ payment_method: newPaymentMethod, cash_amount: newCashAmount, kaspi_amount: newKaspiAmount, total_amount: newTotalCost }), ctx).eq('session_id', sessionId)
 
   if (body.controllers && Array.isArray(body.controllers)) {
     for (const ctrl of body.controllers) {
@@ -1257,30 +1244,30 @@ async function handleAdminEditSession(ctx: Ctx): Promise<Response> {
         if (ctrl.taken_at) updateData.taken_at = ctrl.taken_at
         if (ctrl.returned_at) updateData.returned_at = ctrl.returned_at
         if (ctrl.cost !== undefined) updateData.cost = ctrl.cost
-        if (Object.keys(updateData).length > 0) await supabase.from('controller_usage').update(updateData).eq('id', ctrl.id)
+        if (Object.keys(updateData).length > 0) await tenantFilter(supabase.from('controller_usage').update(updateData), ctx).eq('id', ctrl.id)
       }
     }
   }
 
-  const { data: shiftData } = await supabase.from('shifts').select('*').eq('id', session.shift_id).single()
+  const { data: shiftData } = await tenantFilter(supabase.from('shifts').select('*'), ctx).eq('id', session.shift_id).single()
   if (shiftData) {
-    await supabase.from('shifts').update({
+    await tenantFilter(supabase.from('shifts').update({
       total_cash: (shiftData.total_cash || 0) - oldCashAmount + newCashAmount,
       total_kaspi: (shiftData.total_kaspi || 0) - oldKaspiAmount + newKaspiAmount,
       total_games: (shiftData.total_games || 0) - oldGameCost + newGameCost,
       total_controllers: (shiftData.total_controllers || 0) - oldControllerCost + newControllerCost,
       total_drinks: (shiftData.total_drinks || 0) - oldDrinkCost + newDrinkCost,
-    }).eq('id', session.shift_id)
+    }), ctx).eq('id', session.shift_id)
   }
 
-  await supabase.from('admin_audit_log').insert({
+  await supabase.from('admin_audit_log').insert(withTenant({
     admin_id: shift.cashier_id, action_type: 'edit_session', target_type: 'session', target_id: sessionId,
     shift_id: session.shift_id, cashier_name: (session as any).shift?.cashiers?.name || 'Unknown',
     station_name: (session as any).station?.name || 'Unknown',
     old_values: { game_cost: oldGameCost, controller_cost: oldControllerCost, drink_cost: oldDrinkCost, total_cost: session.total_cost, cash_amount: oldCashAmount, kaspi_amount: oldKaspiAmount, payment_method: payment.payment_method },
     new_values: { game_cost: newGameCost, controller_cost: newControllerCost, drink_cost: newDrinkCost, total_cost: newTotalCost, cash_amount: newCashAmount, kaspi_amount: newKaspiAmount, payment_method: newPaymentMethod },
     reason: body.reason.trim(),
-  })
+  }, ctx))
 
   return jsonResponse({ success: true }, cors)
 }
@@ -1294,41 +1281,40 @@ async function handleAdminDeleteSession(ctx: Ctx): Promise<Response> {
   if (!reason) { try { const body = await req.json(); reason = body.reason || '' } catch {} }
   if (!reason || reason.trim().length < 5) return errorResponse('Укажите причину удаления (минимум 5 символов)', cors)
 
-  const { data: session, error: sessionError } = await supabase
-    .from('sessions')
-    .select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
+  const { data: session, error: sessionError } = await tenantFilter(
+    supabase.from('sessions').select(`id, station_id, shift_id, tariff_type, started_at, ended_at, status,
       game_cost, controller_cost, drink_cost, total_cost, package_count,
-      station:stations(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`)
-    .eq('id', sessionId).eq('status', 'completed').single()
+      station:stations(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+  ).eq('id', sessionId).eq('status', 'completed').single()
   if (sessionError || !session) return errorResponse('Сессия не найдена', cors, 404)
 
-  const { data: payment } = await supabase.from('payments').select('*').eq('session_id', sessionId).single()
+  const { data: payment } = await tenantFilter(supabase.from('payments').select('*'), ctx).eq('session_id', sessionId).single()
   const oldCashAmount = payment?.cash_amount || 0, oldKaspiAmount = payment?.kaspi_amount || 0
   const oldGameCost = session.game_cost || 0, oldControllerCost = session.controller_cost || 0, oldDrinkCost = session.drink_cost || 0
 
-  await supabase.from('payments').delete().eq('session_id', sessionId)
-  await supabase.from('controller_usage').delete().eq('session_id', sessionId)
-  await supabase.from('session_drinks').delete().eq('session_id', sessionId)
-  await supabase.from('sessions').delete().eq('id', sessionId)
+  await tenantFilter(supabase.from('payments').delete(), ctx).eq('session_id', sessionId)
+  await tenantFilter(supabase.from('controller_usage').delete(), ctx).eq('session_id', sessionId)
+  await tenantFilter(supabase.from('session_drinks').delete(), ctx).eq('session_id', sessionId)
+  await tenantFilter(supabase.from('sessions').delete(), ctx).eq('id', sessionId)
 
-  const { data: shiftData } = await supabase.from('shifts').select('*').eq('id', session.shift_id).single()
+  const { data: shiftData } = await tenantFilter(supabase.from('shifts').select('*'), ctx).eq('id', session.shift_id).single()
   if (shiftData) {
-    await supabase.from('shifts').update({
+    await tenantFilter(supabase.from('shifts').update({
       total_cash: Math.max(0, (shiftData.total_cash || 0) - oldCashAmount),
       total_kaspi: Math.max(0, (shiftData.total_kaspi || 0) - oldKaspiAmount),
       total_games: Math.max(0, (shiftData.total_games || 0) - oldGameCost),
       total_controllers: Math.max(0, (shiftData.total_controllers || 0) - oldControllerCost),
       total_drinks: Math.max(0, (shiftData.total_drinks || 0) - oldDrinkCost),
-    }).eq('id', session.shift_id)
+    }), ctx).eq('id', session.shift_id)
   }
 
-  await supabase.from('admin_audit_log').insert({
+  await supabase.from('admin_audit_log').insert(withTenant({
     admin_id: shift.cashier_id, action_type: 'delete_session', target_type: 'session', target_id: sessionId,
     shift_id: session.shift_id, cashier_name: (session as any).shift?.cashiers?.name || 'Unknown',
     station_name: (session as any).station?.name || 'Unknown',
     old_values: { game_cost: oldGameCost, controller_cost: oldControllerCost, drink_cost: oldDrinkCost, total_cost: session.total_cost, cash_amount: oldCashAmount, kaspi_amount: oldKaspiAmount, payment_method: payment?.payment_method },
     new_values: null, reason: reason.trim(),
-  })
+  }, ctx))
 
   return jsonResponse({ success: true }, cors)
 }
@@ -1342,38 +1328,37 @@ async function handleAdminDeleteDrinkSale(ctx: Ctx): Promise<Response> {
   if (!reason) { try { const body = await req.json(); reason = body.reason || '' } catch {} }
   if (!reason || reason.trim().length < 5) return errorResponse('Укажите причину удаления (минимум 5 символов)', cors)
 
-  const { data: sale, error: saleError } = await supabase
-    .from('drink_sales')
-    .select(`id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at,
-      drink:drinks(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`)
-    .eq('id', saleId).single()
+  const { data: sale, error: saleError } = await tenantFilter(
+    supabase.from('drink_sales').select(`id, shift_id, drink_id, quantity, total_price, payment_method, cash_amount, kaspi_amount, created_at,
+      drink:drinks(id, name), shift:shifts(id, cashier_id, cashiers(id, name))`), ctx
+  ).eq('id', saleId).single()
   if (saleError || !sale) return errorResponse('Продажа не найдена', cors, 404)
 
   const oldCashAmount = sale.cash_amount || 0, oldKaspiAmount = sale.kaspi_amount || 0, oldTotalPrice = sale.total_price || 0
 
-  await supabase.from('drink_sales').delete().eq('id', saleId)
+  await tenantFilter(supabase.from('drink_sales').delete(), ctx).eq('id', saleId)
 
-  const { data: shiftData } = await supabase.from('shifts').select('*').eq('id', sale.shift_id).single()
+  const { data: shiftData } = await tenantFilter(supabase.from('shifts').select('*'), ctx).eq('id', sale.shift_id).single()
   if (shiftData) {
-    await supabase.from('shifts').update({
+    await tenantFilter(supabase.from('shifts').update({
       total_cash: Math.max(0, (shiftData.total_cash || 0) - oldCashAmount),
       total_kaspi: Math.max(0, (shiftData.total_kaspi || 0) - oldKaspiAmount),
       total_drinks: Math.max(0, (shiftData.total_drinks || 0) - oldTotalPrice),
-    }).eq('id', sale.shift_id)
+    }), ctx).eq('id', sale.shift_id)
   }
 
-  await supabase.from('admin_audit_log').insert({
+  await supabase.from('admin_audit_log').insert(withTenant({
     admin_id: shift.cashier_id, action_type: 'delete_drink_sale', target_type: 'drink_sale', target_id: saleId,
     shift_id: sale.shift_id, cashier_name: (sale as any).shift?.cashiers?.name || 'Unknown', station_name: null,
     old_values: { drink_name: (sale as any).drink?.name, quantity: sale.quantity, total_price: oldTotalPrice, payment_method: sale.payment_method, cash_amount: oldCashAmount, kaspi_amount: oldKaspiAmount, created_at: sale.created_at },
     new_values: null, reason: reason.trim(),
-  })
+  }, ctx))
 
   return jsonResponse({ success: true }, cors)
 }
 
 async function handleAdminGetDiscountPresets(ctx: Ctx): Promise<Response> {
-  const { data, error } = await ctx.supabase.from('discount_presets').select('*').order('percent')
+  const { data, error } = await tenantFilter(ctx.supabase.from('discount_presets').select('*'), ctx).order('percent')
   if (error) return errorResponse('Ошибка загрузки пресетов скидок', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
 }
@@ -1383,7 +1368,7 @@ async function handleAdminCreateDiscountPreset(ctx: Ctx): Promise<Response> {
   const percent = parseInt(body.percent)
   if (isNaN(percent) || percent < 1 || percent > 100) return errorResponse('Процент должен быть от 1 до 100', ctx.cors)
 
-  const { data, error } = await ctx.supabase.from('discount_presets').insert({ percent }).select().single()
+  const { data, error } = await ctx.supabase.from('discount_presets').insert(withTenant({ percent }, ctx)).select().single()
   if (error) {
     if (error.code === '23505') return errorResponse('Пресет с таким процентом уже существует', ctx.cors)
     return errorResponse('Ошибка создания пресета', ctx.cors, 500)
@@ -1395,7 +1380,7 @@ async function handleAdminDeleteDiscountPreset(ctx: Ctx): Promise<Response> {
   const id = ctx.path.split('/')[3]
   if (!isValidUUID(id)) return errorResponse('Invalid preset ID', ctx.cors)
 
-  const { error } = await ctx.supabase.from('discount_presets').delete().eq('id', id)
+  const { error } = await tenantFilter(ctx.supabase.from('discount_presets').delete(), ctx).eq('id', id)
   if (error) return errorResponse('Ошибка удаления пресета', ctx.cors, 500)
   return jsonResponse({ success: true }, ctx.cors)
 }
@@ -1407,7 +1392,7 @@ async function handleAdminCreateDrink(ctx: Ctx): Promise<Response> {
   if (body.name.length > 100) return errorResponse('Название слишком длинное', ctx.cors)
   if (typeof body.price !== 'number' || body.price < 0 || body.price > 1000000) return errorResponse('Некорректная цена', ctx.cors)
 
-  const { data, error } = await ctx.supabase.from('drinks').insert({ name: body.name.trim(), price: body.price }).select().single()
+  const { data, error } = await ctx.supabase.from('drinks').insert(withTenant({ name: body.name.trim(), price: body.price }, ctx)).select().single()
   if (error) {
     if (error.code === '23505') return errorResponse('Напиток с таким названием уже существует', ctx.cors)
     return errorResponse('Ошибка создания напитка', ctx.cors, 500)
@@ -1431,7 +1416,7 @@ async function handleAdminUpdateDrink(ctx: Ctx): Promise<Response> {
     updateData.price = body.price
   }
 
-  const { data, error } = await ctx.supabase.from('drinks').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(ctx.supabase.from('drinks').update(updateData), ctx).eq('id', id).select().single()
   if (error) return errorResponse('Ошибка обновления напитка', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
 }
@@ -1440,23 +1425,23 @@ async function handleAdminDeleteDrink(ctx: Ctx): Promise<Response> {
   const id = ctx.pathParts[2]
   if (!isValidUUID(id)) return errorResponse('Invalid drink ID', ctx.cors)
 
-  // Check if drink has active sessions
-  const { data: activeDrinks } = await ctx.supabase
-    .from('session_drinks').select('id, session:sessions!inner(status)').eq('drink_id', id).eq('session.status', 'active').limit(1)
+  const { data: activeDrinks } = await tenantFilter(
+    ctx.supabase.from('session_drinks').select('id, session:sessions!inner(status)'), ctx
+  ).eq('drink_id', id).eq('session.status', 'active').limit(1)
   if (activeDrinks && activeDrinks.length > 0) return errorResponse('Нельзя удалить напиток, который используется в активной сессии', ctx.cors)
 
-  // Delete inventory first
-  await ctx.supabase.from('inventory_movements').delete().eq('drink_id', id)
-  await ctx.supabase.from('inventory').delete().eq('drink_id', id)
+  await tenantFilter(ctx.supabase.from('inventory_movements').delete(), ctx).eq('drink_id', id)
+  await tenantFilter(ctx.supabase.from('inventory').delete(), ctx).eq('drink_id', id)
 
-  const { error } = await ctx.supabase.from('drinks').delete().eq('id', id)
+  const { error } = await tenantFilter(ctx.supabase.from('drinks').delete(), ctx).eq('id', id)
   if (error) return errorResponse('Ошибка удаления напитка. Возможно, он используется в истории продаж.', ctx.cors, 500)
   return jsonResponse({ success: true }, ctx.cors)
 }
 
 async function handleAdminGetInventory(ctx: Ctx): Promise<Response> {
-  const { data, error } = await ctx.supabase
-    .from('inventory').select('*, drink:drinks(id, name, price)').order('updated_at', { ascending: false })
+  const { data, error } = await tenantFilter(
+    ctx.supabase.from('inventory').select('*, drink:drinks(id, name, price)'), ctx
+  ).order('updated_at', { ascending: false })
   if (error) return errorResponse('Ошибка загрузки инвентаря', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
 }
@@ -1470,7 +1455,7 @@ async function handleAdminUpdateInventoryItem(ctx: Ctx): Promise<Response> {
   if (body.min_threshold !== undefined) updateData.min_threshold = body.min_threshold
   if (body.unit !== undefined) updateData.unit = body.unit
 
-  const { data, error } = await ctx.supabase.from('inventory').update(updateData).eq('id', id).select().single()
+  const { data, error } = await tenantFilter(ctx.supabase.from('inventory').update(updateData), ctx).eq('id', id).select().single()
   if (error) return errorResponse('Ошибка обновления', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
 }
@@ -1485,17 +1470,17 @@ async function handleAdminCreateInventoryMovement(ctx: Ctx): Promise<Response> {
 
   const quantityChange = body.type === 'write_off' ? -Math.abs(body.quantity) : body.quantity
 
-  const { data: movement, error: movementError } = await supabase.from('inventory_movements').insert({
+  const { data: movement, error: movementError } = await supabase.from('inventory_movements').insert(withTenant({
     drink_id: body.drink_id, quantity_change: quantityChange, type: body.type,
     reason: body.reason || null, performed_by: shift.cashier_id, shift_id: shift.id,
-  }).select().single()
+  }, ctx)).select().single()
   if (movementError) return errorResponse('Ошибка создания движения', cors, 500)
 
-  const { data: inventory } = await supabase.from('inventory').select('*').eq('drink_id', body.drink_id).single()
+  const { data: inventory } = await tenantFilter(supabase.from('inventory').select('*'), ctx).eq('drink_id', body.drink_id).single()
   if (inventory) {
-    await supabase.from('inventory').update({ quantity: inventory.quantity + quantityChange, updated_at: new Date().toISOString() }).eq('id', inventory.id)
+    await tenantFilter(supabase.from('inventory').update({ quantity: inventory.quantity + quantityChange, updated_at: new Date().toISOString() }), ctx).eq('id', inventory.id)
   } else {
-    await supabase.from('inventory').insert({ drink_id: body.drink_id, quantity: Math.max(0, quantityChange), min_threshold: 5 })
+    await supabase.from('inventory').insert(withTenant({ drink_id: body.drink_id, quantity: Math.max(0, quantityChange), min_threshold: 5 }, ctx))
   }
 
   return jsonResponse(movement, cors)
@@ -1503,9 +1488,9 @@ async function handleAdminCreateInventoryMovement(ctx: Ctx): Promise<Response> {
 
 async function handleAdminGetInventoryMovements(ctx: Ctx): Promise<Response> {
   const drinkId = ctx.url.searchParams.get('drink_id')
-  let query = ctx.supabase.from('inventory_movements')
-    .select('*, drink:drinks(id, name), performer:cashiers!inventory_movements_performed_by_fkey(id, name)')
-    .order('created_at', { ascending: false }).limit(100)
+  let query = tenantFilter(
+    ctx.supabase.from('inventory_movements').select('*, drink:drinks(id, name), performer:cashiers!inventory_movements_performed_by_fkey(id, name)'), ctx
+  ).order('created_at', { ascending: false }).limit(100)
   if (drinkId && isValidUUID(drinkId)) query = query.eq('drink_id', drinkId)
 
   const { data, error } = await query
@@ -1538,14 +1523,14 @@ Deno.serve(async (req) => {
     const url = new URL(req.url)
     const path = url.pathname.replace('/api', '')
     const method = req.method
-    const pathParts = path.split('/').filter(Boolean) // e.g. ['admin', 'sessions', ':id']
+    const pathParts = path.split('/').filter(Boolean)
 
     const tenant_id = shift.tenant_id
     if (!tenant_id) return errorResponse('Tenant context missing', corsHeaders, 403)
 
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 
-    // ---- Cashier routes (flat, no nesting) ----
+    // ---- Cashier routes ----
     if (path === '/stations' && method === 'GET') return await handleGetStations(ctx)
     if (path.match(/^\/stations\/[0-9a-f-]+$/) && method === 'GET') return await handleGetSingleStation(ctx)
     if (path === '/drinks' && method === 'GET') return await handleGetDrinks(ctx)
