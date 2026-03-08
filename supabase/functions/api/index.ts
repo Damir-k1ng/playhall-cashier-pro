@@ -785,8 +785,7 @@ async function handleAdminShiftsAnalytics(ctx: Ctx): Promise<Response> {
     const to = new Date(toStr)
     if (isNaN(from.getTime()) || isNaN(to.getTime())) return errorResponse('Invalid date format', cors)
 
-    // cashiers has no tenant_id yet
-    const { data: allCashiers } = await supabase.from('cashiers').select('id, name').order('name')
+    const { data: allCashiers } = await tenantFilter(supabase.from('users').select('id, name'), ctx).eq('role', 'cashier').order('name')
     const filteredCashiers = allCashiers || []
 
     const shifts = await fetchShiftsForPeriod(supabase, ctx, from, to, cashierId, true)
