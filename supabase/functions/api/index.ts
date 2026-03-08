@@ -1172,7 +1172,7 @@ async function handleAdminDrinkSales(ctx: Ctx): Promise<Response> {
   if (error) return errorResponse('Ошибка загрузки продаж', cors, 500)
 
   const result = (data || []).map((sale: any) => ({
-    ...sale, cashier_name: sale.shift?.cashiers?.name || 'Unknown',
+    ...sale, cashier_name: sale.shift?.cashier?.name || 'Unknown',
   }))
 
   return jsonResponse(result, cors)
