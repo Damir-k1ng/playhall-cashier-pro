@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     cashier: null,
     shift: null,
     role: 'cashier',
+    tenant: null,
   });
 
   // Check for active session on mount
