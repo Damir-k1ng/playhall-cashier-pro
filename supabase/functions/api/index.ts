@@ -1828,6 +1828,7 @@ Deno.serve(async (req) => {
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 
     // ---- Cashier routes ----
+    if (path === '/setup' && method === 'POST') return await handleSetupClub(ctx)
     if (path === '/stations' && method === 'GET') return await handleGetStations(ctx)
     if (path.match(/^\/stations\/[0-9a-f-]+$/) && method === 'GET') return await handleGetSingleStation(ctx)
     if (path === '/drinks' && method === 'GET') return await handleGetDrinks(ctx)

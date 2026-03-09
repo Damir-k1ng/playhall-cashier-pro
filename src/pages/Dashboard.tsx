@@ -19,6 +19,7 @@ import { apiClient } from '@/lib/api';
 import logoImage from '@/assets/logo.jpg';
 
 export function Dashboard() {
+  const { tenant } = useAuth();
   const { stations, isLoading, isRefreshing, refetch: refetchStations } = useStations();
   const { isOnline, wasOffline, clearWasOffline } = useNetworkStatusContext();
   const [isSyncing, setIsSyncing] = useState(false);
