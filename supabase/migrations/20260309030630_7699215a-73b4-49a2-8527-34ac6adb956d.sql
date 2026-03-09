@@ -1,0 +1,1 @@
+ALTER TABLE public.package_presets ADD COLUMN price integer NOT NULL DEFAULT 0;
