@@ -80,18 +80,18 @@ export function useStations() {
     await queryClient.invalidateQueries({ queryKey: STATIONS_QUERY_KEY });
   }, [queryClient]);
 
-  const startSession = useCallback(async (stationId: string, tariffType: 'hourly' | 'package') => {
+  const startSession = useCallback(async (stationId: string, tariffType: 'hourly' | 'package', packagePresetId?: string) => {
     if (!shift?.id) return { error: 'Нет активной смены' };
 
     try {
-      const data = await apiClient.createSession({ station_id: stationId, tariff_type: tariffType });
+      const data = await apiClient.createSession({ station_id: stationId, tariff_type: tariffType, package_preset_id: packagePresetId });
       playSound('start');
       if (navigator.vibrate) navigator.vibrate(50);
       await invalidateAll();
       return { data };
     } catch (err: any) {
       if (isNetworkError(err)) {
-        enqueue('create_session', { station_id: stationId, tariff_type: tariffType });
+        enqueue('create_session', { station_id: stationId, tariff_type: tariffType, package_preset_id: packagePresetId });
         playSound('start');
         if (navigator.vibrate) navigator.vibrate(50);
         toast({ title: '⚡ Сессия поставлена в очередь', description: 'Будет запущена при восстановлении связи' });

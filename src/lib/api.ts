@@ -125,6 +125,10 @@ class ApiClient {
     return this.request('/drinks');
   }
 
+  async getActivePackagePresets() {
+    return this.request('/package-presets');
+  }
+
   // Sessions
   async getSession(id: string) {
     return this.request(`/sessions/${id}`);
