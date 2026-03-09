@@ -96,6 +96,16 @@ export function Dashboard() {
     );
   }
 
+  // Show setup wizard for new tenants with no stations
+  if (!isLoading && stations.length === 0) {
+    return (
+      <ClubSetupWizard
+        clubName={tenant?.club_name || 'Ваш клуб'}
+        onComplete={() => refetchStations()}
+      />
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Subtle background pattern */}
