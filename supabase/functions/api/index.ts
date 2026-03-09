@@ -1837,7 +1837,53 @@ async function handleAdminDeleteStation(ctx: Ctx): Promise<Response> {
   return jsonResponse({ success: true }, cors)
 }
 
-// ==================== MAIN ROUTER ====================
+// ==================== PACKAGE PRESETS ====================
+async function handleAdminGetPackagePresets(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await tenantFilter(supabase.from('package_presets').select('*').order('duration_hours'), ctx)
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handleAdminCreatePackagePreset(ctx: Ctx): Promise<Response> {
+  const { req, supabase, cors, tenant_id } = ctx
+  const body = await req.json()
+  if (!body.name || typeof body.name !== 'string') return errorResponse('Name is required', cors, 400)
+  if (typeof body.duration_hours !== 'number' || body.duration_hours < 1) return errorResponse('Invalid duration_hours', cors, 400)
+  if (typeof body.price !== 'number' || body.price < 0) return errorResponse('Invalid price', cors, 400)
+  const { data, error } = await supabase.from('package_presets').insert({
+    name: body.name.trim(),
+    duration_hours: body.duration_hours,
+    price: body.price,
+    tenant_id,
+  }).select().single()
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors, 201)
+}
+
+async function handleAdminUpdatePackagePreset(ctx: Ctx): Promise<Response> {
+  const { req, supabase, cors, pathParts } = ctx
+  const id = pathParts[2]
+  if (!isValidUUID(id)) return errorResponse('Invalid id', cors, 400)
+  const body = await req.json()
+  const updates: any = {}
+  if (body.name !== undefined) updates.name = body.name.trim()
+  if (body.duration_hours !== undefined) updates.duration_hours = body.duration_hours
+  if (body.price !== undefined) updates.price = body.price
+  if (body.is_active !== undefined) updates.is_active = body.is_active
+  const { data, error } = await tenantFilter(supabase.from('package_presets').update(updates), ctx).eq('id', id).select().single()
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handleAdminDeletePackagePreset(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const id = pathParts[2]
+  if (!isValidUUID(id)) return errorResponse('Invalid id', cors, 400)
+  const { error } = await tenantFilter(supabase.from('package_presets').delete(), ctx).eq('id', id)
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse({ success: true }, cors)
+}
 Deno.serve(async (req) => {
   const origin = req.headers.get('Origin')
   const corsHeaders = getCorsHeaders(origin)
