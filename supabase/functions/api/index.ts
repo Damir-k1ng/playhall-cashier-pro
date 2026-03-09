@@ -1655,6 +1655,24 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
   return jsonResponse(tenant, cors, 201)
 }
 
+// Platform audit log helper
+async function logPlatformAudit(
+  supabase: any,
+  action: string,
+  entityType: string,
+  entityId: string,
+  performedBy: string,
+  metadata?: Record<string, any>
+) {
+  await supabase.from('platform_audit_log').insert([{
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    performed_by: performedBy,
+    metadata: metadata || null,
+  }])
+}
+
 async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
   const { supabase, req, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
@@ -1677,11 +1695,19 @@ async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_approved', 'tenant', tenantId, platformUser.id, {
+    trial_days: trialDays,
+    trial_until: trialUntil.toISOString(),
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformRejectTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts } = ctx
+  const { supabase, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   
   // Reject = block the pending tenant
@@ -1693,11 +1719,18 @@ async function handlePlatformRejectTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_blocked', 'tenant', tenantId, platformUser.id, {
+    reason: 'rejected',
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformSuspendTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts } = ctx
+  const { supabase, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   
   const { data, error } = await supabase
@@ -1708,11 +1741,17 @@ async function handlePlatformSuspendTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_suspended', 'tenant', tenantId, platformUser.id, {
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformBlockTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts } = ctx
+  const { supabase, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   
   const { data, error } = await supabase
@@ -1723,18 +1762,24 @@ async function handlePlatformBlockTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_blocked', 'tenant', tenantId, platformUser.id, {
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
-  const { supabase, req, cors, pathParts } = ctx
+  const { supabase, req, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   const body = await req.json().catch(() => ({}))
   
   const days = body.days || 14
   
   // Get current tenant
-  const { data: tenant } = await supabase.from('tenants').select('trial_until').eq('id', tenantId).single()
+  const { data: tenant } = await supabase.from('tenants').select('trial_until, club_name').eq('id', tenantId).single()
   if (!tenant) return errorResponse('Tenant not found', cors, 404)
   
   // Calculate new date
@@ -1742,6 +1787,7 @@ async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
   if (tenant.trial_until && new Date(tenant.trial_until) > new Date()) {
     baseDate = new Date(tenant.trial_until)
   }
+  const oldDate = tenant.trial_until
   
   baseDate.setDate(baseDate.getDate() + days)
   
@@ -1756,6 +1802,15 @@ async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'trial_extended', 'tenant', tenantId, platformUser.id, {
+    days_added: days,
+    old_trial_until: oldDate,
+    new_trial_until: baseDate.toISOString(),
+    club_name: tenant.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
@@ -1783,7 +1838,7 @@ async function handlePlatformGetSubscriptions(ctx: Ctx): Promise<Response> {
 }
 
 async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
-  const { supabase, req, cors } = ctx
+  const { supabase, req, cors, platformUser } = ctx
   const body = await req.json().catch(() => ({}))
   
   if (!body.tenant_id || !body.plan_id || !body.billing_cycle_id) {
@@ -1791,12 +1846,15 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   }
 
   // Get billing cycle to calculate period
-  const { data: cycle } = await supabase.from('billing_cycles').select('months, discount_percent').eq('id', body.billing_cycle_id).single()
+  const { data: cycle } = await supabase.from('billing_cycles').select('months, discount_percent, label').eq('id', body.billing_cycle_id).single()
   if (!cycle) return errorResponse('Billing cycle not found', cors, 404)
 
-  // Get plan price
-  const { data: plan } = await supabase.from('plans').select('price_monthly').eq('id', body.plan_id).single()
+  // Get plan price and name
+  const { data: plan } = await supabase.from('plans').select('price_monthly, name').eq('id', body.plan_id).single()
   if (!plan) return errorResponse('Plan not found', cors, 404)
+
+  // Get tenant info
+  const { data: tenant } = await supabase.from('tenants').select('club_name').eq('id', body.tenant_id).single()
 
   const now = new Date()
   const periodEnd = new Date(now)
@@ -1837,6 +1895,17 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   // Activate tenant
   await supabase.from('tenants').update({ status: 'active', plan: 'pro' }).eq('id', body.tenant_id)
 
+  // Audit log
+  await logPlatformAudit(supabase, 'subscription_created', 'subscription', subscription.id, platformUser.id, {
+    tenant_id: body.tenant_id,
+    club_name: tenant?.club_name,
+    plan_name: plan.name,
+    cycle_label: cycle.label,
+    amount: totalAmount,
+    period_start: now.toISOString(),
+    period_end: periodEnd.toISOString(),
+  })
+
   return jsonResponse(subscription, cors)
 }
 
@@ -1846,6 +1915,17 @@ async function handlePlatformGetSubscriptionPayments(ctx: Ctx): Promise<Response
     .from('subscription_payments')
     .select('*, tenant:tenants(id, club_name), subscription:subscriptions(plan:plans(name))')
     .order('created_at', { ascending: false })
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformGetAuditLog(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await supabase
+    .from('platform_audit_log')
+    .select('*, performed_by_user:users!performed_by(id, name)')
+    .order('created_at', { ascending: false })
+    .limit(200)
   if (error) return errorResponse(error.message, cors)
   return jsonResponse(data, cors)
 }
@@ -2061,6 +2141,7 @@ Deno.serve(async (req) => {
       if (path === '/platform/subscriptions' && method === 'GET') return await handlePlatformGetSubscriptions(ctx)
       if (path === '/platform/subscriptions' && method === 'POST') return await handlePlatformCreateSubscription(ctx)
       if (path === '/platform/subscription-payments' && method === 'GET') return await handlePlatformGetSubscriptionPayments(ctx)
+      if (path === '/platform/audit-log' && method === 'GET') return await handlePlatformGetAuditLog(ctx)
 
       return errorResponse('Platform route not found', corsHeaders, 404)
     }

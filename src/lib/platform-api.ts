@@ -84,6 +84,10 @@ class PlatformApiClient {
   async getSubscriptionPayments() {
     return this.request('/platform/subscription-payments');
   }
+
+  async getAuditLog() {
+    return this.request('/platform/audit-log');
+  }
 }
 
 export const platformApi = new PlatformApiClient();
