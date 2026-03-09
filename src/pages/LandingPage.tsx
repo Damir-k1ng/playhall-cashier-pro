@@ -41,13 +41,23 @@ export default function LandingPage() {
           Управляйте станциями, сменами, оплатой и аналитикой — всё в одном месте. 
           Быстрый вход по PIN, работа офлайн, мультиклуб.
         </p>
-        <Button 
-          size="lg" 
-          className="text-lg px-8 py-6 rounded-xl"
-          onClick={() => navigate('/login')}
-        >
-          Начать работу <ArrowRight className="ml-2 h-5 w-5" />
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Button 
+            size="lg" 
+            className="text-lg px-8 py-6 rounded-xl"
+            onClick={() => navigate('/signup')}
+          >
+            Подключить клуб <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+          <Button 
+            size="lg" 
+            variant="outline"
+            className="text-lg px-8 py-6 rounded-xl"
+            onClick={() => navigate('/login')}
+          >
+            Войти
+          </Button>
+        </div>
 
         {/* Features */}
         <div className="grid sm:grid-cols-3 gap-8 mt-24 text-left">

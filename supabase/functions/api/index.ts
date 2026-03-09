@@ -2213,6 +2213,57 @@ Deno.serve(async (req) => {
       return jsonResponse(t, corsHeaders)
     }
 
+    // Public: signup (no auth required)
+    if (path === '/public/signup' && method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      if (!body.club_name || typeof body.club_name !== 'string' || body.club_name.trim().length < 2) {
+        return errorResponse('Название клуба обязательно (мин. 2 символа)', corsHeaders)
+      }
+      if (!body.contact_name || typeof body.contact_name !== 'string' || body.contact_name.trim().length < 2) {
+        return errorResponse('Имя контактного лица обязательно', corsHeaders)
+      }
+      if (!body.phone || typeof body.phone !== 'string' || body.phone.trim().length < 6) {
+        return errorResponse('Телефон обязателен', corsHeaders)
+      }
+
+      let slug = body.club_name.toLowerCase()
+        .replace(/[^a-zа-я0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+      
+      const { data: existing } = await supabase.from('tenants').select('id').eq('slug', slug).maybeSingle()
+      if (existing) slug = slug + '-' + Date.now().toString(36).slice(-4)
+
+      const { data: tenant, error } = await supabase
+        .from('tenants')
+        .insert([{
+          club_name: body.club_name.trim(),
+          city: body.city?.trim() || null,
+          signup_email: body.email?.trim() || null,
+          signup_phone: body.phone.trim(),
+          status: 'pending',
+          plan: 'trial',
+          slug,
+        }])
+        .select()
+        .single()
+
+      if (error) return errorResponse(error.message, corsHeaders)
+
+      // Create default admin user
+      const { error: userError } = await supabase.from('users').insert([{
+        tenant_id: tenant.id,
+        name: body.contact_name.trim(),
+        email: body.email?.trim() || null,
+        pin_code: '0000',
+        role: 'club_admin',
+      }])
+      if (userError) console.error('Error creating admin:', userError)
+
+      return jsonResponse({ success: true, club_name: tenant.club_name }, corsHeaders, 201)
+    }
+
     // Platform routes (Super Admin)
     if (path.startsWith('/platform/')) {
       const platformUser = await authenticatePlatformOwner(supabase, req)

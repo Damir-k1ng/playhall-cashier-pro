@@ -14,6 +14,7 @@ import { StationScreen } from "./pages/StationScreen";
 import { PreCheckScreen } from "./pages/PreCheckScreen";
 import { PaymentScreen } from "./pages/PaymentScreen";
 import { AdminCashiers } from "./pages/AdminCashiers";
+import SignupPage from "./pages/SignupPage";
 import NotFound from "./pages/NotFound";
 import PlatformLogin from "./pages/platform/PlatformLogin";
 import PlatformDashboard from "./pages/platform/PlatformDashboard";
@@ -55,6 +56,7 @@ const App = () => (
               
               {/* Auth */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
               
               {/* App (POS) routes under /app/:slug */}
               <Route path="/app/:slug" element={<AppShell />} />
