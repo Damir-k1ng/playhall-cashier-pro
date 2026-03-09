@@ -4,6 +4,14 @@ export type TariffType = 'hourly' | 'package';
 export type SessionStatus = 'active' | 'completed';
 export type PaymentMethod = 'cash' | 'kaspi' | 'split';
 export type AppRole = 'admin' | 'cashier';
+export type TenantStatus = 'pending' | 'trial' | 'active' | 'suspended' | 'blocked';
+
+export interface Tenant {
+  id: string;
+  club_name: string;
+  status: TenantStatus;
+  plan: string;
+}
 
 export interface Station {
   id: string;

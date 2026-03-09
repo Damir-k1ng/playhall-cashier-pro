@@ -274,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cashier: null,
       shift: null,
       role: 'cashier',
+      tenant: null,
     });
   };
 

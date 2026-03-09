@@ -200,6 +200,13 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Fetch tenant info
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, club_name, status, plan')
+        .eq('id', shift.tenant_id)
+        .single()
+
       const cashierData = shift.users;
       const userRole = cashierData?.role === 'club_admin' || cashierData?.role === 'platform_owner' ? 'admin' : 'cashier';
       const mappedCashier = cashierData ? { ...cashierData, pin: cashierData.pin_code, pin_code: undefined } : null;
@@ -209,7 +216,8 @@ Deno.serve(async (req) => {
           valid: true,
           cashier: mappedCashier,
           shift: { ...shift, users: undefined },
-          role: userRole
+          role: userRole,
+          tenant: tenant || null
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
