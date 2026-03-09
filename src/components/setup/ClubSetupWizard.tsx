@@ -26,6 +26,7 @@ interface DrinkConfig {
 interface PackagePreset {
   name: string;
   duration_hours: number;
+  price: number;
 }
 
 interface ClubSetupWizardProps {
