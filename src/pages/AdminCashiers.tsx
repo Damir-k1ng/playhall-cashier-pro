@@ -363,6 +363,8 @@ export function AdminCashiers() {
               <AdminDrinksTab />
             ) : activeTab === 'stations' ? (
               <AdminStationsTab />
+            ) : activeTab === 'packages' ? (
+              <AdminPackagePresetsTab />
             ) : (
               // Analytics Dashboard
               <ShiftAnalyticsDashboard />
