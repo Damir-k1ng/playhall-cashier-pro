@@ -1611,16 +1611,12 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
 }
 
 async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, req, cors, platformUser } = ctx
+  const { supabase, req, cors } = ctx
   const body = await req.json().catch(() => ({}))
   
   if (!body.club_name) return errorResponse('club_name required', cors)
   
-  // Default to 14 days trial
-  const trialDays = body.trial_days || 14
-  const trialUntil = new Date()
-  trialUntil.setDate(trialUntil.getDate() + trialDays)
-  
+  // New tenants start as "pending" — no trial access until approved
   const { data: tenant, error } = await supabase
     .from('tenants')
     .insert([{
@@ -1628,9 +1624,8 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
       city: body.city,
       signup_email: body.signup_email,
       signup_phone: body.signup_phone,
-      status: 'trial',
+      status: 'pending',
       plan: 'trial',
-      trial_until: trialUntil.toISOString()
     }])
     .select()
     .single()
@@ -1640,7 +1635,7 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
   // Create default club_admin
   const adminName = body.admin_name || `Admin ${body.club_name}`
   const adminEmail = body.signup_email || null
-  const adminPin = body.admin_pin || '0000' // Default PIN if none provided
+  const adminPin = body.admin_pin || '0000'
   
   const { error: userError } = await supabase
     .from('users')
@@ -1660,17 +1655,38 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
 }
 
 async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts, platformUser } = ctx
+  const { supabase, req, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
+  const body = await req.json().catch(() => ({}))
+  
+  const trialDays = body.trial_days || 14
+  const trialUntil = new Date()
+  trialUntil.setDate(trialUntil.getDate() + trialDays)
   
   const { data, error } = await supabase
     .from('tenants')
     .update({ 
-      status: 'active',
-      plan: 'active',
+      status: 'trial',
+      trial_until: trialUntil.toISOString(),
       approved_at: new Date().toISOString(),
       approved_by: platformUser.id
     })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformRejectTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  
+  // Reject = block the pending tenant
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ status: 'blocked' })
     .eq('id', tenantId)
     .select()
     .single()
