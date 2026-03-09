@@ -120,10 +120,16 @@ export function useStations() {
 
   const addController = useCallback(async (sessionId: string) => {
     try {
-      await apiClient.createControllerUsage({ session_id: sessionId });
+      const controller = await apiClient.createControllerUsage({ session_id: sessionId });
       if (navigator.vibrate) navigator.vibrate(30);
       await invalidateAll();
-      return { success: true };
+      return {
+        success: true,
+        controller: {
+          ...controller,
+          cost: controller?.cost ?? 0,
+        },
+      };
     } catch (err: any) {
       return { error: err.message || 'Ошибка добавления джойстика' };
     }

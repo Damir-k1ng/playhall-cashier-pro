@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStations, useStation, stationQueryKey, STATIONS_QUERY_KEY } from '@/hooks/useStations';
+import type { StationWithSession, ControllerUsage } from '@/types/database';
 import { useDrinks } from '@/hooks/useDrinks';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';
 import { Button } from '@/components/ui/button';
@@ -84,15 +85,54 @@ export function StationScreen() {
 
   const handleAddController = async () => {
     if (!station.activeSession || isAddingController) return;
-    
+
+    const activeSessionId = station.activeSession.id;
+
     setIsAddingController(true);
     try {
-      const result = await addController(station.activeSession.id);
+      // Prevent a stale in-flight refetch from overwriting controllers with an empty array
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: stationQueryKey(stationId!) }),
+        queryClient.cancelQueries({ queryKey: STATIONS_QUERY_KEY }),
+      ]);
+
+      const result = await addController(activeSessionId);
       if (result.error) {
         toast.error(result.error);
-      } else {
-        toast.success('🎮 Джойстик добавлен');
+        return;
       }
+
+      const created = result.controller as ControllerUsage | undefined;
+
+      if (created) {
+        // Optimistically update station details cache
+        queryClient.setQueryData(stationQueryKey(stationId!), (prev?: StationWithSession) => {
+          if (!prev?.activeSession || prev.activeSession.id !== activeSessionId) return prev;
+          const existing = prev.controllers ?? [];
+          if (existing.some(c => c.id === created.id)) return prev;
+          return {
+            ...prev,
+            controllers: [...existing, { ...created, cost: (created as any).cost ?? 0 }],
+          };
+        });
+
+        // Optimistically update dashboard stations cache
+        queryClient.setQueryData(STATIONS_QUERY_KEY, (prev?: StationWithSession[]) => {
+          if (!prev) return prev;
+          return prev.map(s => {
+            if (s.id !== station.id) return s;
+            const existing = s.controllers ?? [];
+            if (existing.some(c => c.id === created.id)) return s;
+            return {
+              ...s,
+              controllers: [...existing, { ...created, cost: (created as any).cost ?? 0 }],
+            };
+          });
+        });
+      }
+
+      toast.success('🎮 Джойстик добавлен');
+      await invalidateStation();
     } finally {
       setIsAddingController(false);
     }
@@ -100,21 +140,46 @@ export function StationScreen() {
 
   const handleReturnController = async (controllerId: string) => {
     if (returningControllerId) return;
-    
+
     const controller = activeControllers.find(c => c.id === controllerId);
     if (!controller) return;
-    
+
     setReturningControllerId(controllerId);
     try {
       const minutes = getElapsedMinutes(controller.taken_at);
       const cost = Math.ceil((minutes / 60) * CONTROLLER_RATE);
-      
+
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: stationQueryKey(stationId!) }),
+        queryClient.cancelQueries({ queryKey: STATIONS_QUERY_KEY }),
+      ]);
+
+      const returnedAt = new Date().toISOString();
       const result = await returnController(controllerId, cost);
       if (result.error) {
         toast.error(result.error);
-      } else {
-        toast.success(`🎮 Джойстик возвращён — ${formatCurrency(cost)}`);
+        return;
       }
+
+      // Optimistically update caches so the controller disappears from "active" immediately
+      const patchController = (c: ControllerUsage) =>
+        c.id === controllerId ? { ...c, returned_at: returnedAt, cost } : c;
+
+      queryClient.setQueryData(stationQueryKey(stationId!), (prev?: StationWithSession) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          controllers: (prev.controllers ?? []).map(patchController),
+        };
+      });
+
+      queryClient.setQueryData(STATIONS_QUERY_KEY, (prev?: StationWithSession[]) => {
+        if (!prev) return prev;
+        return prev.map(s => (s.id === station.id ? { ...s, controllers: (s.controllers ?? []).map(patchController) } : s));
+      });
+
+      toast.success(`🎮 Джойстик возвращён — ${formatCurrency(cost)}`);
+      await invalidateStation();
     } finally {
       setReturningControllerId(null);
     }
