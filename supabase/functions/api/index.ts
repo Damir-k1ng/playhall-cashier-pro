@@ -1523,6 +1523,7 @@ async function handleAdminGetInventoryMovements(ctx: Ctx): Promise<Response> {
   const { data, error } = await query
   if (error) return errorResponse('Ошибка загрузки движений', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
+}
 // ==================== PLATFORM HANDLERS (SUPER ADMIN) ====================
 
 async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
