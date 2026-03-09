@@ -459,5 +459,12 @@ class ApiClient {
     const params = drinkId ? `?drink_id=${drinkId}` : '';
     return this.request(`/admin/inventory/movements${params}`);
   }
+  // Setup wizard (first-time club configuration)
+  async setupClub(data: { stations: any[]; drinks?: any[] }) {
+    return this.request('/setup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 export const apiClient = new ApiClient();

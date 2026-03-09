@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useStations } from '@/hooks/useStations';
 import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { Header } from '@/components/layout/Header';
@@ -9,6 +10,7 @@ import { CashDeskModal } from '@/components/modals/CashDeskModal';
 import { ShiftReportModal } from '@/components/modals/ShiftReportModal';
 import { DrinkSalesModal } from '@/components/modals/DrinkSalesModal';
 import { ShiftHistoryModal } from '@/components/modals/ShiftHistoryModal';
+import { ClubSetupWizard } from '@/components/setup/ClubSetupWizard';
 import { Loader2 } from 'lucide-react';
 import { CLUB_NAME, APP_VERSION } from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
@@ -17,6 +19,7 @@ import { apiClient } from '@/lib/api';
 import logoImage from '@/assets/logo.jpg';
 
 export function Dashboard() {
+  const { tenant } = useAuth();
   const { stations, isLoading, isRefreshing, refetch: refetchStations } = useStations();
   const { isOnline, wasOffline, clearWasOffline } = useNetworkStatusContext();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -90,6 +93,16 @@ export function Dashboard() {
           <span className="text-muted-foreground font-medium">Загрузка станций...</span>
         </div>
       </div>
+    );
+  }
+
+  // Show setup wizard for new tenants with no stations
+  if (!isLoading && stations.length === 0) {
+    return (
+      <ClubSetupWizard
+        clubName={tenant?.club_name || 'Ваш клуб'}
+        onComplete={() => refetchStations()}
+      />
     );
   }
 

@@ -1712,6 +1712,61 @@ async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
 }
 
 
+// ==================== SETUP (Club Wizard) ====================
+async function handleSetupClub(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, tenant_id } = ctx
+  if (!tenant_id) return errorResponse('tenant_id required', cors, 400)
+
+  const body = await ctx.req.json()
+  const { stations, drinks } = body
+
+  if (!Array.isArray(stations) || stations.length === 0) {
+    return errorResponse('stations array is required', cors, 400)
+  }
+
+  // Validate stations
+  for (const s of stations) {
+    if (!s.name || typeof s.name !== 'string') return errorResponse('Each station must have a name', cors, 400)
+    if (!s.zone || !['vip', 'hall'].includes(s.zone)) return errorResponse('Invalid zone', cors, 400)
+    if (typeof s.station_number !== 'number') return errorResponse('station_number required', cors, 400)
+    if (typeof s.hourly_rate !== 'number' || s.hourly_rate < 0) return errorResponse('Invalid hourly_rate', cors, 400)
+    if (typeof s.package_rate !== 'number' || s.package_rate < 0) return errorResponse('Invalid package_rate', cors, 400)
+  }
+
+  // Check that no stations exist yet (wizard should only run once)
+  const { count } = await supabase.from('stations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenant_id)
+  if (count && count > 0) return errorResponse('Станции уже созданы', cors, 400)
+
+  // Insert stations
+  const stationRows = stations.map((s: any) => ({
+    name: s.name,
+    zone: s.zone,
+    station_number: s.station_number,
+    hourly_rate: s.hourly_rate,
+    package_rate: s.package_rate,
+    tenant_id,
+  }))
+
+  const { data: createdStations, error: stErr } = await supabase.from('stations').insert(stationRows).select()
+  if (stErr) return errorResponse(stErr.message, cors)
+
+  // Insert drinks if provided
+  let createdDrinks: any[] = []
+  if (Array.isArray(drinks) && drinks.length > 0) {
+    const drinkRows = drinks
+      .filter((d: any) => d.name && typeof d.price === 'number' && d.price >= 0)
+      .map((d: any) => ({ name: d.name.trim(), price: d.price, tenant_id }))
+    
+    if (drinkRows.length > 0) {
+      const { data, error: drErr } = await supabase.from('drinks').insert(drinkRows).select()
+      if (drErr) return errorResponse(drErr.message, cors)
+      createdDrinks = data || []
+    }
+  }
+
+  return jsonResponse({ stations: createdStations, drinks: createdDrinks }, cors, 201)
+}
+
 // ==================== MAIN ROUTER ====================
 Deno.serve(async (req) => {
   const origin = req.headers.get('Origin')
@@ -1773,6 +1828,7 @@ Deno.serve(async (req) => {
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 
     // ---- Cashier routes ----
+    if (path === '/setup' && method === 'POST') return await handleSetupClub(ctx)
     if (path === '/stations' && method === 'GET') return await handleGetStations(ctx)
     if (path.match(/^\/stations\/[0-9a-f-]+$/) && method === 'GET') return await handleGetSingleStation(ctx)
     if (path === '/drinks' && method === 'GET') return await handleGetDrinks(ctx)
