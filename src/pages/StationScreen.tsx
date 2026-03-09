@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useStations, useStation, stationQueryKey, STATIONS_QUERY_KEY } from '@/hooks/useStations';
 import type { StationWithSession, ControllerUsage } from '@/types/database';
 import { useDrinks } from '@/hooks/useDrinks';
@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, formatTimeFromISO } from '@/lib/utils';
-import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2 } from 'lucide-react';
+import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
 
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
