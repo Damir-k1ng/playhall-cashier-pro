@@ -1618,6 +1618,25 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
   
   if (!body.club_name) return errorResponse('club_name required', cors)
   
+  // Generate slug from club_name
+  let slug = body.club_name
+    .toLowerCase()
+    .replace(/[^a-zа-я0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+  
+  // If custom slug provided, use it
+  if (body.slug && typeof body.slug === 'string') {
+    slug = body.slug.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  }
+  
+  // Ensure uniqueness
+  const { data: existing } = await supabase.from('tenants').select('id').eq('slug', slug).maybeSingle()
+  if (existing) {
+    slug = slug + '-' + Date.now().toString(36).slice(-4)
+  }
+  
   // New tenants start as "pending" — no trial access until approved
   const { data: tenant, error } = await supabase
     .from('tenants')
@@ -1628,6 +1647,7 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
       signup_phone: body.signup_phone,
       status: 'pending',
       plan: 'trial',
+      slug,
     }])
     .select()
     .single()
