@@ -460,7 +460,7 @@ class ApiClient {
     return this.request(`/admin/inventory/movements${params}`);
   }
   // Setup wizard (first-time club configuration)
-  async setupClub(data: { stations: any[]; drinks?: any[] }) {
+  async setupClub(data: { stations: any[]; drinks?: any[]; packages?: any[] }) {
     return this.request('/setup', {
       method: 'POST',
       body: JSON.stringify(data),
