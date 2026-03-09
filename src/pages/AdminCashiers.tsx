@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay, FileEdit, Percent, Package, Coffee, Monitor } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay, FileEdit, Percent, Package, Coffee, Monitor, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { CLUB_NAME } from '@/lib/constants';
