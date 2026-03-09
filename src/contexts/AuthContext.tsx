@@ -181,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cashier: null,
             shift: null,
             role: 'cashier',
+            tenant: null,
           });
           toast.warning('Смена была закрыта', {
             description: 'Необходимо войти заново',
