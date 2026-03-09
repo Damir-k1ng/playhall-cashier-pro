@@ -81,15 +81,19 @@ export function StationScreen() {
     );
   }
 
-  const handleStartSession = async (tariffType: 'hourly' | 'package') => {
-    const result = await startSession(station.id, tariffType);
-    if (result.error) {
-      toast.error(result.error);
-      return;
+  const handleStartSession = async (tariffType: 'hourly' | 'package', packagePresetId?: string) => {
+    setIsStartingSession(true);
+    try {
+      const result = await startSession(station.id, tariffType, packagePresetId);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      await refetchStations();
+      toast.success('Сессия запущена');
+    } finally {
+      setIsStartingSession(false);
     }
-    // Immediately refetch stations after confirmed backend success
-    await refetchStations();
-    toast.success('Сессия запущена');
   };
 
   const handleAddController = async () => {
