@@ -120,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cashier: cached.cashier,
             shift: cached.shift,
             role: cached.role,
+            tenant: cached.tenant,
           });
           return;
         }
