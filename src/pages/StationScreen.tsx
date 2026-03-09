@@ -31,8 +31,16 @@ export function StationScreen() {
   const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
   const [removingDrinkId, setRemovingDrinkId] = useState<string | null>(null);
   const [drinkToDelete, setDrinkToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isStartingSession, setIsStartingSession] = useState(false);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
+
+  // Fetch active package presets
+  const { data: packagePresets = [] } = useQuery({
+    queryKey: ['package-presets'],
+    queryFn: () => apiClient.getActivePackagePresets(),
+    staleTime: 60_000,
+  });
 
   const isLoading = isStationLoading;
   const isActive = !!station?.activeSession;
