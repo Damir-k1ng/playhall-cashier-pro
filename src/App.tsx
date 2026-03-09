@@ -56,6 +56,7 @@ const App = () => (
               
               {/* Auth */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
               
               {/* App (POS) routes under /app/:slug */}
               <Route path="/app/:slug" element={<AppShell />} />
