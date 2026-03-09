@@ -309,10 +309,20 @@ async function handleGetSession(ctx: Ctx): Promise<Response> {
 
   let gameCost = 0
   const packageCount = session.package_count || 1
-  const packageDurationMinutes = 180 * packageCount
+  const packagePrice = session.package_price || session.station?.package_rate || 0
+
+  // Determine package duration: if preset is linked, use its duration; else default 180 min
+  let presetDurationHours = 3
+  if (session.package_preset_id) {
+    const { data: preset } = await tenantFilter(
+      supabase.from('package_presets').select('duration_hours'), ctx
+    ).eq('id', session.package_preset_id).maybeSingle()
+    if (preset) presetDurationHours = preset.duration_hours
+  }
+  const packageDurationMinutes = presetDurationHours * 60 * packageCount
 
   if (session.tariff_type === 'package') {
-    gameCost = (session.station?.package_rate || 0) * packageCount
+    gameCost = packagePrice * packageCount
     if (elapsedMinutes > packageDurationMinutes) {
       const overtimeMinutes = elapsedMinutes - packageDurationMinutes
       gameCost += Math.ceil(overtimeMinutes / 60) * (session.station?.hourly_rate || 0)

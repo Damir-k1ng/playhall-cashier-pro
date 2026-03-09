@@ -130,7 +130,7 @@ class ApiClient {
     return this.request(`/sessions/${id}`);
   }
 
-  async createSession(data: { station_id: string; tariff_type: 'hourly' | 'package' }) {
+  async createSession(data: { station_id: string; tariff_type: 'hourly' | 'package'; package_preset_id?: string }) {
     return this.request('/sessions', {
       method: 'POST',
       body: JSON.stringify(data),
