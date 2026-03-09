@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
-import type { Cashier, Shift, AppRole } from '@/types/database';
+import type { Cashier, Shift, AppRole, Tenant } from '@/types/database';
 import { authPinLogin, authPinValidate, authPinLogout, apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -9,6 +9,7 @@ interface AuthState {
   cashier: Cashier | null;
   shift: Shift | null;
   role: AppRole;
+  tenant: Tenant | null;
 }
 
 interface AuthContextType extends AuthState {
