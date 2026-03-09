@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CheckCircle, Ban, Pause, CalendarPlus, RefreshCw } from 'lucide-react';
+import { CheckCircle, Ban, Pause, CalendarPlus, RefreshCw, Plus } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   active: 'bg-secondary/20 text-secondary border-secondary/30',
@@ -24,6 +24,11 @@ export default function PlatformClubs() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Create dialog
+  const [createDialog, setCreateDialog] = useState(false);
+  const [newClub, setNewClub] = useState({ club_name: '', city: '', signup_email: '', signup_phone: '', admin_name: '', admin_pin: '0000' });
+  const [creating, setCreating] = useState(false);
 
   // Approve dialog
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; tenant: any | null }>({ open: false, tenant: null });
@@ -46,6 +51,31 @@ export default function PlatformClubs() {
       toast.error(err.message);
     }
     setLoading(false);
+  }
+
+  async function handleCreate() {
+    if (!newClub.club_name.trim()) {
+      toast.error('Название клуба обязательно');
+      return;
+    }
+    setCreating(true);
+    try {
+      await platformApi.createTenant({
+        club_name: newClub.club_name.trim(),
+        city: newClub.city.trim() || undefined,
+        signup_email: newClub.signup_email.trim() || undefined,
+        signup_phone: newClub.signup_phone.trim() || undefined,
+        admin_name: newClub.admin_name.trim() || undefined,
+        admin_pin: newClub.admin_pin || undefined,
+      });
+      toast.success(`Клуб "${newClub.club_name}" создан`);
+      setCreateDialog(false);
+      setNewClub({ club_name: '', city: '', signup_email: '', signup_phone: '', admin_name: '', admin_pin: '0000' });
+      loadTenants();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+    setCreating(false);
   }
 
   async function handleApprove() {
@@ -104,10 +134,16 @@ export default function PlatformClubs() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Clubs</h1>
-        <Button variant="outline" size="sm" onClick={loadTenants} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Club
+          </Button>
+          <Button variant="outline" size="sm" onClick={loadTenants} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Card className="border-border">
@@ -116,6 +152,7 @@ export default function PlatformClubs() {
             <TableHeader>
               <TableRow>
                 <TableHead>Club</TableHead>
+                <TableHead>Slug</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead className="text-center">Stations</TableHead>
                 <TableHead>Status</TableHead>
@@ -127,6 +164,7 @@ export default function PlatformClubs() {
               {tenants.map((tenant) => (
                 <TableRow key={tenant.id}>
                   <TableCell className="font-medium">{tenant.club_name}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm font-mono">{tenant.slug || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{tenant.city || '—'}</TableCell>
                   <TableCell className="text-center">{tenant.stations_count}</TableCell>
                   <TableCell>
@@ -197,7 +235,7 @@ export default function PlatformClubs() {
               ))}
               {tenants.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No clubs yet
                   </TableCell>
                 </TableRow>
@@ -206,6 +244,77 @@ export default function PlatformClubs() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Create Club Dialog */}
+      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Club</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Club Name *</Label>
+              <Input
+                value={newClub.club_name}
+                onChange={(e) => setNewClub(prev => ({ ...prev, club_name: e.target.value }))}
+                placeholder="PlayStation Club Arena"
+              />
+            </div>
+            <div>
+              <Label>City</Label>
+              <Input
+                value={newClub.city}
+                onChange={(e) => setNewClub(prev => ({ ...prev, city: e.target.value }))}
+                placeholder="Астана"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={newClub.signup_email}
+                  onChange={(e) => setNewClub(prev => ({ ...prev, signup_email: e.target.value }))}
+                  placeholder="admin@club.kz"
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={newClub.signup_phone}
+                  onChange={(e) => setNewClub(prev => ({ ...prev, signup_phone: e.target.value }))}
+                  placeholder="+7 777 123 4567"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Admin Name</Label>
+                <Input
+                  value={newClub.admin_name}
+                  onChange={(e) => setNewClub(prev => ({ ...prev, admin_name: e.target.value }))}
+                  placeholder="Администратор"
+                />
+              </div>
+              <div>
+                <Label>Admin PIN</Label>
+                <Input
+                  value={newClub.admin_pin}
+                  onChange={(e) => setNewClub(prev => ({ ...prev, admin_pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                  placeholder="0000"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialog(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              {creating ? 'Creating...' : 'Create Club'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Approve Dialog */}
       <Dialog open={approveDialog.open} onOpenChange={(open) => setApproveDialog({ open, tenant: approveDialog.tenant })}>

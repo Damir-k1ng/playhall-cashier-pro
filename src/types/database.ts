@@ -11,6 +11,7 @@ export interface Tenant {
   club_name: string;
   status: TenantStatus;
   plan: string;
+  slug: string;
 }
 
 export interface Station {
