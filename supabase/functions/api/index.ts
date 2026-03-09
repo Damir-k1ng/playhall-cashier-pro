@@ -2102,6 +2102,59 @@ async function handleAdminDeletePackagePreset(ctx: Ctx): Promise<Response> {
   if (error) return errorResponse(error.message, cors)
   return jsonResponse({ success: true }, cors)
 }
+async function handlePlatformCreateOwner(supabase: any, req: Request, cors: Record<string, string>): Promise<Response> {
+  const body = await req.json().catch(() => ({}))
+  const { email, password, name } = body
+
+  if (!email || !password || !name) {
+    return errorResponse('email, password and name are required', cors, 400)
+  }
+  if (typeof email !== 'string' || typeof password !== 'string' || typeof name !== 'string') {
+    return errorResponse('Invalid input types', cors, 400)
+  }
+  if (password.length < 6) {
+    return errorResponse('Password must be at least 6 characters', cors, 400)
+  }
+
+  // Check if platform owner already exists
+  const { count } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'platform_owner')
+
+  if ((count ?? 0) > 0) {
+    return errorResponse('Platform owner already exists', cors, 403)
+  }
+
+  // Create auth user
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  })
+
+  if (authError) return errorResponse(authError.message, cors, 500)
+
+  const authUserId = authData.user.id
+
+  // Insert into users table
+  const { error: insertError } = await supabase.from('users').insert({
+    name,
+    email,
+    role: 'platform_owner',
+    tenant_id: null,
+    auth_user_id: authUserId,
+  })
+
+  if (insertError) {
+    // Cleanup: remove auth user
+    await supabase.auth.admin.deleteUser(authUserId)
+    return errorResponse(insertError.message, cors, 500)
+  }
+
+  return jsonResponse({ success: true }, cors)
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('Origin')
   const corsHeaders = getCorsHeaders(origin)
@@ -2120,6 +2173,11 @@ Deno.serve(async (req) => {
     const path = url.pathname.replace('/api', '')
     const method = req.method
     const pathParts = path.split('/').filter(Boolean)
+
+    // Bootstrap: create first platform owner (no auth required)
+    if (path === '/platform/create-platform-owner' && method === 'POST') {
+      return await handlePlatformCreateOwner(supabase, req, corsHeaders)
+    }
 
     // Platform routes (Super Admin)
     if (path.startsWith('/platform/')) {
