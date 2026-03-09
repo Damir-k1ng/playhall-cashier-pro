@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTenantNavigate } from '@/hooks/useTenantNavigate';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { formatCurrency } from '@/lib/utils';
@@ -25,7 +25,7 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const { cashier, shift, role, tenant, logout } = useAuth();
   const { quality } = useNetworkStatusContext();
   

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
+import { useTenantNavigate } from '@/hooks/useTenantNavigate';
 import { usePayments } from '@/hooks/usePayments';
 import { useStations } from '@/hooks/useStations';
 import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
@@ -25,7 +26,7 @@ interface SessionData {
 
 export function PaymentScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const location = useLocation();
   const { processPayment } = usePayments();
   const { refetch } = useStations();

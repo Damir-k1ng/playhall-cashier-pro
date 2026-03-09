@@ -7,7 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { GlobalTimerProvider } from "@/contexts/GlobalTimerContext";
 import { NetworkStatusProvider } from "@/contexts/NetworkStatusContext";
 import { PlatformAuthProvider, usePlatformAuth } from "@/contexts/PlatformAuthContext";
-import Index from "./pages/Index";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import AppShell from "./pages/AppShell";
 import { StationScreen } from "./pages/StationScreen";
 import { PreCheckScreen } from "./pages/PreCheckScreen";
 import { PaymentScreen } from "./pages/PaymentScreen";
@@ -48,11 +50,23 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/station/:stationId" element={<StationScreen />} />
-              <Route path="/precheck/:sessionId" element={<PreCheckScreen />} />
-              <Route path="/payment/:sessionId" element={<PaymentScreen />} />
-              <Route path="/admin/cashiers" element={<AdminCashiers />} />
+              {/* Landing */}
+              <Route path="/" element={<LandingPage />} />
+              
+              {/* Auth */}
+              <Route path="/login" element={<LoginPage />} />
+              
+              {/* App (POS) routes under /app/:slug */}
+              <Route path="/app/:slug" element={<AppShell />} />
+              <Route path="/app/:slug/station/:stationId" element={<StationScreen />} />
+              <Route path="/app/:slug/precheck/:sessionId" element={<PreCheckScreen />} />
+              <Route path="/app/:slug/payment/:sessionId" element={<PaymentScreen />} />
+              <Route path="/app/:slug/admin/cashiers" element={<AdminCashiers />} />
+
+              {/* Legacy routes redirect */}
+              <Route path="/station/:stationId" element={<Navigate to="/login" replace />} />
+              <Route path="/precheck/:sessionId" element={<Navigate to="/login" replace />} />
+              <Route path="/payment/:sessionId" element={<Navigate to="/login" replace />} />
 
               {/* Platform routes */}
               <Route path="/platform/login" element={<PlatformLogin />} />

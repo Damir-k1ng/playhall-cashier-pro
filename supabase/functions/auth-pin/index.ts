@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       // Fetch tenant info
       const { data: tenant } = await supabase
         .from('tenants')
-        .select('id, club_name, status, plan')
+        .select('id, club_name, status, plan, slug')
         .eq('id', cashier.tenant_id)
         .single()
 
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
       // Fetch tenant info
       const { data: tenant } = await supabase
         .from('tenants')
-        .select('id, club_name, status, plan')
+        .select('id, club_name, status, plan, slug')
         .eq('id', shift.tenant_id)
         .single()
 

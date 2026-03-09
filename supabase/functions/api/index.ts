@@ -1604,7 +1604,8 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
       approved_at: t.approved_at,
       created_at: t.created_at,
       signup_email: t.signup_email,
-      signup_phone: t.signup_phone
+      signup_phone: t.signup_phone,
+      slug: t.slug
     }
   })
   
@@ -1617,6 +1618,25 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
   
   if (!body.club_name) return errorResponse('club_name required', cors)
   
+  // Generate slug from club_name
+  let slug = body.club_name
+    .toLowerCase()
+    .replace(/[^a-zа-я0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+  
+  // If custom slug provided, use it
+  if (body.slug && typeof body.slug === 'string') {
+    slug = body.slug.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  }
+  
+  // Ensure uniqueness
+  const { data: existing } = await supabase.from('tenants').select('id').eq('slug', slug).maybeSingle()
+  if (existing) {
+    slug = slug + '-' + Date.now().toString(36).slice(-4)
+  }
+  
   // New tenants start as "pending" — no trial access until approved
   const { data: tenant, error } = await supabase
     .from('tenants')
@@ -1627,6 +1647,7 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
       signup_phone: body.signup_phone,
       status: 'pending',
       plan: 'trial',
+      slug,
     }])
     .select()
     .single()
@@ -2177,6 +2198,19 @@ Deno.serve(async (req) => {
     // Bootstrap: create first platform owner (no auth required)
     if (path === '/platform/create-platform-owner' && method === 'POST') {
       return await handlePlatformCreateOwner(supabase, req, corsHeaders)
+    }
+
+    // Public: resolve tenant by slug (no auth required)
+    if (path.startsWith('/tenant/by-slug/') && method === 'GET') {
+      const slug = path.split('/')[3]
+      if (!slug) return errorResponse('slug required', corsHeaders, 400)
+      const { data: t, error: tErr } = await supabase
+        .from('tenants')
+        .select('id, club_name, slug, status')
+        .eq('slug', slug)
+        .single()
+      if (tErr || !t) return errorResponse('Клуб не найден', corsHeaders, 404)
+      return jsonResponse(t, corsHeaders)
     }
 
     // Platform routes (Super Admin)

@@ -32,7 +32,7 @@ class PlatformApiClient {
     return this.request('/platform/tenants');
   }
 
-  async createTenant(data: { club_name: string; city?: string; signup_email?: string; signup_phone?: string }) {
+  async createTenant(data: { club_name: string; city?: string; signup_email?: string; signup_phone?: string; admin_name?: string; admin_pin?: string }) {
     return this.request('/platform/tenants', { method: 'POST', body: JSON.stringify(data) });
   }
 
