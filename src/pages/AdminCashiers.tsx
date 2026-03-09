@@ -36,6 +36,7 @@ import { AdminDiscountSettings } from '@/components/admin/AdminDiscountSettings'
 import { AdminInventoryTab } from '@/components/admin/AdminInventoryTab';
 import { AdminDrinksTab } from '@/components/admin/AdminDrinksTab';
 import { AdminStationsTab } from '@/components/admin/AdminStationsTab';
+import { AdminPackagePresetsTab } from '@/components/admin/AdminPackagePresetsTab';
 
 interface Cashier {
   id: string;
