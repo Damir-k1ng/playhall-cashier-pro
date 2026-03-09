@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState(prev => {
           // Update cache with fresh shift data
           if (prev.cashier) {
-            cacheSessionData(prev.cashier, shift, prev.role);
+            cacheSessionData(prev.cashier, shift, prev.role, prev.tenant);
           }
           return { ...prev, shift };
         });
