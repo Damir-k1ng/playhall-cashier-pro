@@ -31,15 +31,15 @@ if (migratedToken && !localStorage.getItem(SESSION_TOKEN_KEY)) {
 }
 
 // Save session data to localStorage for offline restoration
-function cacheSessionData(cashier: Cashier, shift: Shift, role: AppRole) {
+function cacheSessionData(cashier: Cashier, shift: Shift, role: AppRole, tenant: Tenant | null) {
   try {
-    localStorage.setItem(CACHED_SESSION_KEY, JSON.stringify({ cashier, shift, role, cachedAt: Date.now() }));
+    localStorage.setItem(CACHED_SESSION_KEY, JSON.stringify({ cashier, shift, role, tenant, cachedAt: Date.now() }));
   } catch (e) {
     // Ignore storage errors
   }
 }
 
-function getCachedSession(): { cashier: Cashier; shift: Shift; role: AppRole } | null {
+function getCachedSession(): { cashier: Cashier; shift: Shift; role: AppRole; tenant: Tenant | null } | null {
   try {
     const raw = localStorage.getItem(CACHED_SESSION_KEY);
     if (!raw) return null;
