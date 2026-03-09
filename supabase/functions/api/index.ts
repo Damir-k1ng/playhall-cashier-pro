@@ -2055,6 +2055,12 @@ Deno.serve(async (req) => {
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'suspend' && method === 'PATCH') return await handlePlatformSuspendTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'block' && method === 'PATCH') return await handlePlatformBlockTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'extend-trial' && method === 'PATCH') return await handlePlatformExtendTrial(ctx)
+      
+      // Billing routes
+      if (path === '/platform/plans' && method === 'GET') return await handlePlatformGetPlans(ctx)
+      if (path === '/platform/subscriptions' && method === 'GET') return await handlePlatformGetSubscriptions(ctx)
+      if (path === '/platform/subscriptions' && method === 'POST') return await handlePlatformCreateSubscription(ctx)
+      if (path === '/platform/billing-payments' && method === 'GET') return await handlePlatformGetBillingPayments(ctx)
 
       return errorResponse('Platform route not found', corsHeaders, 404)
     }
