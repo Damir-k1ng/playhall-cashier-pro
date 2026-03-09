@@ -171,7 +171,8 @@ Deno.serve(async (req) => {
           cashier: mappedCashier,
           shift: newShift,
           session_token: newSessionToken,
-          role: userRole
+          role: userRole,
+          tenant: tenant || null
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
