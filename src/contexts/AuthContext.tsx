@@ -232,8 +232,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apiClient.setSessionToken(result.session_token);
 
         const role = result.role || 'cashier';
+        const tenant = result.tenant || null;
         // Cache session for offline restoration
-        cacheSessionData(result.cashier, result.shift, role);
+        cacheSessionData(result.cashier, result.shift, role, tenant);
 
         setState({
           isAuthenticated: true,
@@ -241,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           cashier: result.cashier,
           shift: result.shift,
           role,
+          tenant,
         });
 
         return { success: true };
