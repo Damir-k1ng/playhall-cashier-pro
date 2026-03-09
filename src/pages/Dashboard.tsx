@@ -116,12 +116,15 @@ export function Dashboard() {
           </div>
         </main>
         
-        <footer className="py-3 text-center flex items-center justify-center gap-3">
-          <span className="text-emerald-400 font-medium tracking-wide text-sm animate-pulse drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
-            by Damir Kabdulla
+        <footer className="shrink-0 py-3 text-center border-t border-border/30 bg-background/80 backdrop-blur-sm">
+          <span className="text-muted-foreground text-sm tracking-wide">
+            <span className="font-brand text-primary">Lavé</span>
+            <span className="text-muted-foreground/60"> POS</span>
+            <span className="mx-2 text-muted-foreground/40">·</span>
+            <span className="font-mono text-xs">{APP_VERSION}</span>
+            <span className="mx-2 text-muted-foreground/40">·</span>
+            <span className="text-emerald-400/80">by Damir Kabdulla</span>
           </span>
-          <span className="text-muted-foreground/50 text-xs">•</span>
-          <span className="text-muted-foreground/50 text-xs font-mono">{APP_VERSION}</span>
         </footer>
       </div>
 
