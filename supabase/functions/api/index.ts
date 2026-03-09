@@ -1655,6 +1655,24 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
   return jsonResponse(tenant, cors, 201)
 }
 
+// Platform audit log helper
+async function logPlatformAudit(
+  supabase: any,
+  action: string,
+  entityType: string,
+  entityId: string,
+  performedBy: string,
+  metadata?: Record<string, any>
+) {
+  await supabase.from('platform_audit_log').insert([{
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    performed_by: performedBy,
+    metadata: metadata || null,
+  }])
+}
+
 async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
   const { supabase, req, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
@@ -1677,11 +1695,19 @@ async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_approved', 'tenant', tenantId, platformUser.id, {
+    trial_days: trialDays,
+    trial_until: trialUntil.toISOString(),
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformRejectTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts } = ctx
+  const { supabase, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   
   // Reject = block the pending tenant
@@ -1693,11 +1719,18 @@ async function handlePlatformRejectTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_blocked', 'tenant', tenantId, platformUser.id, {
+    reason: 'rejected',
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformSuspendTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts } = ctx
+  const { supabase, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   
   const { data, error } = await supabase
@@ -1708,11 +1741,17 @@ async function handlePlatformSuspendTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_suspended', 'tenant', tenantId, platformUser.id, {
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformBlockTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts } = ctx
+  const { supabase, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   
   const { data, error } = await supabase
@@ -1723,18 +1762,24 @@ async function handlePlatformBlockTenant(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'tenant_blocked', 'tenant', tenantId, platformUser.id, {
+    club_name: data.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
 async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
-  const { supabase, req, cors, pathParts } = ctx
+  const { supabase, req, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
   const body = await req.json().catch(() => ({}))
   
   const days = body.days || 14
   
   // Get current tenant
-  const { data: tenant } = await supabase.from('tenants').select('trial_until').eq('id', tenantId).single()
+  const { data: tenant } = await supabase.from('tenants').select('trial_until, club_name').eq('id', tenantId).single()
   if (!tenant) return errorResponse('Tenant not found', cors, 404)
   
   // Calculate new date
@@ -1742,6 +1787,7 @@ async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
   if (tenant.trial_until && new Date(tenant.trial_until) > new Date()) {
     baseDate = new Date(tenant.trial_until)
   }
+  const oldDate = tenant.trial_until
   
   baseDate.setDate(baseDate.getDate() + days)
   
@@ -1756,6 +1802,15 @@ async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
     .single()
     
   if (error) return errorResponse(error.message, cors)
+  
+  // Audit log
+  await logPlatformAudit(supabase, 'trial_extended', 'tenant', tenantId, platformUser.id, {
+    days_added: days,
+    old_trial_until: oldDate,
+    new_trial_until: baseDate.toISOString(),
+    club_name: tenant.club_name,
+  })
+  
   return jsonResponse(data, cors)
 }
 
