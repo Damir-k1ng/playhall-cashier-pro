@@ -60,9 +60,10 @@ export function AdminCashiers() {
     if (tab === 'inventory') return 'inventory';
     if (tab === 'drinks') return 'drinks';
     if (tab === 'stations') return 'stations';
+    if (tab === 'packages') return 'packages';
     return 'cashiers';
   };
-  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions' | 'corrections' | 'discounts' | 'inventory' | 'drinks' | 'stations'>(getInitialTab());
+  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions' | 'corrections' | 'discounts' | 'inventory' | 'drinks' | 'stations' | 'packages'>(getInitialTab());
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
