@@ -1919,6 +1919,17 @@ async function handlePlatformGetSubscriptionPayments(ctx: Ctx): Promise<Response
   return jsonResponse(data, cors)
 }
 
+async function handlePlatformGetAuditLog(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await supabase
+    .from('platform_audit_log')
+    .select('*, performed_by_user:users!performed_by(id, name)')
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
 
 async function handleSetupClub(ctx: Ctx): Promise<Response> {
   const { supabase, cors, tenant_id } = ctx
