@@ -105,6 +105,13 @@ Deno.serve(async (req) => {
       // Map pin_code to pin for backward compatibility with client type
       const mappedCashier = { ...cashier, pin: cashier.pin_code, pin_code: undefined }
 
+      // Fetch tenant info
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, club_name, status, plan')
+        .eq('id', cashier.tenant_id)
+        .single()
+
       // Check for existing active shift for this cashier in this tenant
       const { data: existingShift } = await supabase
         .from('shifts')
@@ -130,7 +137,8 @@ Deno.serve(async (req) => {
             cashier: mappedCashier,
             shift: { ...existingShift, session_token: sessionToken },
             session_token: sessionToken,
-            role: userRole
+            role: userRole,
+            tenant: tenant || null
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
@@ -163,7 +171,8 @@ Deno.serve(async (req) => {
           cashier: mappedCashier,
           shift: newShift,
           session_token: newSessionToken,
-          role: userRole
+          role: userRole,
+          tenant: tenant || null
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -191,6 +200,13 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Fetch tenant info
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, club_name, status, plan')
+        .eq('id', shift.tenant_id)
+        .single()
+
       const cashierData = shift.users;
       const userRole = cashierData?.role === 'club_admin' || cashierData?.role === 'platform_owner' ? 'admin' : 'cashier';
       const mappedCashier = cashierData ? { ...cashierData, pin: cashierData.pin_code, pin_code: undefined } : null;
@@ -200,7 +216,8 @@ Deno.serve(async (req) => {
           valid: true,
           cashier: mappedCashier,
           shift: { ...shift, users: undefined },
-          role: userRole
+          role: userRole,
+          tenant: tenant || null
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
-import type { Cashier, Shift, AppRole } from '@/types/database';
+import type { Cashier, Shift, AppRole, Tenant } from '@/types/database';
 import { authPinLogin, authPinValidate, authPinLogout, apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -9,6 +9,7 @@ interface AuthState {
   cashier: Cashier | null;
   shift: Shift | null;
   role: AppRole;
+  tenant: Tenant | null;
 }
 
 interface AuthContextType extends AuthState {
@@ -30,15 +31,15 @@ if (migratedToken && !localStorage.getItem(SESSION_TOKEN_KEY)) {
 }
 
 // Save session data to localStorage for offline restoration
-function cacheSessionData(cashier: Cashier, shift: Shift, role: AppRole) {
+function cacheSessionData(cashier: Cashier, shift: Shift, role: AppRole, tenant: Tenant | null) {
   try {
-    localStorage.setItem(CACHED_SESSION_KEY, JSON.stringify({ cashier, shift, role, cachedAt: Date.now() }));
+    localStorage.setItem(CACHED_SESSION_KEY, JSON.stringify({ cashier, shift, role, tenant, cachedAt: Date.now() }));
   } catch (e) {
     // Ignore storage errors
   }
 }
 
-function getCachedSession(): { cashier: Cashier; shift: Shift; role: AppRole } | null {
+function getCachedSession(): { cashier: Cashier; shift: Shift; role: AppRole; tenant: Tenant | null } | null {
   try {
     const raw = localStorage.getItem(CACHED_SESSION_KEY);
     if (!raw) return null;
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     cashier: null,
     shift: null,
     role: 'cashier',
+    tenant: null,
   });
 
   // Check for active session on mount
@@ -79,8 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apiClient.setSessionToken(storedToken);
         
         const role = result.role || 'cashier';
+        const tenant = result.tenant || null;
         // Cache session for offline use
-        cacheSessionData(result.cashier, result.shift, role);
+        cacheSessionData(result.cashier, result.shift, role, tenant);
         
         setState({
           isAuthenticated: true,
@@ -88,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           cashier: result.cashier,
           shift: result.shift,
           role,
+          tenant,
         });
       } else if (result.valid === false) {
         // Server explicitly says token is invalid — clear everything
@@ -116,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cashier: cached.cashier,
             shift: cached.shift,
             role: cached.role,
+            tenant: cached.tenant,
           });
           return;
         }
@@ -150,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (result.valid && result.cashier && result.shift) {
           apiClient.setSessionToken(storedToken);
           const role = result.role || 'cashier';
-          cacheSessionData(result.cashier, result.shift, role);
+          const tenant = result.tenant || null;
+          cacheSessionData(result.cashier, result.shift, role, tenant);
 
           setState({
             isAuthenticated: true,
@@ -158,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cashier: result.cashier,
             shift: result.shift,
             role,
+            tenant,
           });
           toast.success('Соединение восстановлено', {
             description: 'Данные смены обновлены',
@@ -174,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cashier: null,
             shift: null,
             role: 'cashier',
+            tenant: null,
           });
           toast.warning('Смена была закрыта', {
             description: 'Необходимо войти заново',
@@ -204,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState(prev => {
           // Update cache with fresh shift data
           if (prev.cashier) {
-            cacheSessionData(prev.cashier, shift, prev.role);
+            cacheSessionData(prev.cashier, shift, prev.role, prev.tenant);
           }
           return { ...prev, shift };
         });
@@ -224,8 +232,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apiClient.setSessionToken(result.session_token);
 
         const role = result.role || 'cashier';
+        const tenant = result.tenant || null;
         // Cache session for offline restoration
-        cacheSessionData(result.cashier, result.shift, role);
+        cacheSessionData(result.cashier, result.shift, role, tenant);
 
         setState({
           isAuthenticated: true,
@@ -233,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           cashier: result.cashier,
           shift: result.shift,
           role,
+          tenant,
         });
 
         return { success: true };
@@ -264,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cashier: null,
       shift: null,
       role: 'cashier',
+      tenant: null,
     });
   };
 

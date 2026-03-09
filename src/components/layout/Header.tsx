@@ -26,8 +26,11 @@ interface HeaderProps {
 
 export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
   const navigate = useNavigate();
-  const { cashier, shift, role, logout } = useAuth();
+  const { cashier, shift, role, tenant, logout } = useAuth();
   const { quality } = useNetworkStatusContext();
+  
+  // Use tenant club_name if available, otherwise fallback to CLUB_NAME constant
+  const displayClubName = tenant?.club_name || CLUB_NAME;
 
   const networkConfig = {
     good: { icon: Wifi, color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'Стабильное соединение', pulse: false },
@@ -64,15 +67,21 @@ export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, on
         >
           <div className="relative">
             <div className="w-12 h-12 rounded-xl overflow-hidden glow-cyan transition-all duration-300 group-hover:glow-cyan-strong">
-              <img src={logoImage} alt={CLUB_NAME} className="w-full h-full object-cover" />
+              <img src={logoImage} alt={displayClubName} className="w-full h-full object-cover" />
             </div>
             {/* Glow ring */}
             <div className="absolute inset-0 rounded-xl bg-primary/20 blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
           </div>
           <div className="hidden sm:flex items-center gap-3">
-            <h1 className="font-brand text-base tracking-wide bg-gradient-to-r from-primary via-cyan-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_15px_hsl(185_100%_50%_/_0.4)]">
-              {CLUB_NAME}
-            </h1>
+            <div className="flex items-center gap-2">
+              <span className="font-brand text-base tracking-wide bg-gradient-to-r from-primary via-cyan-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_15px_hsl(185_100%_50%_/_0.4)]">
+                Lavé
+              </span>
+              <span className="text-muted-foreground/60 text-sm">—</span>
+              <span className="text-foreground/90 font-medium text-sm truncate max-w-[200px]">
+                {displayClubName}
+              </span>
+            </div>
             {isRefreshing && (
               <RefreshCw className="w-4 h-4 text-primary animate-spin" />
             )}
