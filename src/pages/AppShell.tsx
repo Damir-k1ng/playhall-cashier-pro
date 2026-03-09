@@ -1,5 +1,4 @@
 import { useParams, Navigate } from 'react-router-dom';
-import { useParams, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dashboard } from '@/pages/Dashboard';
 import { Loader2 } from 'lucide-react';
@@ -16,12 +15,10 @@ export default function AppShell() {
     );
   }
 
-  // Not authenticated → go to login
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Authenticated but slug doesn't match tenant → redirect to correct slug
   if (tenant?.slug && slug !== tenant.slug) {
     return <Navigate to={`/app/${tenant.slug}`} replace />;
   }
