@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay, FileEdit, Percent, Package, Coffee } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Users, Shield, BarChart3, MonitorPlay, FileEdit, Percent, Package, Coffee, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { CLUB_NAME } from '@/lib/constants';
@@ -35,6 +35,7 @@ import { AdminCorrectionsTab } from '@/components/admin/AdminCorrectionsTab';
 import { AdminDiscountSettings } from '@/components/admin/AdminDiscountSettings';
 import { AdminInventoryTab } from '@/components/admin/AdminInventoryTab';
 import { AdminDrinksTab } from '@/components/admin/AdminDrinksTab';
+import { AdminStationsTab } from '@/components/admin/AdminStationsTab';
 
 interface Cashier {
   id: string;
@@ -57,9 +58,10 @@ export function AdminCashiers() {
     if (tab === 'discounts') return 'discounts';
     if (tab === 'inventory') return 'inventory';
     if (tab === 'drinks') return 'drinks';
+    if (tab === 'stations') return 'stations';
     return 'cashiers';
   };
-  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions' | 'corrections' | 'discounts' | 'inventory' | 'drinks'>(getInitialTab());
+  const [activeTab, setActiveTab] = useState<'cashiers' | 'analytics' | 'sessions' | 'corrections' | 'discounts' | 'inventory' | 'drinks' | 'stations'>(getInitialTab());
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -270,6 +272,10 @@ export function AdminCashiers() {
                   <Coffee className="h-4 w-4" />
                   <span className="hidden sm:inline">Напитки</span>
                 </TabsTrigger>
+                <TabsTrigger value="stations" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
+                  <Monitor className="h-4 w-4" />
+                  <span className="hidden sm:inline">Станции</span>
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -349,6 +355,8 @@ export function AdminCashiers() {
               <AdminInventoryTab />
             ) : activeTab === 'drinks' ? (
               <AdminDrinksTab />
+            ) : activeTab === 'stations' ? (
+              <AdminStationsTab />
             ) : (
               // Analytics Dashboard
               <ShiftAnalyticsDashboard />
