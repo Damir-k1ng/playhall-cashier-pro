@@ -1838,7 +1838,7 @@ async function handlePlatformGetSubscriptions(ctx: Ctx): Promise<Response> {
 }
 
 async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
-  const { supabase, req, cors } = ctx
+  const { supabase, req, cors, platformUser } = ctx
   const body = await req.json().catch(() => ({}))
   
   if (!body.tenant_id || !body.plan_id || !body.billing_cycle_id) {
@@ -1846,12 +1846,15 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   }
 
   // Get billing cycle to calculate period
-  const { data: cycle } = await supabase.from('billing_cycles').select('months, discount_percent').eq('id', body.billing_cycle_id).single()
+  const { data: cycle } = await supabase.from('billing_cycles').select('months, discount_percent, label').eq('id', body.billing_cycle_id).single()
   if (!cycle) return errorResponse('Billing cycle not found', cors, 404)
 
-  // Get plan price
-  const { data: plan } = await supabase.from('plans').select('price_monthly').eq('id', body.plan_id).single()
+  // Get plan price and name
+  const { data: plan } = await supabase.from('plans').select('price_monthly, name').eq('id', body.plan_id).single()
   if (!plan) return errorResponse('Plan not found', cors, 404)
+
+  // Get tenant info
+  const { data: tenant } = await supabase.from('tenants').select('club_name').eq('id', body.tenant_id).single()
 
   const now = new Date()
   const periodEnd = new Date(now)
@@ -1891,6 +1894,17 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
 
   // Activate tenant
   await supabase.from('tenants').update({ status: 'active', plan: 'pro' }).eq('id', body.tenant_id)
+
+  // Audit log
+  await logPlatformAudit(supabase, 'subscription_created', 'subscription', subscription.id, platformUser.id, {
+    tenant_id: body.tenant_id,
+    club_name: tenant?.club_name,
+    plan_name: plan.name,
+    cycle_label: cycle.label,
+    amount: totalAmount,
+    period_start: now.toISOString(),
+    period_end: periodEnd.toISOString(),
+  })
 
   return jsonResponse(subscription, cors)
 }
