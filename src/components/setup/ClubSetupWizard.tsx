@@ -49,11 +49,11 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
   const [stations, setStations] = useState<StationConfig[]>([]);
   const [drinks, setDrinks] = useState<DrinkConfig[]>([]);
   const [packages, setPackages] = useState<PackagePreset[]>([
-    { name: '2+1', duration_hours: 3 },
-    { name: '3+1', duration_hours: 4 },
+    { name: '2+1', duration_hours: 3, price: 5000 },
+    { name: '3+1', duration_hours: 4, price: 6500 },
   ]);
   const [newDrink, setNewDrink] = useState({ name: '', price: '' });
-  const [newPackage, setNewPackage] = useState({ name: '', hours: '' });
+  const [newPackage, setNewPackage] = useState({ name: '', hours: '', price: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Step 1 -> Step 2: generate station shells
