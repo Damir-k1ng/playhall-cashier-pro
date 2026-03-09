@@ -83,12 +83,12 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Find cashier by PIN
+      // Find user by PIN (supports cashier and club_admin roles)
       const { data: cashier, error: cashierError } = await supabase
         .from('users')
         .select('id, name, tenant_id, role')
         .eq('pin_code', pin)
-        .eq('role', 'cashier')
+        .in('role', ['cashier', 'club_admin'])
         .single()
 
       if (cashierError || !cashier) {
