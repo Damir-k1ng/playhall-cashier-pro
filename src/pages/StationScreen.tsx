@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { StationSkeleton } from '@/components/skeletons/StationSkeleton';
 import { formatDuration, formatDurationHMS, formatCurrency, getElapsedMinutes, formatTimeFromISO } from '@/lib/utils';
-import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2, Clock } from 'lucide-react';
+import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
