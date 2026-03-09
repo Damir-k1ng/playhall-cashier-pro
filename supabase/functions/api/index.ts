@@ -1588,10 +1588,9 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
   
   // Format the response
   const formattedTenants = tenants.map((t: any) => {
-    // Check if trial has expired to update status in response
     let effectiveStatus = t.status
     if (t.status === 'trial' && t.trial_until && new Date() > new Date(t.trial_until)) {
-      effectiveStatus = 'suspended' // Automatically suspended if trial expired
+      effectiveStatus = 'suspended'
     }
     
     return {
@@ -1599,8 +1598,10 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
       club_name: t.club_name,
       city: t.city,
       status: effectiveStatus,
+      plan: t.plan,
       stations_count: t.stations?.length || 0,
       trial_until: t.trial_until,
+      approved_at: t.approved_at,
       created_at: t.created_at,
       signup_email: t.signup_email,
       signup_phone: t.signup_phone
@@ -1611,16 +1612,12 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
 }
 
 async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, req, cors, platformUser } = ctx
+  const { supabase, req, cors } = ctx
   const body = await req.json().catch(() => ({}))
   
   if (!body.club_name) return errorResponse('club_name required', cors)
   
-  // Default to 14 days trial
-  const trialDays = body.trial_days || 14
-  const trialUntil = new Date()
-  trialUntil.setDate(trialUntil.getDate() + trialDays)
-  
+  // New tenants start as "pending" — no trial access until approved
   const { data: tenant, error } = await supabase
     .from('tenants')
     .insert([{
@@ -1628,9 +1625,8 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
       city: body.city,
       signup_email: body.signup_email,
       signup_phone: body.signup_phone,
-      status: 'trial',
+      status: 'pending',
       plan: 'trial',
-      trial_until: trialUntil.toISOString()
     }])
     .select()
     .single()
@@ -1640,7 +1636,7 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
   // Create default club_admin
   const adminName = body.admin_name || `Admin ${body.club_name}`
   const adminEmail = body.signup_email || null
-  const adminPin = body.admin_pin || '0000' // Default PIN if none provided
+  const adminPin = body.admin_pin || '0000'
   
   const { error: userError } = await supabase
     .from('users')
@@ -1660,17 +1656,38 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
 }
 
 async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
-  const { supabase, cors, pathParts, platformUser } = ctx
+  const { supabase, req, cors, pathParts, platformUser } = ctx
   const tenantId = pathParts[2]
+  const body = await req.json().catch(() => ({}))
+  
+  const trialDays = body.trial_days || 14
+  const trialUntil = new Date()
+  trialUntil.setDate(trialUntil.getDate() + trialDays)
   
   const { data, error } = await supabase
     .from('tenants')
     .update({ 
-      status: 'active',
-      plan: 'active',
+      status: 'trial',
+      trial_until: trialUntil.toISOString(),
       approved_at: new Date().toISOString(),
       approved_by: platformUser.id
     })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformRejectTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  
+  // Reject = block the pending tenant
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ status: 'blocked' })
     .eq('id', tenantId)
     .select()
     .single()
@@ -1944,6 +1961,7 @@ Deno.serve(async (req) => {
       if (path === '/platform/tenants' && method === 'GET') return await handlePlatformListTenants(ctx)
       if (path === '/platform/tenants' && method === 'POST') return await handlePlatformCreateTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'approve' && method === 'PATCH') return await handlePlatformApproveTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'reject' && method === 'PATCH') return await handlePlatformRejectTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'suspend' && method === 'PATCH') return await handlePlatformSuspendTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'block' && method === 'PATCH') return await handlePlatformBlockTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'extend-trial' && method === 'PATCH') return await handlePlatformExtendTrial(ctx)
@@ -1966,6 +1984,7 @@ Deno.serve(async (req) => {
     const { data: tenant } = await supabase.from('tenants').select('status, trial_until').eq('id', tenant_id).single()
     if (!tenant) return errorResponse('Tenant not found', corsHeaders, 404)
     
+    if (tenant.status === 'pending') return errorResponse('Аккаунт ожидает подтверждения', corsHeaders, 403)
     if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
     if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
     if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
