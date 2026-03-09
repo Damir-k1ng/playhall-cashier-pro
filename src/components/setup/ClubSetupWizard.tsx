@@ -23,6 +23,11 @@ interface DrinkConfig {
   price: number;
 }
 
+interface PackagePreset {
+  name: string;
+  duration_hours: number;
+}
+
 interface ClubSetupWizardProps {
   clubName: string;
   onComplete: () => void;
@@ -42,7 +47,12 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
   const [stationCount, setStationCount] = useState(4);
   const [stations, setStations] = useState<StationConfig[]>([]);
   const [drinks, setDrinks] = useState<DrinkConfig[]>([]);
+  const [packages, setPackages] = useState<PackagePreset[]>([
+    { name: '2+1', duration_hours: 3 },
+    { name: '3+1', duration_hours: 4 },
+  ]);
   const [newDrink, setNewDrink] = useState({ name: '', price: '' });
+  const [newPackage, setNewPackage] = useState({ name: '', hours: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Step 1 -> Step 2: generate station shells
@@ -90,18 +100,17 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Auto-name stations based on zone
-      const finalStations = stations.map((s, i) => {
+      // Auto-name stations: global sequential numbering, zone prefix
+      const finalStations = stations.map((s) => {
         const zoneName = s.zone === 'vip' ? 'VIP' : 'Зал';
-        const zoneStations = stations.filter((st, j) => j <= i && st.zone === s.zone);
         return {
           ...s,
-          name: `${zoneName} ${zoneStations.length}`,
+          name: `${zoneName} ${s.station_number}`,
         };
       });
 
-      await apiClient.setupClub({ stations: finalStations, drinks });
-      toast.success('Клуб настроен!', { description: 'Станции и напитки созданы.' });
+      await apiClient.setupClub({ stations: finalStations, drinks, packages });
+      toast.success('Клуб настроен!', { description: 'Станции, пакеты и напитки созданы.' });
       onComplete();
     } catch (err: any) {
       toast.error('Ошибка настройки', { description: err.message });
@@ -286,39 +295,60 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
               </div>
             )}
 
-            {/* Step 4: Packages info */}
+            {/* Step 4: Package presets */}
             {step === 4 && (
               <div className="space-y-6">
                 <div className="text-center">
                   <h2 className="text-xl font-bold text-foreground">Игровые пакеты</h2>
-                  <p className="text-muted-foreground text-sm mt-1">Система поддерживает пакеты «2+1» (3 часа)</p>
+                  <p className="text-muted-foreground text-sm mt-1">Добавьте пакеты с фиксированной длительностью</p>
                 </div>
-                <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-primary" />
-                    <span className="font-semibold text-foreground">Пакет 2+1</span>
+
+                {packages.map((pkg, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      <Package className="w-5 h-5 text-primary" />
+                      <div>
+                        <span className="font-semibold text-foreground">{pkg.name}</span>
+                        <span className="text-sm text-muted-foreground ml-2">({pkg.duration_hours} ч)</span>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPackages(prev => prev.filter((_, j) => j !== i))}>
+                      <X className="w-3 h-3" />
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Фиксированная стоимость за 3 часа игры. Можно суммировать несколько пакетов в одной сессии.
-                  </p>
-                  <div className="text-sm text-muted-foreground">
-                    {[...new Set(stations.map(s => s.zone))].map(zone => {
-                      const rate = stations.find(s => s.zone === zone)?.package_rate || 0;
-                      return (
-                        <div key={zone} className="flex justify-between py-1">
-                          <span>{zone === 'vip' ? 'VIP' : 'Общий зал'}</span>
-                          <span className="text-foreground font-medium">{rate.toLocaleString()} ₸</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                ))}
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Название (напр. 4+1)"
+                    value={newPackage.name}
+                    onChange={(e) => setNewPackage(prev => ({ ...prev, name: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="Часы"
+                    type="number"
+                    value={newPackage.hours}
+                    onChange={(e) => setNewPackage(prev => ({ ...prev, hours: e.target.value }))}
+                    className="w-20"
+                  />
+                  <Button variant="outline" size="icon" onClick={() => {
+                    const name = newPackage.name.trim();
+                    const hours = parseInt(newPackage.hours);
+                    if (!name || isNaN(hours) || hours < 1) return;
+                    setPackages(prev => [...prev, { name, duration_hours: hours }]);
+                    setNewPackage({ name: '', hours: '' });
+                  }} disabled={!newPackage.name.trim() || !newPackage.hours}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
                 </div>
+
                 <p className="text-xs text-muted-foreground text-center">
-                  Цены пакетов были указаны на предыдущем шаге. Вы сможете изменить их позже.
+                  Стоимость пакетов определяется ценой «Пакет» для зоны × длительность / 3 часа. Можно изменить позже.
                 </p>
                 <div className="flex justify-between pt-4">
                   <Button variant="ghost" onClick={() => setStep(3)}><ChevronLeft className="w-4 h-4 mr-1" /> Назад</Button>
-                  <Button onClick={() => setStep(5)}>Далее <ChevronRight className="w-4 h-4 ml-1" /></Button>
+                  <Button onClick={() => setStep(5)} disabled={packages.length === 0}>Далее <ChevronRight className="w-4 h-4 ml-1" /></Button>
                 </div>
               </div>
             )}

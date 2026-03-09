@@ -1718,7 +1718,7 @@ async function handleSetupClub(ctx: Ctx): Promise<Response> {
   if (!tenant_id) return errorResponse('tenant_id required', cors, 400)
 
   const body = await ctx.req.json()
-  const { stations, drinks } = body
+  const { stations, drinks, packages } = body
 
   if (!Array.isArray(stations) || stations.length === 0) {
     return errorResponse('stations array is required', cors, 400)
@@ -1750,6 +1750,20 @@ async function handleSetupClub(ctx: Ctx): Promise<Response> {
   const { data: createdStations, error: stErr } = await supabase.from('stations').insert(stationRows).select()
   if (stErr) return errorResponse(stErr.message, cors)
 
+  // Insert package presets
+  let createdPackages: any[] = []
+  if (Array.isArray(packages) && packages.length > 0) {
+    const pkgRows = packages
+      .filter((p: any) => p.name && typeof p.duration_hours === 'number' && p.duration_hours > 0)
+      .map((p: any) => ({ name: p.name.trim(), duration_hours: p.duration_hours, tenant_id }))
+
+    if (pkgRows.length > 0) {
+      const { data, error: pkgErr } = await supabase.from('package_presets').insert(pkgRows).select()
+      if (pkgErr) return errorResponse(pkgErr.message, cors)
+      createdPackages = data || []
+    }
+  }
+
   // Insert drinks if provided
   let createdDrinks: any[] = []
   if (Array.isArray(drinks) && drinks.length > 0) {
@@ -1764,7 +1778,7 @@ async function handleSetupClub(ctx: Ctx): Promise<Response> {
     }
   }
 
-  return jsonResponse({ stations: createdStations, drinks: createdDrinks }, cors, 201)
+  return jsonResponse({ stations: createdStations, packages: createdPackages, drinks: createdDrinks }, cors, 201)
 }
 
 // ==================== MAIN ROUTER ====================
