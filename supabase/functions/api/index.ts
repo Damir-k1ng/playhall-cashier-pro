@@ -109,12 +109,40 @@ async function authenticateSession(supabase: any, sessionToken: string | null) {
   return shift
 }
 
+/** Authenticate platform_owner via Supabase JWT (Authorization: Bearer ...) */
+async function authenticatePlatformOwner(supabase: any, req: Request) {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+
+  const token = authHeader.replace('Bearer ', '')
+  
+  try {
+    // Verify JWT using Supabase Auth
+    const { data, error } = await supabase.auth.getUser(token)
+    if (error || !data?.user) return null
+
+    // Check if user has platform_owner role
+    const { data: platformUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_user_id', data.user.id)
+      .eq('role', 'platform_owner')
+      .single()
+
+    return platformUser || null
+  } catch (error) {
+    console.error('Platform auth error:', error)
+    return null
+  }
+}
+
 // ==================== CONTEXT TYPE ====================
 type Ctx = {
   req: Request
   supabase: any
-  shift: any
-  tenant_id: string
+  shift?: any // Optional for platform operations
+  tenant_id?: string // Optional for platform operations
+  platformUser?: any // For platform_owner operations
   url: URL
   cors: Record<string, string>
   path: string
@@ -125,11 +153,13 @@ type Ctx = {
 // ==================== TENANT HELPERS ====================
 /** Injects tenant_id from ctx into a data object for INSERT operations */
 function withTenant<T extends Record<string, any>>(data: T, ctx: Ctx): T & { tenant_id: string } {
+  if (!ctx.tenant_id) throw new Error('tenant_id required for this operation')
   return { ...data, tenant_id: ctx.tenant_id }
 }
 
 /** Applies .eq('tenant_id', ctx.tenant_id) to a Supabase query for filtering */
 function tenantFilter(query: any, ctx: Ctx) {
+  if (!ctx.tenant_id) throw new Error('tenant_id required for this operation')
   return query.eq('tenant_id', ctx.tenant_id)
 }
 
@@ -1493,7 +1523,159 @@ async function handleAdminGetInventoryMovements(ctx: Ctx): Promise<Response> {
   const { data, error } = await query
   if (error) return errorResponse('Ошибка загрузки движений', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
+// ==================== PLATFORM HANDLERS (SUPER ADMIN) ====================
+
+async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  
+  // Get all tenants with station count
+  const { data: tenants, error } = await supabase
+    .from('tenants')
+    .select(`
+      *,
+      stations!stations_tenant_id_fkey(count)
+    `)
+    .order('created_at', { ascending: false })
+    
+  if (error) return errorResponse(error.message, cors)
+  
+  // Format the response
+  const formattedTenants = tenants.map((t: any) => {
+    // Check if trial has expired to update status in response
+    let effectiveStatus = t.status
+    if (t.status === 'trial' && t.trial_until && new Date() > new Date(t.trial_until)) {
+      effectiveStatus = 'suspended' // Automatically suspended if trial expired
+    }
+    
+    return {
+      id: t.id,
+      club_name: t.club_name,
+      city: t.city,
+      status: effectiveStatus,
+      stations_count: t.stations?.length || 0,
+      trial_until: t.trial_until,
+      created_at: t.created_at,
+      signup_email: t.signup_email,
+      signup_phone: t.signup_phone
+    }
+  })
+  
+  return jsonResponse(formattedTenants, cors)
 }
+
+async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, req, cors, platformUser } = ctx
+  const body = await req.json().catch(() => ({}))
+  
+  if (!body.club_name) return errorResponse('club_name required', cors)
+  
+  // Default to 14 days trial
+  const trialDays = body.trial_days || 14
+  const trialUntil = new Date()
+  trialUntil.setDate(trialUntil.getDate() + trialDays)
+  
+  const { data: tenant, error } = await supabase
+    .from('tenants')
+    .insert([{
+      club_name: body.club_name,
+      city: body.city,
+      signup_email: body.signup_email,
+      signup_phone: body.signup_phone,
+      status: 'trial',
+      plan: 'trial',
+      trial_until: trialUntil.toISOString()
+    }])
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  
+  return jsonResponse(tenant, cors, 201)
+}
+
+async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts, platformUser } = ctx
+  const tenantId = pathParts[2]
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ 
+      status: 'active',
+      plan: 'active',
+      approved_at: new Date().toISOString(),
+      approved_by: platformUser.id
+    })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformSuspendTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ status: 'suspended' })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformBlockTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ status: 'blocked' })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
+  const { supabase, req, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  const body = await req.json().catch(() => ({}))
+  
+  const days = body.days || 14
+  
+  // Get current tenant
+  const { data: tenant } = await supabase.from('tenants').select('trial_until').eq('id', tenantId).single()
+  if (!tenant) return errorResponse('Tenant not found', cors, 404)
+  
+  // Calculate new date
+  let baseDate = new Date()
+  if (tenant.trial_until && new Date(tenant.trial_until) > new Date()) {
+    baseDate = new Date(tenant.trial_until)
+  }
+  
+  baseDate.setDate(baseDate.getDate() + days)
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ 
+      trial_until: baseDate.toISOString(),
+      status: 'trial' // Ensure it's back in trial status
+    })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
 
 // ==================== MAIN ROUTER ====================
 Deno.serve(async (req) => {
@@ -1510,6 +1692,29 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    const url = new URL(req.url)
+    const path = url.pathname.replace('/api', '')
+    const method = req.method
+    const pathParts = path.split('/').filter(Boolean)
+
+    // Platform routes (Super Admin)
+    if (path.startsWith('/platform/')) {
+      const platformUser = await authenticatePlatformOwner(supabase, req)
+      if (!platformUser) return errorResponse('Unauthorized', corsHeaders, 401)
+      
+      const ctx: Ctx = { req, supabase, platformUser, url, cors: corsHeaders, path, method, pathParts }
+      
+      if (path === '/platform/tenants' && method === 'GET') return await handlePlatformListTenants(ctx)
+      if (path === '/platform/tenants' && method === 'POST') return await handlePlatformCreateTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'approve' && method === 'PATCH') return await handlePlatformApproveTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'suspend' && method === 'PATCH') return await handlePlatformSuspendTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'block' && method === 'PATCH') return await handlePlatformBlockTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'extend-trial' && method === 'PATCH') return await handlePlatformExtendTrial(ctx)
+
+      return errorResponse('Platform route not found', corsHeaders, 404)
+    }
+
+    // Cashier & Admin routes
     const sessionToken = req.headers.get('x-session-token')
     const shift = await authenticateSession(supabase, sessionToken)
 
@@ -1517,13 +1722,18 @@ Deno.serve(async (req) => {
       return errorResponse('Unauthorized', corsHeaders, 401)
     }
 
-    const url = new URL(req.url)
-    const path = url.pathname.replace('/api', '')
-    const method = req.method
-    const pathParts = path.split('/').filter(Boolean)
-
     const tenant_id = shift.tenant_id
     if (!tenant_id) return errorResponse('Tenant context missing', corsHeaders, 403)
+    
+    // Check if tenant is active
+    const { data: tenant } = await supabase.from('tenants').select('status, trial_until').eq('id', tenant_id).single()
+    if (!tenant) return errorResponse('Tenant not found', corsHeaders, 404)
+    
+    if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
+    if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
+    if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
+      return errorResponse('Аккаунт приостановлен (пробный период истёк)', corsHeaders, 403)
+    }
 
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 

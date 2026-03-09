@@ -768,27 +768,53 @@ export type Database = {
       }
       tenants: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          city: string | null
           club_name: string
           created_at: string
           id: string
           plan: string
+          signup_email: string | null
+          signup_phone: string | null
+          status: Database["public"]["Enums"]["tenant_status"]
           trial_until: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
           club_name: string
           created_at?: string
           id?: string
           plan?: string
+          signup_email?: string | null
+          signup_phone?: string | null
+          status?: Database["public"]["Enums"]["tenant_status"]
           trial_until?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
           club_name?: string
           created_at?: string
           id?: string
           plan?: string
+          signup_email?: string | null
+          signup_phone?: string | null
+          status?: Database["public"]["Enums"]["tenant_status"]
           trial_until?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenants_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -903,6 +929,7 @@ export type Database = {
       payment_method: "cash" | "kaspi" | "split"
       session_status: "active" | "completed"
       tariff_type: "hourly" | "package"
+      tenant_status: "pending" | "trial" | "active" | "suspended" | "blocked"
       user_role: "platform_owner" | "club_admin" | "cashier"
     }
     CompositeTypes: {
@@ -1044,6 +1071,7 @@ export const Constants = {
       payment_method: ["cash", "kaspi", "split"],
       session_status: ["active", "completed"],
       tariff_type: ["hourly", "package"],
+      tenant_status: ["pending", "trial", "active", "suspended", "blocked"],
       user_role: ["platform_owner", "club_admin", "cashier"],
     },
   },
