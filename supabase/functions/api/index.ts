@@ -1983,6 +1983,7 @@ Deno.serve(async (req) => {
     const { data: tenant } = await supabase.from('tenants').select('status, trial_until').eq('id', tenant_id).single()
     if (!tenant) return errorResponse('Tenant not found', corsHeaders, 404)
     
+    if (tenant.status === 'pending') return errorResponse('Аккаунт ожидает подтверждения', corsHeaders, 403)
     if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
     if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
     if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
