@@ -13,7 +13,11 @@ export function useTenantNavigate() {
   const prefix = slug ? `/app/${slug}` : '';
 
   const tenantNavigate = useCallback(
-    (path: string, options?: { replace?: boolean; state?: any }) => {
+    (path: string | number, options?: { replace?: boolean; state?: any }) => {
+      if (typeof path === 'number') {
+        navigate(path);
+        return;
+      }
       // Don't prefix platform, login, or absolute external paths
       if (path.startsWith('/platform') || path.startsWith('/login') || path.startsWith('/app/')) {
         navigate(path, options);
