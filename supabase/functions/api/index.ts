@@ -1824,7 +1824,7 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   if (subErr) return errorResponse(subErr.message, cors)
 
   // Create billing payment record
-  await supabase.from('billing_payments').insert([{
+  await supabase.from('subscription_payments').insert([{
     subscription_id: subscription.id,
     tenant_id: body.tenant_id,
     amount: totalAmount,
