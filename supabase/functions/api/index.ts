@@ -140,8 +140,9 @@ async function authenticatePlatformOwner(supabase: any, req: Request) {
 type Ctx = {
   req: Request
   supabase: any
-  shift: any
-  tenant_id: string
+  shift?: any // Optional for platform operations
+  tenant_id?: string // Optional for platform operations
+  platformUser?: any // For platform_owner operations
   url: URL
   cors: Record<string, string>
   path: string
@@ -152,11 +153,13 @@ type Ctx = {
 // ==================== TENANT HELPERS ====================
 /** Injects tenant_id from ctx into a data object for INSERT operations */
 function withTenant<T extends Record<string, any>>(data: T, ctx: Ctx): T & { tenant_id: string } {
+  if (!ctx.tenant_id) throw new Error('tenant_id required for this operation')
   return { ...data, tenant_id: ctx.tenant_id }
 }
 
 /** Applies .eq('tenant_id', ctx.tenant_id) to a Supabase query for filtering */
 function tenantFilter(query: any, ctx: Ctx) {
+  if (!ctx.tenant_id) throw new Error('tenant_id required for this operation')
   return query.eq('tenant_id', ctx.tenant_id)
 }
 
