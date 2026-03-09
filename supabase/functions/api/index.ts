@@ -1781,6 +1781,62 @@ async function handleSetupClub(ctx: Ctx): Promise<Response> {
   return jsonResponse({ stations: createdStations, packages: createdPackages, drinks: createdDrinks }, cors, 201)
 }
 
+// ==================== ADMIN: STATIONS ====================
+async function handleAdminGetStations(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await tenantFilter(supabase.from('stations').select('*'), ctx).order('station_number')
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handleAdminCreateStation(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const body = await ctx.req.json()
+  if (!body.name || !body.zone || typeof body.station_number !== 'number' || typeof body.hourly_rate !== 'number' || typeof body.package_rate !== 'number') {
+    return errorResponse('Missing required fields', cors, 400)
+  }
+  if (!['vip', 'hall'].includes(body.zone)) return errorResponse('Invalid zone', cors, 400)
+  const { data, error } = await supabase.from('stations').insert(withTenant({
+    name: body.name.trim(), zone: body.zone, station_number: body.station_number,
+    hourly_rate: body.hourly_rate, package_rate: body.package_rate,
+  }, ctx)).select().single()
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors, 201)
+}
+
+async function handleAdminUpdateStation(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const stationId = pathParts[2]
+  if (!isValidUUID(stationId)) return errorResponse('Invalid station id', cors, 400)
+  const body = await ctx.req.json()
+  const updates: Record<string, any> = {}
+  if (body.name !== undefined) updates.name = body.name.trim()
+  if (body.zone !== undefined) {
+    if (!['vip', 'hall'].includes(body.zone)) return errorResponse('Invalid zone', cors, 400)
+    updates.zone = body.zone
+  }
+  if (body.station_number !== undefined) updates.station_number = body.station_number
+  if (body.hourly_rate !== undefined) updates.hourly_rate = body.hourly_rate
+  if (body.package_rate !== undefined) updates.package_rate = body.package_rate
+  if (Object.keys(updates).length === 0) return errorResponse('Nothing to update', cors, 400)
+  const { data, error } = await tenantFilter(supabase.from('stations').update(updates), ctx)
+    .eq('id', stationId).select().single()
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handleAdminDeleteStation(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const stationId = pathParts[2]
+  if (!isValidUUID(stationId)) return errorResponse('Invalid station id', cors, 400)
+  const { count } = await tenantFilter(supabase.from('sessions').select('id', { count: 'exact', head: true }), ctx)
+    .eq('station_id', stationId).eq('status', 'active')
+  if (count && count > 0) return errorResponse('Нельзя удалить станцию с активной сессией', cors, 400)
+  const { error } = await tenantFilter(supabase.from('stations').delete(), ctx).eq('id', stationId)
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse({ success: true }, cors)
+}
+
 // ==================== MAIN ROUTER ====================
 Deno.serve(async (req) => {
   const origin = req.headers.get('Origin')
