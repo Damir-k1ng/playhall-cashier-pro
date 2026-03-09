@@ -1955,6 +1955,10 @@ Deno.serve(async (req) => {
       if (path === '/admin/stations' && method === 'POST') return await handleAdminCreateStation(ctx)
       if (pathParts.length === 3 && pathParts[1] === 'stations' && method === 'PATCH') return await handleAdminUpdateStation(ctx)
       if (pathParts.length === 3 && pathParts[1] === 'stations' && method === 'DELETE') return await handleAdminDeleteStation(ctx)
+      if (path === '/admin/package-presets' && method === 'GET') return await handleAdminGetPackagePresets(ctx)
+      if (path === '/admin/package-presets' && method === 'POST') return await handleAdminCreatePackagePreset(ctx)
+      if (pathParts.length === 3 && pathParts[1] === 'package-presets' && method === 'PATCH') return await handleAdminUpdatePackagePreset(ctx)
+      if (pathParts.length === 3 && pathParts[1] === 'package-presets' && method === 'DELETE') return await handleAdminDeletePackagePreset(ctx)
     }
 
     return errorResponse('Not found', corsHeaders, 404)
