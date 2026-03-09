@@ -273,7 +273,19 @@ async function handleCreateSession(ctx: Ctx): Promise<Response> {
   if (existingSession) return errorResponse('На этой станции уже есть активная сессия', cors, 409)
 
   const insertData: any = { station_id: body.station_id, tariff_type: body.tariff_type, status: 'active', shift_id: shift.id }
-  if (body.tariff_type === 'package') insertData.package_count = 1
+  if (body.tariff_type === 'package') {
+    insertData.package_count = 1
+    // If a preset is specified, store its price
+    if (body.package_preset_id && isValidUUID(body.package_preset_id)) {
+      const { data: preset } = await tenantFilter(
+        supabase.from('package_presets').select('id, price, duration_hours'), ctx
+      ).eq('id', body.package_preset_id).eq('is_active', true).single()
+      if (preset) {
+        insertData.package_preset_id = preset.id
+        insertData.package_price = preset.price
+      }
+    }
+  }
 
   const { data, error } = await supabase.from('sessions').insert(withTenant(insertData, ctx)).select().single()
   if (error) { console.error('Session create error:', error); return errorResponse('Unable to create session', cors) }
@@ -297,10 +309,20 @@ async function handleGetSession(ctx: Ctx): Promise<Response> {
 
   let gameCost = 0
   const packageCount = session.package_count || 1
-  const packageDurationMinutes = 180 * packageCount
+  const packagePrice = session.package_price || session.station?.package_rate || 0
+
+  // Determine package duration: if preset is linked, use its duration; else default 180 min
+  let presetDurationHours = 3
+  if (session.package_preset_id) {
+    const { data: preset } = await tenantFilter(
+      supabase.from('package_presets').select('duration_hours'), ctx
+    ).eq('id', session.package_preset_id).maybeSingle()
+    if (preset) presetDurationHours = preset.duration_hours
+  }
+  const packageDurationMinutes = presetDurationHours * 60 * packageCount
 
   if (session.tariff_type === 'package') {
-    gameCost = (session.station?.package_rate || 0) * packageCount
+    gameCost = packagePrice * packageCount
     if (elapsedMinutes > packageDurationMinutes) {
       const overtimeMinutes = elapsedMinutes - packageDurationMinutes
       gameCost += Math.ceil(overtimeMinutes / 60) * (session.station?.hourly_rate || 0)
@@ -372,6 +394,15 @@ async function handleGetDiscountPresets(ctx: Ctx): Promise<Response> {
   const maxDiscount = cashierData?.max_discount_percent || 0
   const { data: presets } = await tenantFilter(supabase.from('discount_presets').select('*'), ctx).eq('is_active', true).lte('percent', maxDiscount).order('percent')
   return jsonResponse({ presets: presets || [], max_discount_percent: maxDiscount }, cors)
+}
+
+async function handleGetActivePackagePresets(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await tenantFilter(
+    supabase.from('package_presets').select('*').eq('is_active', true).order('duration_hours'), ctx
+  )
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data || [], cors)
 }
 
 async function handleCreatePayment(ctx: Ctx): Promise<Response> {
@@ -1955,6 +1986,7 @@ Deno.serve(async (req) => {
     if (path.match(/^\/sessions\/[^/]+$/) && method === 'GET') return await handleGetSession(ctx)
     if (path.match(/^\/sessions\/[^/]+$/) && method === 'PATCH') return await handleUpdateSession(ctx)
     if (path === '/discount-presets' && method === 'GET') return await handleGetDiscountPresets(ctx)
+    if (path === '/package-presets' && method === 'GET') return await handleGetActivePackagePresets(ctx)
     if (path === '/payments' && method === 'POST') return await handleCreatePayment(ctx)
     if (path === '/controller-usage' && method === 'POST') return await handleCreateControllerUsage(ctx)
     if (path.startsWith('/controller-usage/') && method === 'PATCH') return await handleUpdateControllerUsage(ctx)

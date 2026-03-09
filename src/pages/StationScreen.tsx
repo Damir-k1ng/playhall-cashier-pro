@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useStations, useStation, stationQueryKey, STATIONS_QUERY_KEY } from '@/hooks/useStations';
 import type { StationWithSession, ControllerUsage } from '@/types/database';
 import { useDrinks } from '@/hooks/useDrinks';
@@ -13,6 +13,7 @@ import { ArrowLeft, Play, Square, Gamepad2, Plus, Package, Trash2 } from 'lucide
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CONTROLLER_RATE, CLUB_NAME } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
 
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
@@ -30,8 +31,16 @@ export function StationScreen() {
   const [addingDrinkId, setAddingDrinkId] = useState<string | null>(null);
   const [removingDrinkId, setRemovingDrinkId] = useState<string | null>(null);
   const [drinkToDelete, setDrinkToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isStartingSession, setIsStartingSession] = useState(false);
   const warningPlayedRef = useRef(false);
   const endPlayedRef = useRef(false);
+
+  // Fetch active package presets
+  const { data: packagePresets = [] } = useQuery({
+    queryKey: ['package-presets'],
+    queryFn: () => apiClient.getActivePackagePresets(),
+    staleTime: 60_000,
+  });
 
   const isLoading = isStationLoading;
   const isActive = !!station?.activeSession;
@@ -72,15 +81,19 @@ export function StationScreen() {
     );
   }
 
-  const handleStartSession = async (tariffType: 'hourly' | 'package') => {
-    const result = await startSession(station.id, tariffType);
-    if (result.error) {
-      toast.error(result.error);
-      return;
+  const handleStartSession = async (tariffType: 'hourly' | 'package', packagePresetId?: string) => {
+    setIsStartingSession(true);
+    try {
+      const result = await startSession(station.id, tariffType, packagePresetId);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      await refetchStations();
+      toast.success('Сессия запущена');
+    } finally {
+      setIsStartingSession(false);
     }
-    // Immediately refetch stations after confirmed backend success
-    await refetchStations();
-    toast.success('Сессия запущена');
   };
 
   const handleAddController = async () => {
@@ -341,6 +354,7 @@ export function StationScreen() {
                   'hover:border-primary hover:shadow-glow-md transition-all duration-300'
                 )}
                 variant="ghost"
+                disabled={isStartingSession}
                 onClick={() => handleStartSession('hourly')}
               >
                 <Play className="w-10 h-10 text-primary" />
@@ -348,20 +362,46 @@ export function StationScreen() {
                 <span className="text-base text-muted-foreground">{formatCurrency(station.hourly_rate)}/час</span>
               </Button>
               
-              <Button
-                size="lg"
-                className={cn(
-                  'h-40 flex-col gap-4 text-xl rounded-2xl',
-                  'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
-                  'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
-                )}
-                variant="ghost"
-                onClick={() => handleStartSession('package')}
-              >
-                <Play className="w-10 h-10 text-success" />
-                <span className="font-bold text-success">Пакет 2+1</span>
-                <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
-              </Button>
+              {packagePresets.length > 0 ? (
+                /* Show individual package presets */
+                packagePresets.map((preset: any) => (
+                  <Button
+                    key={preset.id}
+                    size="lg"
+                    className={cn(
+                      'h-40 flex-col gap-4 text-xl rounded-2xl',
+                      'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
+                      'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
+                    )}
+                    variant="ghost"
+                    disabled={isStartingSession}
+                    onClick={() => handleStartSession('package', preset.id)}
+                  >
+                    <Play className="w-10 h-10 text-success" />
+                    <span className="font-bold text-success">{preset.name}</span>
+                    <span className="text-base text-muted-foreground">
+                      {formatCurrency(preset.price)} · {preset.duration_hours} ч
+                    </span>
+                  </Button>
+                ))
+              ) : (
+                /* Fallback: legacy package button using station.package_rate */
+                <Button
+                  size="lg"
+                  className={cn(
+                    'h-40 flex-col gap-4 text-xl rounded-2xl',
+                    'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
+                    'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
+                  )}
+                  variant="ghost"
+                  disabled={isStartingSession}
+                  onClick={() => handleStartSession('package')}
+                >
+                  <Play className="w-10 h-10 text-success" />
+                  <span className="font-bold text-success">Пакет 2+1</span>
+                  <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
+                </Button>
+              )}
             </div>
           </div>
         ) : (

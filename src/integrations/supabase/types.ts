@@ -636,6 +636,8 @@ export type Database = {
           game_cost: number | null
           id: string
           package_count: number
+          package_preset_id: string | null
+          package_price: number | null
           shift_id: string
           started_at: string
           station_id: string
@@ -652,6 +654,8 @@ export type Database = {
           game_cost?: number | null
           id?: string
           package_count?: number
+          package_preset_id?: string | null
+          package_price?: number | null
           shift_id: string
           started_at?: string
           station_id: string
@@ -668,6 +672,8 @@ export type Database = {
           game_cost?: number | null
           id?: string
           package_count?: number
+          package_preset_id?: string | null
+          package_price?: number | null
           shift_id?: string
           started_at?: string
           station_id?: string
@@ -690,6 +696,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "stations"
             referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "sessions_package_preset_id_fkey"
+            columns: ["package_preset_id"]
+            isOneToOne: false
+            referencedRelation: "package_presets"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "sessions_tenant_id_fkey"
