@@ -1037,6 +1037,7 @@ export type Database = {
           plan: string
           signup_email: string | null
           signup_phone: string | null
+          slug: string
           status: Database["public"]["Enums"]["tenant_status"]
           trial_until: string | null
         }
@@ -1050,6 +1051,7 @@ export type Database = {
           plan?: string
           signup_email?: string | null
           signup_phone?: string | null
+          slug: string
           status?: Database["public"]["Enums"]["tenant_status"]
           trial_until?: string | null
         }
@@ -1063,6 +1065,7 @@ export type Database = {
           plan?: string
           signup_email?: string | null
           signup_phone?: string | null
+          slug?: string
           status?: Database["public"]["Enums"]["tenant_status"]
           trial_until?: string | null
         }
