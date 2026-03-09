@@ -26,6 +26,7 @@ interface DrinkConfig {
 interface PackagePreset {
   name: string;
   duration_hours: number;
+  price: number;
 }
 
 interface ClubSetupWizardProps {
@@ -48,11 +49,11 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
   const [stations, setStations] = useState<StationConfig[]>([]);
   const [drinks, setDrinks] = useState<DrinkConfig[]>([]);
   const [packages, setPackages] = useState<PackagePreset[]>([
-    { name: '2+1', duration_hours: 3 },
-    { name: '3+1', duration_hours: 4 },
+    { name: '2+1', duration_hours: 3, price: 5000 },
+    { name: '3+1', duration_hours: 4, price: 6500 },
   ]);
   const [newDrink, setNewDrink] = useState({ name: '', price: '' });
-  const [newPackage, setNewPackage] = useState({ name: '', hours: '' });
+  const [newPackage, setNewPackage] = useState({ name: '', hours: '', price: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Step 1 -> Step 2: generate station shells
@@ -309,7 +310,7 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
                       <Package className="w-5 h-5 text-primary" />
                       <div>
                         <span className="font-semibold text-foreground">{pkg.name}</span>
-                        <span className="text-sm text-muted-foreground ml-2">({pkg.duration_hours} ч)</span>
+                        <span className="text-sm text-muted-foreground ml-2">({pkg.duration_hours} ч · {pkg.price.toLocaleString()} ₸)</span>
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPackages(prev => prev.filter((_, j) => j !== i))}>
@@ -332,19 +333,27 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
                     onChange={(e) => setNewPackage(prev => ({ ...prev, hours: e.target.value }))}
                     className="w-20"
                   />
+                  <Input
+                    placeholder="Цена ₸"
+                    type="number"
+                    value={newPackage.price}
+                    onChange={(e) => setNewPackage(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-28"
+                  />
                   <Button variant="outline" size="icon" onClick={() => {
                     const name = newPackage.name.trim();
                     const hours = parseInt(newPackage.hours);
-                    if (!name || isNaN(hours) || hours < 1) return;
-                    setPackages(prev => [...prev, { name, duration_hours: hours }]);
-                    setNewPackage({ name: '', hours: '' });
-                  }} disabled={!newPackage.name.trim() || !newPackage.hours}>
+                    const price = parseInt(newPackage.price);
+                    if (!name || isNaN(hours) || hours < 1 || isNaN(price) || price < 0) return;
+                    setPackages(prev => [...prev, { name, duration_hours: hours, price }]);
+                    setNewPackage({ name: '', hours: '', price: '' });
+                  }} disabled={!newPackage.name.trim() || !newPackage.hours || !newPackage.price}>
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  Стоимость пакетов определяется ценой «Пакет» для зоны × длительность / 3 часа. Можно изменить позже.
+                  Цены пакетов можно изменить позже в админ-панели.
                 </p>
                 <div className="flex justify-between pt-4">
                   <Button variant="ghost" onClick={() => setStep(3)}><ChevronLeft className="w-4 h-4 mr-1" /> Назад</Button>

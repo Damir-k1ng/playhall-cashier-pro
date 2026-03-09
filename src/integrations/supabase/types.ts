@@ -419,6 +419,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          price: number
           tenant_id: string
         }
         Insert: {
@@ -427,6 +428,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          price?: number
           tenant_id: string
         }
         Update: {
@@ -435,6 +437,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          price?: number
           tenant_id?: string
         }
         Relationships: [

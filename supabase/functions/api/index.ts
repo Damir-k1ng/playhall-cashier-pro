@@ -1755,7 +1755,7 @@ async function handleSetupClub(ctx: Ctx): Promise<Response> {
   if (Array.isArray(packages) && packages.length > 0) {
     const pkgRows = packages
       .filter((p: any) => p.name && typeof p.duration_hours === 'number' && p.duration_hours > 0)
-      .map((p: any) => ({ name: p.name.trim(), duration_hours: p.duration_hours, tenant_id }))
+      .map((p: any) => ({ name: p.name.trim(), duration_hours: p.duration_hours, price: typeof p.price === 'number' ? p.price : 0, tenant_id }))
 
     if (pkgRows.length > 0) {
       const { data, error: pkgErr } = await supabase.from('package_presets').insert(pkgRows).select()
