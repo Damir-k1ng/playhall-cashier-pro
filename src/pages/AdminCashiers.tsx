@@ -278,6 +278,10 @@ export function AdminCashiers() {
                   <Monitor className="h-4 w-4" />
                   <span className="hidden sm:inline">Станции</span>
                 </TabsTrigger>
+                <TabsTrigger value="packages" className="flex-1 gap-2 data-[state=active]:bg-primary/20">
+                  <Timer className="h-4 w-4" />
+                  <span className="hidden sm:inline">Пакеты</span>
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
