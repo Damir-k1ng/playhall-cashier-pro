@@ -155,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (result.valid && result.cashier && result.shift) {
           apiClient.setSessionToken(storedToken);
           const role = result.role || 'cashier';
-          cacheSessionData(result.cashier, result.shift, role);
+          const tenant = result.tenant || null;
+          cacheSessionData(result.cashier, result.shift, role, tenant);
 
           setState({
             isAuthenticated: true,
@@ -163,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             cashier: result.cashier,
             shift: result.shift,
             role,
+            tenant,
           });
           toast.success('Соединение восстановлено', {
             description: 'Данные смены обновлены',
