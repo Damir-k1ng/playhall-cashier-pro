@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useTenantNavigate } from '@/hooks/useTenantNavigate';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useStations, useStation, stationQueryKey, STATIONS_QUERY_KEY } from '@/hooks/useStations';
 import type { StationWithSession, ControllerUsage } from '@/types/database';
