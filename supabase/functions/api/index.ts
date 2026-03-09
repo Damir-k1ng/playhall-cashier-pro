@@ -2141,6 +2141,7 @@ Deno.serve(async (req) => {
       if (path === '/platform/subscriptions' && method === 'GET') return await handlePlatformGetSubscriptions(ctx)
       if (path === '/platform/subscriptions' && method === 'POST') return await handlePlatformCreateSubscription(ctx)
       if (path === '/platform/subscription-payments' && method === 'GET') return await handlePlatformGetSubscriptionPayments(ctx)
+      if (path === '/platform/audit-log' && method === 'GET') return await handlePlatformGetAuditLog(ctx)
 
       return errorResponse('Platform route not found', corsHeaders, 404)
     }
