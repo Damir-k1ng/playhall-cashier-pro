@@ -109,8 +109,23 @@ async function authenticateSession(supabase: any, sessionToken: string | null) {
   return shift
 }
 
-/** Authenticate platform_owner via Supabase JWT (Authorization: Bearer ...) */
+/** Authenticate platform_owner via Supabase JWT (Authorization: Bearer ...) or X-Platform-Key header */
 async function authenticatePlatformOwner(supabase: any, req: Request) {
+  // Option 1: Service role bypass via X-Platform-Key header (matches service role key)
+  const platformKey = req.headers.get('x-platform-key')
+  if (platformKey && platformKey === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+    // Return a synthetic platform_owner for service-role access
+    const { data: platformUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('role', 'platform_owner')
+      .limit(1)
+      .single()
+    
+    return platformUser || { id: 'service-role', name: 'Service Role', role: 'platform_owner' }
+  }
+  
+  // Option 2: Supabase Auth JWT
   const authHeader = req.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) return null
 
