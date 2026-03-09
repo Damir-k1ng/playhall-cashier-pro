@@ -1540,6 +1540,29 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    const url = new URL(req.url)
+    const path = url.pathname.replace('/api', '')
+    const method = req.method
+    const pathParts = path.split('/').filter(Boolean)
+
+    // Platform routes (Super Admin)
+    if (path.startsWith('/platform/')) {
+      const platformUser = await authenticatePlatformOwner(supabase, req)
+      if (!platformUser) return errorResponse('Unauthorized', corsHeaders, 401)
+      
+      const ctx: Ctx = { req, supabase, platformUser, url, cors: corsHeaders, path, method, pathParts }
+      
+      if (path === '/platform/tenants' && method === 'GET') return await handlePlatformListTenants(ctx)
+      if (path === '/platform/tenants' && method === 'POST') return await handlePlatformCreateTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'approve' && method === 'PATCH') return await handlePlatformApproveTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'suspend' && method === 'PATCH') return await handlePlatformSuspendTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'block' && method === 'PATCH') return await handlePlatformBlockTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'extend-trial' && method === 'PATCH') return await handlePlatformExtendTrial(ctx)
+
+      return errorResponse('Platform route not found', corsHeaders, 404)
+    }
+
+    // Cashier & Admin routes
     const sessionToken = req.headers.get('x-session-token')
     const shift = await authenticateSession(supabase, sessionToken)
 
@@ -1547,13 +1570,18 @@ Deno.serve(async (req) => {
       return errorResponse('Unauthorized', corsHeaders, 401)
     }
 
-    const url = new URL(req.url)
-    const path = url.pathname.replace('/api', '')
-    const method = req.method
-    const pathParts = path.split('/').filter(Boolean)
-
     const tenant_id = shift.tenant_id
     if (!tenant_id) return errorResponse('Tenant context missing', corsHeaders, 403)
+    
+    // Check if tenant is active
+    const { data: tenant } = await supabase.from('tenants').select('status, trial_until').eq('id', tenant_id).single()
+    if (!tenant) return errorResponse('Tenant not found', corsHeaders, 404)
+    
+    if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
+    if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
+    if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
+      return errorResponse('Аккаунт приостановлен (пробный период истёк)', corsHeaders, 403)
+    }
 
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
 
