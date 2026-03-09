@@ -273,7 +273,19 @@ async function handleCreateSession(ctx: Ctx): Promise<Response> {
   if (existingSession) return errorResponse('На этой станции уже есть активная сессия', cors, 409)
 
   const insertData: any = { station_id: body.station_id, tariff_type: body.tariff_type, status: 'active', shift_id: shift.id }
-  if (body.tariff_type === 'package') insertData.package_count = 1
+  if (body.tariff_type === 'package') {
+    insertData.package_count = 1
+    // If a preset is specified, store its price
+    if (body.package_preset_id && isValidUUID(body.package_preset_id)) {
+      const { data: preset } = await tenantFilter(
+        supabase.from('package_presets').select('id, price, duration_hours'), ctx
+      ).eq('id', body.package_preset_id).eq('is_active', true).single()
+      if (preset) {
+        insertData.package_preset_id = preset.id
+        insertData.package_price = preset.price
+      }
+    }
+  }
 
   const { data, error } = await supabase.from('sessions').insert(withTenant(insertData, ctx)).select().single()
   if (error) { console.error('Session create error:', error); return errorResponse('Unable to create session', cors) }
