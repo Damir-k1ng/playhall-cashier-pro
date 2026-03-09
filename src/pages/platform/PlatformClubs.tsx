@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CheckCircle, Ban, Pause, CalendarPlus, ExternalLink, RefreshCw } from 'lucide-react';
+import { CheckCircle, Ban, Pause, CalendarPlus, RefreshCw } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   active: 'bg-secondary/20 text-secondary border-secondary/30',
