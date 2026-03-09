@@ -1987,8 +1987,11 @@ Deno.serve(async (req) => {
     if (tenant.status === 'pending') return errorResponse('Аккаунт ожидает подтверждения', corsHeaders, 403)
     if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
     if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
+    if (tenant.status === 'expired') return errorResponse('Подписка истекла', corsHeaders, 403)
     if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
-      return errorResponse('Аккаунт приостановлен (пробный период истёк)', corsHeaders, 403)
+      // Auto-update status to expired
+      await supabase.from('tenants').update({ status: 'expired' }).eq('id', tenant_id)
+      return errorResponse('Пробный период истёк', corsHeaders, 403)
     }
 
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
