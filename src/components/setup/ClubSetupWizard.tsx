@@ -23,6 +23,11 @@ interface DrinkConfig {
   price: number;
 }
 
+interface PackagePreset {
+  name: string;
+  duration_hours: number;
+}
+
 interface ClubSetupWizardProps {
   clubName: string;
   onComplete: () => void;
