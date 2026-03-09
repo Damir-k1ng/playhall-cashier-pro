@@ -476,6 +476,23 @@ class ApiClient {
     return this.request(`/admin/stations/${id}`, { method: 'DELETE' });
   }
 
+  // Admin: Package presets management
+  async getPackagePresets() {
+    return this.request('/admin/package-presets');
+  }
+
+  async createPackagePreset(data: { name: string; duration_hours: number; price: number }) {
+    return this.request('/admin/package-presets', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updatePackagePreset(id: string, data: { name?: string; duration_hours?: number; price?: number; is_active?: boolean }) {
+    return this.request(`/admin/package-presets/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async deletePackagePreset(id: string) {
+    return this.request(`/admin/package-presets/${id}`, { method: 'DELETE' });
+  }
+
 
   async setupClub(data: { stations: any[]; drinks?: any[]; packages?: any[] }) {
     return this.request('/setup', {
