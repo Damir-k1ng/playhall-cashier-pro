@@ -1760,7 +1760,97 @@ async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
 }
 
 
-// ==================== SETUP (Club Wizard) ====================
+// ==================== PLATFORM BILLING HANDLERS ====================
+
+async function handlePlatformGetPlans(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await supabase
+    .from('plans')
+    .select('*, billing_cycles(*)')
+    .order('created_at')
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformGetSubscriptions(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*, tenant:tenants(id, club_name), plan:plans(name, price_monthly), billing_cycle:billing_cycles(months, discount_percent, label)')
+    .order('created_at', { ascending: false })
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
+  const { supabase, req, cors } = ctx
+  const body = await req.json().catch(() => ({}))
+  
+  if (!body.tenant_id || !body.plan_id || !body.billing_cycle_id) {
+    return errorResponse('tenant_id, plan_id, billing_cycle_id required', cors)
+  }
+
+  // Get billing cycle to calculate period
+  const { data: cycle } = await supabase.from('billing_cycles').select('months, discount_percent').eq('id', body.billing_cycle_id).single()
+  if (!cycle) return errorResponse('Billing cycle not found', cors, 404)
+
+  // Get plan price
+  const { data: plan } = await supabase.from('plans').select('price_monthly').eq('id', body.plan_id).single()
+  if (!plan) return errorResponse('Plan not found', cors, 404)
+
+  const now = new Date()
+  const periodEnd = new Date(now)
+  periodEnd.setMonth(periodEnd.getMonth() + cycle.months)
+
+  // Calculate total amount
+  const monthlyPrice = plan.price_monthly
+  const totalBeforeDiscount = monthlyPrice * cycle.months
+  const discountAmount = Math.round(totalBeforeDiscount * cycle.discount_percent / 100)
+  const totalAmount = totalBeforeDiscount - discountAmount
+
+  // Create subscription
+  const { data: subscription, error: subErr } = await supabase
+    .from('subscriptions')
+    .insert([{
+      tenant_id: body.tenant_id,
+      plan_id: body.plan_id,
+      billing_cycle_id: body.billing_cycle_id,
+      status: 'active',
+      current_period_start: now.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+    }])
+    .select()
+    .single()
+  if (subErr) return errorResponse(subErr.message, cors)
+
+  // Create billing payment record
+  await supabase.from('billing_payments').insert([{
+    subscription_id: subscription.id,
+    tenant_id: body.tenant_id,
+    amount: totalAmount,
+    currency: 'KZT',
+    status: body.mark_paid ? 'paid' : 'pending',
+    paid_at: body.mark_paid ? now.toISOString() : null,
+    payment_method: body.payment_method || null,
+  }])
+
+  // Activate tenant
+  await supabase.from('tenants').update({ status: 'active', plan: 'pro' }).eq('id', body.tenant_id)
+
+  return jsonResponse(subscription, cors)
+}
+
+async function handlePlatformGetBillingPayments(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await supabase
+    .from('billing_payments')
+    .select('*, tenant:tenants(id, club_name), subscription:subscriptions(plan:plans(name))')
+    .order('created_at', { ascending: false })
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+
 async function handleSetupClub(ctx: Ctx): Promise<Response> {
   const { supabase, cors, tenant_id } = ctx
   if (!tenant_id) return errorResponse('tenant_id required', cors, 400)
