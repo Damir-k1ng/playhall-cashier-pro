@@ -1977,6 +1977,7 @@ Deno.serve(async (req) => {
     if (path.match(/^\/sessions\/[^/]+$/) && method === 'GET') return await handleGetSession(ctx)
     if (path.match(/^\/sessions\/[^/]+$/) && method === 'PATCH') return await handleUpdateSession(ctx)
     if (path === '/discount-presets' && method === 'GET') return await handleGetDiscountPresets(ctx)
+    if (path === '/package-presets' && method === 'GET') return await handleGetActivePackagePresets(ctx)
     if (path === '/payments' && method === 'POST') return await handleCreatePayment(ctx)
     if (path === '/controller-usage' && method === 'POST') return await handleCreateControllerUsage(ctx)
     if (path.startsWith('/controller-usage/') && method === 'PATCH') return await handleUpdateControllerUsage(ctx)
