@@ -1824,7 +1824,7 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   if (subErr) return errorResponse(subErr.message, cors)
 
   // Create billing payment record
-  await supabase.from('billing_payments').insert([{
+  await supabase.from('subscription_payments').insert([{
     subscription_id: subscription.id,
     tenant_id: body.tenant_id,
     amount: totalAmount,
@@ -1840,10 +1840,10 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   return jsonResponse(subscription, cors)
 }
 
-async function handlePlatformGetBillingPayments(ctx: Ctx): Promise<Response> {
+async function handlePlatformGetSubscriptionPayments(ctx: Ctx): Promise<Response> {
   const { supabase, cors } = ctx
   const { data, error } = await supabase
-    .from('billing_payments')
+    .from('subscription_payments')
     .select('*, tenant:tenants(id, club_name), subscription:subscriptions(plan:plans(name))')
     .order('created_at', { ascending: false })
   if (error) return errorResponse(error.message, cors)
@@ -2060,7 +2060,7 @@ Deno.serve(async (req) => {
       if (path === '/platform/plans' && method === 'GET') return await handlePlatformGetPlans(ctx)
       if (path === '/platform/subscriptions' && method === 'GET') return await handlePlatformGetSubscriptions(ctx)
       if (path === '/platform/subscriptions' && method === 'POST') return await handlePlatformCreateSubscription(ctx)
-      if (path === '/platform/billing-payments' && method === 'GET') return await handlePlatformGetBillingPayments(ctx)
+      if (path === '/platform/subscription-payments' && method === 'GET') return await handlePlatformGetSubscriptionPayments(ctx)
 
       return errorResponse('Platform route not found', corsHeaders, 404)
     }
@@ -2084,10 +2084,28 @@ Deno.serve(async (req) => {
     if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
     if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
     if (tenant.status === 'expired') return errorResponse('Подписка истекла', corsHeaders, 403)
+    
+    // Check trial expiration
     if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
-      // Auto-update status to expired
       await supabase.from('tenants').update({ status: 'expired' }).eq('id', tenant_id)
       return errorResponse('Пробный период истёк', corsHeaders, 403)
+    }
+    
+    // Check subscription expiration for active tenants
+    if (tenant.status === 'active') {
+      const { data: activeSub } = await supabase
+        .from('subscriptions')
+        .select('id, current_period_end')
+        .eq('tenant_id', tenant_id)
+        .eq('status', 'active')
+        .single()
+      
+      if (activeSub && new Date() > new Date(activeSub.current_period_end)) {
+        // Expire the subscription and tenant
+        await supabase.from('subscriptions').update({ status: 'expired' }).eq('id', activeSub.id)
+        await supabase.from('tenants').update({ status: 'expired' }).eq('id', tenant_id)
+        return errorResponse('Подписка истекла', corsHeaders, 403)
+      }
     }
 
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
