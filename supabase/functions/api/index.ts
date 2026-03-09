@@ -1604,7 +1604,8 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
       approved_at: t.approved_at,
       created_at: t.created_at,
       signup_email: t.signup_email,
-      signup_phone: t.signup_phone
+      signup_phone: t.signup_phone,
+      slug: t.slug
     }
   })
   
