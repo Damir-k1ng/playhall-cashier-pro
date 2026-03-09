@@ -2200,6 +2200,19 @@ Deno.serve(async (req) => {
       return await handlePlatformCreateOwner(supabase, req, corsHeaders)
     }
 
+    // Public: resolve tenant by slug (no auth required)
+    if (path.startsWith('/tenant/by-slug/') && method === 'GET') {
+      const slug = path.split('/')[3]
+      if (!slug) return errorResponse('slug required', corsHeaders, 400)
+      const { data: t, error: tErr } = await supabase
+        .from('tenants')
+        .select('id, club_name, slug, status')
+        .eq('slug', slug)
+        .single()
+      if (tErr || !t) return errorResponse('Клуб не найден', corsHeaders, 404)
+      return jsonResponse(t, corsHeaders)
+    }
+
     // Platform routes (Super Admin)
     if (path.startsWith('/platform/')) {
       const platformUser = await authenticatePlatformOwner(supabase, req)
