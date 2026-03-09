@@ -26,8 +26,11 @@ interface HeaderProps {
 
 export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
   const navigate = useNavigate();
-  const { cashier, shift, role, logout } = useAuth();
+  const { cashier, shift, role, tenant, logout } = useAuth();
   const { quality } = useNetworkStatusContext();
+  
+  // Use tenant club_name if available, otherwise fallback to CLUB_NAME constant
+  const displayClubName = tenant?.club_name || CLUB_NAME;
 
   const networkConfig = {
     good: { icon: Wifi, color: 'text-emerald-400', bg: 'bg-emerald-500/15', label: 'Стабильное соединение', pulse: false },
