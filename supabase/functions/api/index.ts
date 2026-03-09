@@ -2084,10 +2084,28 @@ Deno.serve(async (req) => {
     if (tenant.status === 'blocked') return errorResponse('Аккаунт заблокирован', corsHeaders, 403)
     if (tenant.status === 'suspended') return errorResponse('Аккаунт приостановлен', corsHeaders, 403)
     if (tenant.status === 'expired') return errorResponse('Подписка истекла', corsHeaders, 403)
+    
+    // Check trial expiration
     if (tenant.status === 'trial' && tenant.trial_until && new Date() > new Date(tenant.trial_until)) {
-      // Auto-update status to expired
       await supabase.from('tenants').update({ status: 'expired' }).eq('id', tenant_id)
       return errorResponse('Пробный период истёк', corsHeaders, 403)
+    }
+    
+    // Check subscription expiration for active tenants
+    if (tenant.status === 'active') {
+      const { data: activeSub } = await supabase
+        .from('subscriptions')
+        .select('id, current_period_end')
+        .eq('tenant_id', tenant_id)
+        .eq('status', 'active')
+        .single()
+      
+      if (activeSub && new Date() > new Date(activeSub.current_period_end)) {
+        // Expire the subscription and tenant
+        await supabase.from('subscriptions').update({ status: 'expired' }).eq('id', activeSub.id)
+        await supabase.from('tenants').update({ status: 'expired' }).eq('id', tenant_id)
+        return errorResponse('Подписка истекла', corsHeaders, 403)
+      }
     }
 
     const ctx: Ctx = { req, supabase, shift, tenant_id, url, cors: corsHeaders, path, method, pathParts }
