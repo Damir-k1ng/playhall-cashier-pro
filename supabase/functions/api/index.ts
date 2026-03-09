@@ -1591,6 +1591,25 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
     
   if (error) return errorResponse(error.message, cors)
   
+  // Create default club_admin
+  const adminName = body.admin_name || `Admin ${body.club_name}`
+  const adminEmail = body.signup_email || null
+  const adminPin = body.admin_pin || '0000' // Default PIN if none provided
+  
+  const { error: userError } = await supabase
+    .from('users')
+    .insert([{
+      tenant_id: tenant.id,
+      name: adminName,
+      email: adminEmail,
+      pin_code: adminPin,
+      role: 'club_admin'
+    }])
+
+  if (userError) {
+    console.error('Error creating default admin:', userError)
+  }
+  
   return jsonResponse(tenant, cors, 201)
 }
 
