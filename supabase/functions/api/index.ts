@@ -109,6 +109,33 @@ async function authenticateSession(supabase: any, sessionToken: string | null) {
   return shift
 }
 
+/** Authenticate platform_owner via Supabase JWT (Authorization: Bearer ...) */
+async function authenticatePlatformOwner(supabase: any, req: Request) {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+
+  const token = authHeader.replace('Bearer ', '')
+  
+  try {
+    // Verify JWT using Supabase Auth
+    const { data, error } = await supabase.auth.getUser(token)
+    if (error || !data?.user) return null
+
+    // Check if user has platform_owner role
+    const { data: platformUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('auth_user_id', data.user.id)
+      .eq('role', 'platform_owner')
+      .single()
+
+    return platformUser || null
+  } catch (error) {
+    console.error('Platform auth error:', error)
+    return null
+  }
+}
+
 // ==================== CONTEXT TYPE ====================
 type Ctx = {
   req: Request
