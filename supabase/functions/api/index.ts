@@ -1960,6 +1960,7 @@ Deno.serve(async (req) => {
       if (path === '/platform/tenants' && method === 'GET') return await handlePlatformListTenants(ctx)
       if (path === '/platform/tenants' && method === 'POST') return await handlePlatformCreateTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'approve' && method === 'PATCH') return await handlePlatformApproveTenant(ctx)
+      if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'reject' && method === 'PATCH') return await handlePlatformRejectTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'suspend' && method === 'PATCH') return await handlePlatformSuspendTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'block' && method === 'PATCH') return await handlePlatformBlockTenant(ctx)
       if (pathParts.length === 4 && pathParts[1] === 'tenants' && pathParts[3] === 'extend-trial' && method === 'PATCH') return await handlePlatformExtendTrial(ctx)
