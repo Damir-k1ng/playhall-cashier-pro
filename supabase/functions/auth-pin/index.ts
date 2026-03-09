@@ -105,6 +105,13 @@ Deno.serve(async (req) => {
       // Map pin_code to pin for backward compatibility with client type
       const mappedCashier = { ...cashier, pin: cashier.pin_code, pin_code: undefined }
 
+      // Fetch tenant info
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, club_name, status, plan')
+        .eq('id', cashier.tenant_id)
+        .single()
+
       // Check for existing active shift for this cashier in this tenant
       const { data: existingShift } = await supabase
         .from('shifts')
@@ -130,7 +137,8 @@ Deno.serve(async (req) => {
             cashier: mappedCashier,
             shift: { ...existingShift, session_token: sessionToken },
             session_token: sessionToken,
-            role: userRole
+            role: userRole,
+            tenant: tenant || null
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
