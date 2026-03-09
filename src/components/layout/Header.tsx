@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTenantNavigate } from '@/hooks/useTenantNavigate';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';
 import { formatCurrency } from '@/lib/utils';

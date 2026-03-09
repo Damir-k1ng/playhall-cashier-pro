@@ -1,5 +1,5 @@
 import React, { useMemo, memo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTenantNavigate } from '@/hooks/useTenantNavigate';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDurationHMS, formatCurrency, formatPackageTimeRange } from '@/lib/utils';
 import { useGlobalTimer, usePackageRemaining } from '@/contexts/GlobalTimerContext';

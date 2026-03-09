@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
+import { useTenantNavigate } from '@/hooks/useTenantNavigate';
 import { usePayments } from '@/hooks/usePayments';
 import { useStations } from '@/hooks/useStations';
 import { useNetworkStatusContext } from '@/contexts/NetworkStatusContext';

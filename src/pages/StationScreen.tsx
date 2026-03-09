@@ -18,7 +18,7 @@ import { apiClient } from '@/lib/api';
 
 export function StationScreen() {
   const { stationId } = useParams<{ stationId: string }>();
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const { station, isLoading: isStationLoading } = useStation(stationId);
   const queryClient = useQueryClient();
   const { startSession, addController, returnController, extendPackage, refetch: refetchStations } = useStations();
