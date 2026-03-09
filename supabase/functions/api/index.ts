@@ -1590,7 +1590,7 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
   const formattedTenants = tenants.map((t: any) => {
     let effectiveStatus = t.status
     if (t.status === 'trial' && t.trial_until && new Date() > new Date(t.trial_until)) {
-      effectiveStatus = 'suspended'
+      effectiveStatus = 'expired'
     }
     
     return {
