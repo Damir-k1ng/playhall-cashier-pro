@@ -100,18 +100,17 @@ export function ClubSetupWizard({ clubName, onComplete }: ClubSetupWizardProps) 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Auto-name stations based on zone
-      const finalStations = stations.map((s, i) => {
+      // Auto-name stations: global sequential numbering, zone prefix
+      const finalStations = stations.map((s) => {
         const zoneName = s.zone === 'vip' ? 'VIP' : 'Зал';
-        const zoneStations = stations.filter((st, j) => j <= i && st.zone === s.zone);
         return {
           ...s,
-          name: `${zoneName} ${zoneStations.length}`,
+          name: `${zoneName} ${s.station_number}`,
         };
       });
 
-      await apiClient.setupClub({ stations: finalStations, drinks });
-      toast.success('Клуб настроен!', { description: 'Станции и напитки созданы.' });
+      await apiClient.setupClub({ stations: finalStations, drinks, packages });
+      toast.success('Клуб настроен!', { description: 'Станции, пакеты и напитки созданы.' });
       onComplete();
     } catch (err: any) {
       toast.error('Ошибка настройки', { description: err.message });
