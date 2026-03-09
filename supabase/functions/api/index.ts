@@ -1523,7 +1523,159 @@ async function handleAdminGetInventoryMovements(ctx: Ctx): Promise<Response> {
   const { data, error } = await query
   if (error) return errorResponse('Ошибка загрузки движений', ctx.cors, 500)
   return jsonResponse(data, ctx.cors)
+// ==================== PLATFORM HANDLERS (SUPER ADMIN) ====================
+
+async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  
+  // Get all tenants with station count
+  const { data: tenants, error } = await supabase
+    .from('tenants')
+    .select(`
+      *,
+      stations!stations_tenant_id_fkey(count)
+    `)
+    .order('created_at', { ascending: false })
+    
+  if (error) return errorResponse(error.message, cors)
+  
+  // Format the response
+  const formattedTenants = tenants.map((t: any) => {
+    // Check if trial has expired to update status in response
+    let effectiveStatus = t.status
+    if (t.status === 'trial' && t.trial_until && new Date() > new Date(t.trial_until)) {
+      effectiveStatus = 'suspended' // Automatically suspended if trial expired
+    }
+    
+    return {
+      id: t.id,
+      club_name: t.club_name,
+      city: t.city,
+      status: effectiveStatus,
+      stations_count: t.stations?.length || 0,
+      trial_until: t.trial_until,
+      created_at: t.created_at,
+      signup_email: t.signup_email,
+      signup_phone: t.signup_phone
+    }
+  })
+  
+  return jsonResponse(formattedTenants, cors)
 }
+
+async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, req, cors, platformUser } = ctx
+  const body = await req.json().catch(() => ({}))
+  
+  if (!body.club_name) return errorResponse('club_name required', cors)
+  
+  // Default to 14 days trial
+  const trialDays = body.trial_days || 14
+  const trialUntil = new Date()
+  trialUntil.setDate(trialUntil.getDate() + trialDays)
+  
+  const { data: tenant, error } = await supabase
+    .from('tenants')
+    .insert([{
+      club_name: body.club_name,
+      city: body.city,
+      signup_email: body.signup_email,
+      signup_phone: body.signup_phone,
+      status: 'trial',
+      plan: 'trial',
+      trial_until: trialUntil.toISOString()
+    }])
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  
+  return jsonResponse(tenant, cors, 201)
+}
+
+async function handlePlatformApproveTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts, platformUser } = ctx
+  const tenantId = pathParts[2]
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ 
+      status: 'active',
+      plan: 'active',
+      approved_at: new Date().toISOString(),
+      approved_by: platformUser.id
+    })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformSuspendTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ status: 'suspended' })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformBlockTenant(ctx: Ctx): Promise<Response> {
+  const { supabase, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ status: 'blocked' })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
+async function handlePlatformExtendTrial(ctx: Ctx): Promise<Response> {
+  const { supabase, req, cors, pathParts } = ctx
+  const tenantId = pathParts[2]
+  const body = await req.json().catch(() => ({}))
+  
+  const days = body.days || 14
+  
+  // Get current tenant
+  const { data: tenant } = await supabase.from('tenants').select('trial_until').eq('id', tenantId).single()
+  if (!tenant) return errorResponse('Tenant not found', cors, 404)
+  
+  // Calculate new date
+  let baseDate = new Date()
+  if (tenant.trial_until && new Date(tenant.trial_until) > new Date()) {
+    baseDate = new Date(tenant.trial_until)
+  }
+  
+  baseDate.setDate(baseDate.getDate() + days)
+  
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ 
+      trial_until: baseDate.toISOString(),
+      status: 'trial' // Ensure it's back in trial status
+    })
+    .eq('id', tenantId)
+    .select()
+    .single()
+    
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data, cors)
+}
+
 
 // ==================== MAIN ROUTER ====================
 Deno.serve(async (req) => {
