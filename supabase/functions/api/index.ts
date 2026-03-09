@@ -396,6 +396,15 @@ async function handleGetDiscountPresets(ctx: Ctx): Promise<Response> {
   return jsonResponse({ presets: presets || [], max_discount_percent: maxDiscount }, cors)
 }
 
+async function handleGetActivePackagePresets(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+  const { data, error } = await tenantFilter(
+    supabase.from('package_presets').select('*').eq('is_active', true).order('duration_hours'), ctx
+  )
+  if (error) return errorResponse(error.message, cors)
+  return jsonResponse(data || [], cors)
+}
+
 async function handleCreatePayment(ctx: Ctx): Promise<Response> {
   const { supabase, shift, cors, req } = ctx
   const body = await req.json()
