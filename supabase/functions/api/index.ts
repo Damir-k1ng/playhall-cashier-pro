@@ -1840,10 +1840,10 @@ async function handlePlatformCreateSubscription(ctx: Ctx): Promise<Response> {
   return jsonResponse(subscription, cors)
 }
 
-async function handlePlatformGetBillingPayments(ctx: Ctx): Promise<Response> {
+async function handlePlatformGetSubscriptionPayments(ctx: Ctx): Promise<Response> {
   const { supabase, cors } = ctx
   const { data, error } = await supabase
-    .from('billing_payments')
+    .from('subscription_payments')
     .select('*, tenant:tenants(id, club_name), subscription:subscriptions(plan:plans(name))')
     .order('created_at', { ascending: false })
   if (error) return errorResponse(error.message, cors)
