@@ -25,7 +25,7 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenCashDesk, onOpenShiftReport, onOpenDrinkSales, onOpenHistory, isRefreshing }: HeaderProps) {
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const { cashier, shift, role, tenant, logout } = useAuth();
   const { quality } = useNetworkStatusContext();
   

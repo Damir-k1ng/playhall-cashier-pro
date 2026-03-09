@@ -26,7 +26,7 @@ interface SessionData {
 
 export function PaymentScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const location = useLocation();
   const { processPayment } = usePayments();
   const { refetch } = useStations();

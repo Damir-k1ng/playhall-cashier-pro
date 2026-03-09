@@ -95,7 +95,7 @@ function StationCardComponent({
   onBook,
   hasBooking
 }: StationCardProps) {
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const { getElapsedSeconds } = useGlobalTimer();
   
   const isPackage = tariffType === 'package';

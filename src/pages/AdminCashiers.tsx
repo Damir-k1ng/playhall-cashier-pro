@@ -48,7 +48,7 @@ interface Cashier {
 
 export function AdminCashiers() {
   const { role, isAuthenticated, isLoading: authLoading } = useAuth();
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const [searchParams] = useSearchParams();
   
   // Get initial tab from URL params

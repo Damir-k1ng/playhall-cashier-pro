@@ -25,7 +25,7 @@ interface DiscountPreset {
 
 export function PreCheckScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
+  const { navigate } = useTenantNavigate();
   const { station, isLoading } = useStationBySession(sessionId);
   const { getElapsedSeconds, getElapsedMinutes } = useGlobalTimer();
   const { isOnline } = useNetworkStatusContext();
