@@ -459,7 +459,24 @@ class ApiClient {
     const params = drinkId ? `?drink_id=${drinkId}` : '';
     return this.request(`/admin/inventory/movements${params}`);
   }
-  // Setup wizard (first-time club configuration)
+  // Admin: Stations management
+  async getAdminStations() {
+    return this.request('/admin/stations');
+  }
+
+  async createStation(data: { name: string; zone: string; station_number: number; hourly_rate: number; package_rate: number }) {
+    return this.request('/admin/stations', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateStation(id: string, data: { name?: string; zone?: string; station_number?: number; hourly_rate?: number; package_rate?: number }) {
+    return this.request(`/admin/stations/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async deleteStation(id: string) {
+    return this.request(`/admin/stations/${id}`, { method: 'DELETE' });
+  }
+
+
   async setupClub(data: { stations: any[]; drinks?: any[]; packages?: any[] }) {
     return this.request('/setup', {
       method: 'POST',

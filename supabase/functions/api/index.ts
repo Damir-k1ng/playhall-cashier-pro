@@ -1895,6 +1895,10 @@ Deno.serve(async (req) => {
       if (path.startsWith('/admin/inventory/') && pathParts[2] !== 'movement' && pathParts[2] !== 'movements' && method === 'PATCH') return await handleAdminUpdateInventoryItem(ctx)
       if (path === '/admin/inventory/movement' && method === 'POST') return await handleAdminCreateInventoryMovement(ctx)
       if (path === '/admin/inventory/movements' || (path.startsWith('/admin/inventory/movements') && method === 'GET')) return await handleAdminGetInventoryMovements(ctx)
+      if (path === '/admin/stations' && method === 'GET') return await handleAdminGetStations(ctx)
+      if (path === '/admin/stations' && method === 'POST') return await handleAdminCreateStation(ctx)
+      if (pathParts.length === 3 && pathParts[1] === 'stations' && method === 'PATCH') return await handleAdminUpdateStation(ctx)
+      if (pathParts.length === 3 && pathParts[1] === 'stations' && method === 'DELETE') return await handleAdminDeleteStation(ctx)
     }
 
     return errorResponse('Not found', corsHeaders, 404)
