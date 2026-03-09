@@ -84,6 +84,92 @@ export type Database = {
           },
         ]
       }
+      billing_cycles: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          label: string
+          months: number
+          plan_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          label: string
+          months: number
+          plan_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          label?: string
+          months?: number
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_cycles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          status: string
+          subscription_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          subscription_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          subscription_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booking_date: string
@@ -514,6 +600,33 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean
+          name: string
+          price_monthly: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price_monthly: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_monthly?: number
+        }
+        Relationships: []
+      }
       reservations: {
         Row: {
           created_at: string
@@ -817,6 +930,64 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          billing_cycle_id: string
+          cancelled_at: string | null
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          plan_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          billing_cycle_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_end: string
+          current_period_start: string
+          id?: string
+          plan_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          billing_cycle_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          plan_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           approved_at: string | null
@@ -980,7 +1151,13 @@ export type Database = {
       payment_method: "cash" | "kaspi" | "split"
       session_status: "active" | "completed"
       tariff_type: "hourly" | "package"
-      tenant_status: "pending" | "trial" | "active" | "suspended" | "blocked"
+      tenant_status:
+        | "pending"
+        | "trial"
+        | "active"
+        | "suspended"
+        | "blocked"
+        | "expired"
       user_role: "platform_owner" | "club_admin" | "cashier"
     }
     CompositeTypes: {
@@ -1122,7 +1299,14 @@ export const Constants = {
       payment_method: ["cash", "kaspi", "split"],
       session_status: ["active", "completed"],
       tariff_type: ["hourly", "package"],
-      tenant_status: ["pending", "trial", "active", "suspended", "blocked"],
+      tenant_status: [
+        "pending",
+        "trial",
+        "active",
+        "suspended",
+        "blocked",
+        "expired",
+      ],
       user_role: ["platform_owner", "club_admin", "cashier"],
     },
   },
