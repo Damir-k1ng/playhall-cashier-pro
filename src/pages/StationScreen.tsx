@@ -354,6 +354,7 @@ export function StationScreen() {
                   'hover:border-primary hover:shadow-glow-md transition-all duration-300'
                 )}
                 variant="ghost"
+                disabled={isStartingSession}
                 onClick={() => handleStartSession('hourly')}
               >
                 <Play className="w-10 h-10 text-primary" />
@@ -361,20 +362,46 @@ export function StationScreen() {
                 <span className="text-base text-muted-foreground">{formatCurrency(station.hourly_rate)}/час</span>
               </Button>
               
-              <Button
-                size="lg"
-                className={cn(
-                  'h-40 flex-col gap-4 text-xl rounded-2xl',
-                  'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
-                  'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
-                )}
-                variant="ghost"
-                onClick={() => handleStartSession('package')}
-              >
-                <Play className="w-10 h-10 text-success" />
-                <span className="font-bold text-success">Пакет 2+1</span>
-                <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
-              </Button>
+              {packagePresets.length > 0 ? (
+                /* Show individual package presets */
+                packagePresets.map((preset: any) => (
+                  <Button
+                    key={preset.id}
+                    size="lg"
+                    className={cn(
+                      'h-40 flex-col gap-4 text-xl rounded-2xl',
+                      'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
+                      'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
+                    )}
+                    variant="ghost"
+                    disabled={isStartingSession}
+                    onClick={() => handleStartSession('package', preset.id)}
+                  >
+                    <Play className="w-10 h-10 text-success" />
+                    <span className="font-bold text-success">{preset.name}</span>
+                    <span className="text-base text-muted-foreground">
+                      {formatCurrency(preset.price)} · {preset.duration_hours} ч
+                    </span>
+                  </Button>
+                ))
+              ) : (
+                /* Fallback: legacy package button using station.package_rate */
+                <Button
+                  size="lg"
+                  className={cn(
+                    'h-40 flex-col gap-4 text-xl rounded-2xl',
+                    'bg-gradient-to-br from-success/20 to-success/5 border-2 border-success/30',
+                    'hover:border-success hover:shadow-glow-emerald transition-all duration-300'
+                  )}
+                  variant="ghost"
+                  disabled={isStartingSession}
+                  onClick={() => handleStartSession('package')}
+                >
+                  <Play className="w-10 h-10 text-success" />
+                  <span className="font-bold text-success">Пакет 2+1</span>
+                  <span className="text-base text-muted-foreground">{formatCurrency(station.package_rate)}</span>
+                </Button>
+              )}
             </div>
           </div>
         ) : (
