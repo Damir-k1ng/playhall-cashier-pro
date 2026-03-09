@@ -1588,10 +1588,9 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
   
   // Format the response
   const formattedTenants = tenants.map((t: any) => {
-    // Check if trial has expired to update status in response
     let effectiveStatus = t.status
     if (t.status === 'trial' && t.trial_until && new Date() > new Date(t.trial_until)) {
-      effectiveStatus = 'suspended' // Automatically suspended if trial expired
+      effectiveStatus = 'suspended'
     }
     
     return {
@@ -1599,8 +1598,10 @@ async function handlePlatformListTenants(ctx: Ctx): Promise<Response> {
       club_name: t.club_name,
       city: t.city,
       status: effectiveStatus,
+      plan: t.plan,
       stations_count: t.stations?.length || 0,
       trial_until: t.trial_until,
+      approved_at: t.approved_at,
       created_at: t.created_at,
       signup_email: t.signup_email,
       signup_phone: t.signup_phone
