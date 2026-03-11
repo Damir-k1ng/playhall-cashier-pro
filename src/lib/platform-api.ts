@@ -88,6 +88,10 @@ class PlatformApiClient {
   async getAuditLog() {
     return this.request('/platform/audit-log');
   }
+
+  async getAnalytics() {
+    return this.request('/platform/analytics');
+  }
 }
 
 export const platformApi = new PlatformApiClient();
