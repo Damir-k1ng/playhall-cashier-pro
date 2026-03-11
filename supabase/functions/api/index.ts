@@ -1962,6 +1962,65 @@ async function handlePlatformGetAuditLog(ctx: Ctx): Promise<Response> {
 }
 
 
+async function handlePlatformAnalytics(ctx: Ctx): Promise<Response> {
+  const { supabase, cors } = ctx
+
+  const { data: tenants } = await supabase.from('tenants').select('id, status, city, created_at')
+  const allTenants = tenants || []
+
+  const { count: totalStations } = await supabase.from('stations').select('id', { count: 'exact', head: true })
+
+  const { data: subscriptions } = await supabase.from('subscriptions').select('id, status, plan_id')
+  const allSubs = subscriptions || []
+  const activeSubs = allSubs.filter((s: any) => s.status === 'active')
+
+  const { data: payments } = await supabase.from('subscription_payments').select('id, amount, status, created_at, paid_at')
+  const allPayments = payments || []
+  const paidPayments = allPayments.filter((p: any) => p.status === 'paid')
+
+  const { data: plans } = await supabase.from('plans').select('id, price_monthly')
+  const planMap: Record<string, number> = {}
+  for (const p of (plans || [])) planMap[p.id] = p.price_monthly
+
+  let mrr = 0
+  for (const sub of activeSubs) mrr += planMap[(sub as any).plan_id] || 0
+
+  const summary = {
+    total_clubs: allTenants.length,
+    active_clubs: allTenants.filter((t: any) => t.status === 'active').length,
+    trial_clubs: allTenants.filter((t: any) => t.status === 'trial').length,
+    pending_clubs: allTenants.filter((t: any) => t.status === 'pending').length,
+    suspended_clubs: allTenants.filter((t: any) => t.status === 'suspended').length,
+    blocked_clubs: allTenants.filter((t: any) => t.status === 'blocked').length,
+    expired_clubs: allTenants.filter((t: any) => t.status === 'expired').length,
+    total_subscriptions: allSubs.length,
+    active_subscriptions: activeSubs.length,
+    mrr,
+    total_revenue: paidPayments.reduce((sum: number, p: any) => sum + p.amount, 0),
+    total_stations: totalStations || 0,
+  }
+
+  const clubsByMonth: Record<string, number> = {}
+  for (const t of allTenants) clubsByMonth[(t as any).created_at.slice(0, 7)] = (clubsByMonth[(t as any).created_at.slice(0, 7)] || 0) + 1
+  const clubs_by_month = Object.entries(clubsByMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([month, count]) => ({ month, count }))
+
+  const revByMonth: Record<string, number> = {}
+  for (const p of paidPayments) {
+    const m = ((p as any).paid_at || (p as any).created_at).slice(0, 7)
+    revByMonth[m] = (revByMonth[m] || 0) + (p as any).amount
+  }
+  const revenue_by_month = Object.entries(revByMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([month, amount]) => ({ month, amount }))
+
+  const cityCount: Record<string, number> = {}
+  for (const t of allTenants) {
+    const city = (t as any).city || 'Unknown'
+    cityCount[city] = (cityCount[city] || 0) + 1
+  }
+  const clubs_by_city = Object.entries(cityCount).sort(([, a], [, b]) => b - a).map(([city, count]) => ({ city, count }))
+
+  return jsonResponse({ summary, clubs_by_month, revenue_by_month, clubs_by_city }, cors)
+}
+
 async function handleSetupClub(ctx: Ctx): Promise<Response> {
   const { supabase, cors, tenant_id } = ctx
   if (!tenant_id) return errorResponse('tenant_id required', cors, 400)
