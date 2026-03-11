@@ -1637,18 +1637,28 @@ async function handlePlatformCreateTenant(ctx: Ctx): Promise<Response> {
     slug = slug + '-' + Date.now().toString(36).slice(-4)
   }
   
-  // New tenants start as "pending" — no trial access until approved
+  // Determine initial status
+  const initialStatus = ['pending', 'trial', 'active'].includes(body.initial_status) ? body.initial_status : 'pending'
+  const trialDays = body.trial_days || 14
+  
+  const insertData: any = {
+    club_name: body.club_name,
+    city: body.city,
+    signup_email: body.signup_email,
+    signup_phone: body.signup_phone,
+    status: initialStatus,
+    plan: 'trial',
+    slug,
+  }
+  
+  // If starting as trial, set trial_until
+  if (initialStatus === 'trial') {
+    insertData.trial_until = new Date(Date.now() + trialDays * 86400000).toISOString()
+  }
+
   const { data: tenant, error } = await supabase
     .from('tenants')
-    .insert([{
-      club_name: body.club_name,
-      city: body.city,
-      signup_email: body.signup_email,
-      signup_phone: body.signup_phone,
-      status: 'pending',
-      plan: 'trial',
-      slug,
-    }])
+    .insert([insertData])
     .select()
     .single()
     
