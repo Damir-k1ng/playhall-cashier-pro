@@ -32,7 +32,7 @@ class PlatformApiClient {
     return this.request('/platform/tenants');
   }
 
-  async createTenant(data: { club_name: string; city?: string; signup_email?: string; signup_phone?: string; admin_name?: string; admin_pin?: string }) {
+  async createTenant(data: { club_name: string; city?: string; signup_email?: string; signup_phone?: string; admin_name?: string; admin_pin?: string; initial_status?: string; trial_days?: number }) {
     return this.request('/platform/tenants', { method: 'POST', body: JSON.stringify(data) });
   }
 
@@ -87,6 +87,10 @@ class PlatformApiClient {
 
   async getAuditLog() {
     return this.request('/platform/audit-log');
+  }
+
+  async getAnalytics() {
+    return this.request('/platform/analytics');
   }
 }
 
