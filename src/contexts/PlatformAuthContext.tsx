@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { platformApi } from '@/lib/platform-api';
 
 interface PlatformUser {
   id: string;
@@ -28,7 +29,7 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchPlatformUser(session.user.id);
+        fetchPlatformUser();
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -42,31 +43,29 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
   async function checkSession() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      await fetchPlatformUser(session.user.id);
+      await fetchPlatformUser();
     } else {
       setIsLoading(false);
     }
   }
 
-  async function fetchPlatformUser(authUserId: string) {
+  async function fetchPlatformUser() {
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('id, name, email, role')
-        .eq('auth_user_id', authUserId)
-        .eq('role', 'platform_owner')
-        .single();
+      const data = await platformApi.getMe();
 
-      if (data) {
+      if (data && data.id) {
         setUser({ id: data.id, name: data.name, email: data.email || '', role: data.role });
         setIsAuthenticated(true);
       } else {
-        // Not a platform_owner
         await supabase.auth.signOut();
         setIsAuthenticated(false);
         setUser(null);
       }
-    } catch {
+    } catch (err: any) {
+      const message = err?.message || '';
+      if (message.includes('Unauthorized') || message.includes('Not authenticated')) {
+        await supabase.auth.signOut();
+      }
       setIsAuthenticated(false);
       setUser(null);
     }

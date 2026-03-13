@@ -2339,6 +2339,15 @@ Deno.serve(async (req) => {
       if (!platformUser) return errorResponse('Unauthorized', corsHeaders, 401)
       
       const ctx: Ctx = { req, supabase, platformUser, url, cors: corsHeaders, path, method, pathParts }
+
+      if (path === '/platform/auth/me' && method === 'GET') {
+        return jsonResponse({
+          id: platformUser.id,
+          name: platformUser.name,
+          email: platformUser.email || '',
+          role: platformUser.role,
+        }, corsHeaders)
+      }
       
       if (path === '/platform/tenants' && method === 'GET') return await handlePlatformListTenants(ctx)
       if (path === '/platform/tenants' && method === 'POST') return await handlePlatformCreateTenant(ctx)

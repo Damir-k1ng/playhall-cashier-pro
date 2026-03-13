@@ -27,6 +27,10 @@ class PlatformApiClient {
     return data;
   }
 
+  async getMe() {
+    return this.request('/platform/auth/me');
+  }
+
   // Tenants
   async getTenants() {
     return this.request('/platform/tenants');
