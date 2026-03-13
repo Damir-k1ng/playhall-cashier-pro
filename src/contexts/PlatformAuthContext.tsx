@@ -61,8 +61,8 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(false);
         setUser(null);
       }
-    } catch (err: any) {
-      const message = err?.message || '';
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
       if (message.includes('Unauthorized') || message.includes('Not authenticated')) {
         await supabase.auth.signOut();
       }
