@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { platformApi } from '@/lib/platform-api';
 
 interface PlatformUser {
   id: string;
@@ -29,7 +28,7 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchPlatformUser();
+        fetchPlatformUser(session.user.id);
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -43,17 +42,24 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
   async function checkSession() {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      await fetchPlatformUser();
+      await fetchPlatformUser(session.user.id);
     } else {
       setIsLoading(false);
     }
   }
 
-  async function fetchPlatformUser() {
+  async function fetchPlatformUser(authUserId: string) {
     try {
-      const data = await platformApi.getMe();
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email, role')
+        .eq('auth_user_id', authUserId)
+        .eq('role', 'platform_owner')
+        .maybeSingle();
 
-      if (data && data.id) {
+      if (error) throw error;
+
+      if (data) {
         setUser({ id: data.id, name: data.name, email: data.email || '', role: data.role });
         setIsAuthenticated(true);
       } else {
@@ -61,11 +67,7 @@ export function PlatformAuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(false);
         setUser(null);
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '';
-      if (message.includes('Unauthorized') || message.includes('Not authenticated')) {
-        await supabase.auth.signOut();
-      }
+    } catch {
       setIsAuthenticated(false);
       setUser(null);
     }
