@@ -1160,6 +1160,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_tenant_id: { Args: { _auth_uid: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1178,6 +1179,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_platform_owner: { Args: { _auth_uid: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "cashier"
