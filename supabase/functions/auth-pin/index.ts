@@ -1,18 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Allow all lovable.app and lovableproject.com origins dynamically
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false
-  
-  // Allow any lovable.app subdomain
-  if (origin.includes('.lovable.app')) return true
-  
-  // Allow any lovableproject.com subdomain
-  if (origin.includes('.lovableproject.com')) return true
-  
+
   // Allow localhost for development
   if (origin.startsWith('http://localhost:')) return true
-  
+
   return false
 }
 
