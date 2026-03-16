@@ -3,8 +3,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // ==================== CORS ====================
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false
-  if (origin.includes('.lovable.app')) return true
-  if (origin.includes('.lovableproject.com')) return true
   if (origin.startsWith('http://localhost:')) return true
   return false
 }
