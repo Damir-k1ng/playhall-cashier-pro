@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GlobalTimerProvider } from "@/contexts/GlobalTimerContext";
 import { NetworkStatusProvider } from "@/contexts/NetworkStatusContext";
 import { PlatformAuthProvider, usePlatformAuth } from "@/contexts/PlatformAuthContext";
+import { ClubAdminAuthProvider, useClubAdminAuth } from "@/contexts/ClubAdminAuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import AppShell from "./pages/AppShell";
@@ -23,6 +24,13 @@ import PlatformSubscriptions from "./pages/platform/PlatformSubscriptions";
 import PlatformPayments from "./pages/platform/PlatformPayments";
 import PlatformAnalytics from "./pages/platform/PlatformAnalytics";
 import { PlatformLayout } from "./components/platform/PlatformLayout";
+import ClubAdminLogin from "./pages/club-admin/ClubAdminLogin";
+import ClubAdminCashiers from "./pages/club-admin/ClubAdminCashiers";
+import ClubAdminStations from "./pages/club-admin/ClubAdminStations";
+import ClubAdminDrinks from "./pages/club-admin/ClubAdminDrinks";
+import ClubAdminAnalytics from "./pages/club-admin/ClubAdminAnalytics";
+import ClubAdminSettings from "./pages/club-admin/ClubAdminSettings";
+import { ClubAdminLayout } from "./components/club-admin/ClubAdminLayout";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +48,14 @@ function PlatformGuard({ children }: { children: React.ReactNode }) {
   return <PlatformLayout>{children}</PlatformLayout>;
 }
 
+function ClubAdminGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, user } = useClubAdminAuth();
+  const { slug } = useParams();
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Загрузка...</div>;
+  if (!isAuthenticated || (user && user.tenant_slug !== slug)) return <Navigate to={`/club/${slug}/login`} replace />;
+  return <ClubAdminLayout>{children}</ClubAdminLayout>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -47,6 +63,7 @@ const App = () => (
         <NetworkStatusProvider>
           <AuthProvider>
           <PlatformAuthProvider>
+          <ClubAdminAuthProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -70,6 +87,14 @@ const App = () => (
               <Route path="/precheck/:sessionId" element={<Navigate to="/login" replace />} />
               <Route path="/payment/:sessionId" element={<Navigate to="/login" replace />} />
 
+              {/* Club Admin panel */}
+              <Route path="/club/:slug/login" element={<ClubAdminLogin />} />
+              <Route path="/club/:slug/admin" element={<ClubAdminGuard><ClubAdminCashiers /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/stations" element={<ClubAdminGuard><ClubAdminStations /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/drinks" element={<ClubAdminGuard><ClubAdminDrinks /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/analytics" element={<ClubAdminGuard><ClubAdminAnalytics /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/settings" element={<ClubAdminGuard><ClubAdminSettings /></ClubAdminGuard>} />
+
               {/* Platform routes */}
               <Route path="/platform/login" element={<PlatformLogin />} />
               <Route path="/platform" element={<PlatformGuard><PlatformDashboard /></PlatformGuard>} />
@@ -82,6 +107,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </ClubAdminAuthProvider>
           </PlatformAuthProvider>
           </AuthProvider>
         </NetworkStatusProvider>
