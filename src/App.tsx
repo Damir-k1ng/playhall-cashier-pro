@@ -48,6 +48,14 @@ function PlatformGuard({ children }: { children: React.ReactNode }) {
   return <PlatformLayout>{children}</PlatformLayout>;
 }
 
+function ClubAdminGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, user } = useClubAdminAuth();
+  const { slug } = useParams();
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Загрузка...</div>;
+  if (!isAuthenticated || (user && user.tenant_slug !== slug)) return <Navigate to={`/club/${slug}/login`} replace />;
+  return <ClubAdminLayout>{children}</ClubAdminLayout>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
