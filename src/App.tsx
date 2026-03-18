@@ -63,6 +63,7 @@ const App = () => (
         <NetworkStatusProvider>
           <AuthProvider>
           <PlatformAuthProvider>
+          <ClubAdminAuthProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -86,6 +87,14 @@ const App = () => (
               <Route path="/precheck/:sessionId" element={<Navigate to="/login" replace />} />
               <Route path="/payment/:sessionId" element={<Navigate to="/login" replace />} />
 
+              {/* Club Admin panel */}
+              <Route path="/club/:slug/login" element={<ClubAdminLogin />} />
+              <Route path="/club/:slug/admin" element={<ClubAdminGuard><ClubAdminCashiers /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/stations" element={<ClubAdminGuard><ClubAdminStations /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/drinks" element={<ClubAdminGuard><ClubAdminDrinks /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/analytics" element={<ClubAdminGuard><ClubAdminAnalytics /></ClubAdminGuard>} />
+              <Route path="/club/:slug/admin/settings" element={<ClubAdminGuard><ClubAdminSettings /></ClubAdminGuard>} />
+
               {/* Platform routes */}
               <Route path="/platform/login" element={<PlatformLogin />} />
               <Route path="/platform" element={<PlatformGuard><PlatformDashboard /></PlatformGuard>} />
@@ -98,6 +107,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </ClubAdminAuthProvider>
           </PlatformAuthProvider>
           </AuthProvider>
         </NetworkStatusProvider>
