@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { GlobalTimerProvider } from "@/contexts/GlobalTimerContext";
 import { NetworkStatusProvider } from "@/contexts/NetworkStatusContext";
 import { PlatformAuthProvider, usePlatformAuth } from "@/contexts/PlatformAuthContext";
+import { ClubAdminAuthProvider, useClubAdminAuth } from "@/contexts/ClubAdminAuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import AppShell from "./pages/AppShell";
@@ -23,6 +24,13 @@ import PlatformSubscriptions from "./pages/platform/PlatformSubscriptions";
 import PlatformPayments from "./pages/platform/PlatformPayments";
 import PlatformAnalytics from "./pages/platform/PlatformAnalytics";
 import { PlatformLayout } from "./components/platform/PlatformLayout";
+import ClubAdminLogin from "./pages/club-admin/ClubAdminLogin";
+import ClubAdminCashiers from "./pages/club-admin/ClubAdminCashiers";
+import ClubAdminStations from "./pages/club-admin/ClubAdminStations";
+import ClubAdminDrinks from "./pages/club-admin/ClubAdminDrinks";
+import ClubAdminAnalytics from "./pages/club-admin/ClubAdminAnalytics";
+import ClubAdminSettings from "./pages/club-admin/ClubAdminSettings";
+import { ClubAdminLayout } from "./components/club-admin/ClubAdminLayout";
 
 const queryClient = new QueryClient({
   defaultOptions: {
